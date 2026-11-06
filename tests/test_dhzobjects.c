@@ -26,6 +26,7 @@ void Obj_CollapsingPlatform(Sst *obj);
 void Obj_OOZBreakBoost(Sst *self);
 void Obj_OOZFan(Sst *self);
 void Obj_Octus(Sst *self);
+void Obj_Aquis(Sst *self);
 void Spikes_HurtCharacter(Sst *self, Sst *chr, int who);
 extern const uint8_t Mappings_DHZVines[]; // (the resources define their tables: a test names them from here)
 extern const uint8_t Mappings_SFZHookChain[];
@@ -927,6 +928,42 @@ static void OOZ_TheOctusWaitsRisesAndFiresAShotAndAPuff(void) {
     CHECK_EQ(shot->collision_flags, 0); // (the pre-beta gives it none)
 }
 
+// --- 50 (Oil Ocean's Aquis) ---
+
+static void OOZ_TheAquisPatrolsLeapsAtSonicAndSpitsAHarmlessShot(void) {
+    Reset(ZoneId_OOZ);
+    const int16_t saved_water = wtr_pos1; // (the level's water: other tests read it)
+    wtr_pos1 = 400;
+    Sst *aquis = Spawn(0x50, 0x1F, 300, 400);
+    Obj_Aquis(aquis);
+    CHECK_EQ(aquis->collision_flags, 0x0A);
+    CHECK_EQ(CountOf(0x50, 4), 1); // the fin
+    CHECK(aquis->x_vel != 0);
+    // at the surface, facing right, with Sonic above it and in front
+    ((uint8_t *)aquis->own.u8)[0x2C - 0x28] = 0xFF; // (at the surface)
+    aquis->status |= SST_STATUS_X_FLIP;
+    player->x_pos.f.u = 300 + 0x40;
+    player->y_pos.f.u = 400 - 0x20;
+    Obj_Aquis(aquis);
+    CHECK_EQ(aquis->routine_secondary, 4);
+    CHECK_EQ(aquis->anim, 1);
+    for (int i = 0; i < 60 && CountOf(0x50, 6) == 0; i++)
+        Obj_Aquis(aquis);
+    CHECK_EQ(CountOf(0x50, 6), 1);
+    Sst *shot = NULL;
+    for (int i = 0x20; i < 0x60; i++)
+        if (sst[i].code == sst_object_codes[0x50] && sst[i].routine == 6)
+            shot = &sst[i];
+    CHECK(shot != NULL);
+    if (shot == NULL) {
+        wtr_pos1 = saved_water;
+        return;
+    }
+    CHECK_EQ(shot->x_vel, 0x300);
+    CHECK_EQ(shot->collision_flags, 0xE5); // (a type nothing in the pre-beta handles: it hurts nobody)
+    wtr_pos1 = saved_water;
+}
+
 void RegisterDHZObjectTests(void) {
     RUN_TEST(DHZ_TheCradleSwingsOutOnOneSideOnlyAndTheMiddleHangsStill);
     RUN_TEST(DHZ_TheCollapsingPlatformBreaksIntoSixPiecesOnceStoodOn);
@@ -960,6 +997,7 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(OOZ_ABlockBreaksUnderARollingCharacterAndCarriesHimAlong);
     RUN_TEST(OOZ_TheVerticalBlockSendsHimUp);
     RUN_TEST(OOZ_TheOctusWaitsRisesAndFiresAShotAndAPuff);
+    RUN_TEST(OOZ_TheAquisPatrolsLeapsAtSonicAndSpitsAHarmlessShot);
     RUN_TEST(OOZ_AVerticalFanPushesACharacterSidewaysWhileItBlows);
     RUN_TEST(OOZ_AHorizontalFanLiftsAndTumblesACharacter);
     RUN_TEST(OOZ_TheFanSpinsUpForAWhileThenBlows);

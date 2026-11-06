@@ -4,5 +4,6 @@
 #include "Sst.h"
 
 void Obj_Octus(Sst *self);
+void Obj_Aquis(Sst *self);
 
 #endif //_OOZBADNIKS_H

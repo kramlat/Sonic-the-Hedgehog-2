@@ -142,7 +142,8 @@ static void Launcher_Launch(Sst *self, Sst *chr, int who) {
     chr->y_vel = -0x1000;
     chr->status &= (uint8_t)~SST_PSTATUS_OBJECT_STAND;
     OBJ_CONTROL(chr) = 0;
-    PlaySound(sfx_Spring);
+    if ((self->render_flags & SST_RENDER_ON_SCREEN)) // (Play_Sfx_Ex: only when the platform is on screen)
+        PlaySound(sfx_Spring);
 }
 
 void Obj_OOZLauncher(Sst *self) {
@@ -186,7 +187,8 @@ void Obj_OOZLauncher(Sst *self) {
             own->wait = 0x78;
             own->speed = (int32_t)0xFFF69800;
             self->routine_secondary += 2;
-            PlaySound(sfx_OOZLidPop);
+            if ((self->render_flags & SST_RENDER_ON_SCREEN))
+                PlaySound(sfx_OOZLidPop);
         }
         break;
     case Launcher_Bounce: {
@@ -222,7 +224,8 @@ void Obj_OOZLauncher(Sst *self) {
         }
         own->speed = (int32_t)0xFFF69800;
         self->routine_secondary += 2;
-        PlaySound(sfx_OOZLidPop);
+        if ((self->render_flags & SST_RENDER_ON_SCREEN))
+            PlaySound(sfx_OOZLidPop);
         break;
     }
     case Launcher_Rise: {
@@ -284,13 +287,15 @@ static void Spikeball_Move(Sst *ball) {
         ball->x_pos.f.u--;
         if (ball->x_pos.f.u == own->left) {
             own->right_going = 1;
-            PlaySound(sfx_SlidingSpike);
+            if ((ball->render_flags & SST_RENDER_ON_SCREEN)) // (Play_Sfx_Ex)
+                PlaySound(sfx_SlidingSpike);
         }
     } else {
         ball->x_pos.f.u++;
         if (ball->x_pos.f.u == own->right) {
             own->right_going = 0;
-            PlaySound(sfx_SlidingSpike);
+            if ((ball->render_flags & SST_RENDER_ON_SCREEN)) // (Play_Sfx_Ex)
+                PlaySound(sfx_SlidingSpike);
         }
     }
 }
@@ -347,7 +352,8 @@ void Obj_OOZSpikeball(Sst *self) {
             if ((int16_t)(other->x_pos.f.u + 0x18) == (int16_t)(self->x_pos.f.u - 0x18)) {
                 own->right_going ^= 1;
                 ((Own_Spikeball *)other->own.u8)->right_going ^= 1;
-                PlaySound(sfx_SlidingSpike);
+                if ((self->render_flags & SST_RENDER_ON_SCREEN)) // (Play_Sfx_Ex)
+                    PlaySound(sfx_SlidingSpike);
             }
         }
         Sst_Draw(self);
@@ -740,6 +746,8 @@ static void Cannon_Char(Sst *self, Own_Cannon *own, Sst *chr, int who) {
         if ((uint16_t)(chr->x_pos.f.u - self->x_pos.f.u + 0x10) >= 0x20)
             return;
         if ((uint16_t)(chr->y_pos.f.u - self->y_pos.f.u + 0x10) >= 0x20)
+            return;
+        if (chr->routine >= 6) // (a dead character is not caught)
             return;
         if (((chr->status & SST_PSTATUS_OBJECT_STAND) != 0) && sscratch->standing_obj >= STANDING_SST) { // (it was on another cannon: that one lets go of it)
             Sst *prev = &sst[(sscratch->standing_obj - STANDING_SST) % SST_COUNT];

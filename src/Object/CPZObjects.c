@@ -65,11 +65,9 @@ typedef struct {
     int16_t base_y;   // 0x32
 } Own_Elevator;
 
-// loc_1622E: the width and the mapping frame of each size
-// (the alpha's, for Chemical Plant and Oil Ocean: the third frame is a platform of $80 pixels; the prototype's was $40)
-// Sand Shower's: its four frames of the staged mappings, 64, 48, 128 and 64 pixels wide ($20, $18, $40 and $20 either side)
-static const uint8_t elevator_sizes_ssz[4][2] = { { 0x20, 0 }, { 0x18, 1 }, { 0x40, 2 }, { 0x20, 3 } };
-static const uint8_t elevator_sizes_alpha[5][2] = { { 0x20, 0 }, { 0x18, 1 }, { 0x40, 2 }, { 0x40, 3 }, { 0x30, 4 } };
+// The width and the mapping frame of each size: four frames, 64, 48, 128 and 64 pixels wide ($20, $18, $40 and $20 either side). The pre-beta's table (Offset_0x01CAA2) for Chemical Plant and Oil Ocean, and
+// Sand Shower's, with its own mappings, are the same four
+static const uint8_t elevator_sizes[4][2] = { { 0x20, 0 }, { 0x18, 1 }, { 0x40, 2 }, { 0x20, 3 } };
 
 // The oscillators of the prototype's Oscillating_Data, by their offset (4 bytes each): the high byte of the value
 static int16_t Osc(int offset) {
@@ -141,19 +139,19 @@ void Obj_CPZElevator(Sst *self) {
         self->routine += 2;
         const bool oil = LEVEL_ZONE(level_id) == ZoneId_OOZ;
         const bool sand = LEVEL_ZONE(level_id) == ZoneId_SSZ; // (Sand Shower's, the staged objpatch-19.asm: its own mappings, drawn from the level's tiles)
-        self->mappings = sand ? Mappings_SSZPlatform : Mappings_OOZElevator; // (the alpha's, for both zones: five frames)
+        self->mappings = sand ? Mappings_SSZPlatform : Mappings_OOZElevator; // (the pre-beta's Rotating_Platforms_Mappings: four frames)
         self->art_tile = sand ? TILE_MAP(0, 0, 0, 0, 0) : TILE_MAP(0, 3, 0, 0, oil ? 0x2F4 : 0x3A0); // (the alpha's art list puts Oil Ocean's at $5E80)
         self->render_flags = SST_RENDER_LEVEL;
         int size = (self->subtype >> 4) & 0xF;
-        if (size > (sand ? 3 : 4))
-            size = sand ? 3 : 4;
-        self->width_pixels = sand ? elevator_sizes_ssz[size][0] : elevator_sizes_alpha[size][0];
-        self->mapping_frame = sand ? elevator_sizes_ssz[size][1] : elevator_sizes_alpha[size][1];
+        if (size > 3)
+            size = 3;
+        self->width_pixels = elevator_sizes[size][0];
+        self->mapping_frame = elevator_sizes[size][1];
         self->priority = 4 * 0x80;
         own->base_x = self->x_pos.f.u;
         own->base_y = self->y_pos.f.u;
         self->subtype &= 0xF;
-        if (self->subtype == 7)
+        if (self->subtype == 7 || (self->subtype == 3 && (self->status & SST_STATUS_X_FLIP)))
             self->y_pos.f.u -= 0xC0;
     }
 

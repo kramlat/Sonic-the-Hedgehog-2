@@ -122,6 +122,7 @@ void Obj_OOZCannon(Sst *self);
 void Obj_OOZBreakBoost(Sst *self);
 void Obj_OOZFan(Sst *self);
 void Obj_Octus(Sst *self);
+void Obj_Aquis(Sst *self);
 void Obj_OOZLauncher(Sst *self);
 void Obj_OOZPushSpring(Sst *self);
 void Obj_OOZSpikeball(Sst *self);
@@ -190,7 +191,7 @@ void Obj_TailsTails(Sst *obj);
 
 
 // The ids without a routine here are skipped by the loader (their layout entries stay in the level, no object is made):
-//   not ported yet: 0F (Nick Arcade's Unknown0F), 10 (SonAniTest), 23 and 2B and 3D (the prototype's own objects), 4A (Octus), 50 (Seahorse), 59 (the alpha's Motobug, unlinked: its code is in EHZBadniks.c),
+//   not ported yet: 0F (Nick Arcade's Unknown0F), 10 (SonAniTest), 23 and 2B and 3D (the prototype's own objects), 4A (Octus), 59 (the alpha's Motobug, unlinked: its code is in EHZBadniks.c),
 //     99 (Nebula), 9A (Turtloid), 9B (Turtloid rider), 9C (enemy boost), AC (Balkiry), AD (Clucker platform), AE (Clucker)
 //   removed in Nick Arcade: 35, 5A, 5D to 63, 73, 7C, 82, 85 to 88, 8B
 
@@ -237,6 +238,7 @@ const SstCode sst_object_codes[0x100] = {
 	[0x3D] = Obj_OOZBreakBoost,
 	[0x3F] = Obj_OOZFan,
 	[0x4A] = Obj_Octus,
+	[0x50] = Obj_Aquis,
 	[0x48] = Obj_OOZCannon,
 	[0x49] = Obj_EHZWaterfall,
 	[0x4B] = Obj_Buzzer,
