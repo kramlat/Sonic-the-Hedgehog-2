@@ -2,6 +2,7 @@
 #include "Constants.h"
 
 #include "Level.h"
+#include "Object/BossCommon.h"
 #include "MathUtil.h"
 #include "Palette.h"
 #include "SpecialStage.h"
@@ -263,7 +264,11 @@ static const uint16_t PCyc_Cnz1[18] = {
     0x000E, 0x00EE, 0x006E, 0x006E, 0x000E, 0x00EE, 0x00EE, 0x006E, 0x000E,
     0x00EC, 0x0080, 0x00C4, 0x00C4, 0x00EC, 0x0080, 0x0080, 0x00C4, 0x00EC,
 };
-static const uint16_t PCyc_Cnz2[9] = { 0x0044, 0x0088, 0x00EE, 0x0088, 0x00EE, 0x0044, 0x00EE, 0x0044, 0x0088 };
+static const uint16_t PCyc_Cnz2[9] = { 0x0C06, 0x0C0A, 0x0C2E, 0x0C0A, 0x0C2E, 0x0C06, 0x0C2E, 0x0C06, 0x0C0A }; // (the pre-beta's: the alpha's were blues)
+// the boss's lights, run while Boss_Flag is set (Pal_CNzCyc4 to 6)
+static const uint16_t PCyc_Cnz4[9] = { 0x006E, 0x00AE, 0x00EE, 0x00AE, 0x00EE, 0x006E, 0x00EE, 0x006E, 0x00AE };
+static const uint16_t PCyc_Cnz5[10] = { 0x0A0E, 0x0C0C, 0x0EA0, 0x00AE, 0x00EA, 0x0AE0, 0x00EA, 0x00AE, 0x0EA0, 0x0C0C };
+static const uint16_t PCyc_Cnz6[8] = { 0x000E, 0x000C, 0x000A, 0x0008, 0x0006, 0x0008, 0x000A, 0x000C };
 static const uint16_t PCyc_Cnz3[20] = {
     0x008E, 0x00AE, 0x00EC, 0x0EEE, 0x00EA, 0x00E4, 0x06C0, 0x0CC4, 0x0E80, 0x0E40,
     0x0E04, 0x0C08, 0x0C2E, 0x080E, 0x040E, 0x000E, 0x004E, 0x006E, 0x008E, 0x00AE,
@@ -393,25 +398,41 @@ static void PCycle_SSZ(void) {
 // Casino Night (PalCycle_CNz): every 8 ticks the lights of lines 3 and 4 (three colours of each of two groups of line 3 and three of line 4, each frame a step along their tables of 3 frames) and
 // three colours of line 4 from 14 steps of three tables
 static void PCycle_CNZ(void) {
-    static int16_t frame1, frame2;
-    if (--pcyc_time >= 0)
-        return;
-    pcyc_time = 7;
-    int at = frame1 / 2;
-    frame1 += 2;
-    if (frame1 >= 6)
-        frame1 = 0;
-    for (int i = 0; i < 3; i++) {
-        dry_palette[2][5 + i] = PCyc_Cnz1[at + i * 3];
-        dry_palette[2][11 + i] = PCyc_Cnz1[at + 9 + i * 3];
-        dry_palette[3][2 + i] = PCyc_Cnz2[at + i * 3];
+    static int16_t frame1, frame2, boss_time, boss1, boss2, boss3;
+    if (--pcyc_time < 0) {
+        pcyc_time = 7;
+        int at = frame1 / 2;
+        frame1 += 2;
+        if (frame1 >= 6)
+            frame1 = 0;
+        for (int i = 0; i < 3; i++) {
+            dry_palette[2][5 + i] = PCyc_Cnz1[at + i * 3];
+            dry_palette[2][11 + i] = PCyc_Cnz1[at + 9 + i * 3];
+            dry_palette[3][2 + i] = PCyc_Cnz2[at + i * 3];
+        }
+        int at3 = frame2 / 2;
+        frame2 += 2;
+        if (frame2 >= 0x24)
+            frame2 = 0;
+        for (int i = 0; i < 3; i++)
+            dry_palette[3][9 + i] = PCyc_Cnz3[at3 + 2 - i];
     }
-    int at3 = frame2 / 2;
-    frame2 += 2;
-    if (frame2 >= 0x24)
-        frame2 = 0;
+    // the boss's lights (every 4 ticks, from the 3 frames of the first table, the 5 of the second and the 4 of the third)
+    if (!boss_flag || --boss_time >= 0)
+        return;
+    boss_time = 3;
+    const int at4 = boss1 / 2;
+    boss1 += 2;
+    if (boss1 >= 6)
+        boss1 = 0;
     for (int i = 0; i < 3; i++)
-        dry_palette[3][9 + i] = PCyc_Cnz3[at3 + 2 - i];
+        dry_palette[1][2 + i] = PCyc_Cnz4[at4 + i * 3];
+    dry_palette[1][14] = PCyc_Cnz5[boss2 / 2];
+    boss2 += 2;
+    if (boss2 >= 0x14)
+        boss2 = 0;
+    dry_palette[1][15] = PCyc_Cnz6[boss3 / 2];
+    boss3 = (boss3 + 2) & 0xE;
 }
 
 // Neo Green Hill (PalCycle_NGHz): Green Hill's cycle table, every 6 ticks, to colours 3-6 of line 3

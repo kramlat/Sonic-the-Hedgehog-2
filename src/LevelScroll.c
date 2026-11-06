@@ -253,9 +253,38 @@ static void Deform_Plain(int x_shift, int y_shift) {
 static void Deform_WZ(void) { Deform_Plain(5, 6); }
 // Oil Ocean (Bg_Scroll_OOz)
 static void Deform_OOZ(void) { Deform_Plain(5, 5); }
-// Casino Night (Bg_Scroll_CNz): a plain background that never redraws (its flags are cleared as they are set: the picture is the whole plane)
+// Casino Night (the pre-beta's Bg_Scroll_CNz): the background is the plane as it is (its X is 0) and a sixty-fourth of the camera's height down; its lines make ten bands of the 384: eight of 16 lines
+// at seven speeds that go from the camera's X to 22/64 of it (the first seven bands, one step of 7/64 of it each) and then 1/16 and 1/16, a band of 16 lines with the wave (Bg_Scroll_Data, read from
+// where the frame counter's eighth says) over the ninth speed, and 240 lines at an eighth
 static void Deform_CNZ(void) {
-	Deform_Plain(6, 2);
+	bg_scrpos_y.v += (int32_t)scrshift_y << 2;
+	vid_bg_scrpos_y_dup = bg_scrpos_y.f.u;
+	const int16_t x = scrpos_x.f.u;
+	int16_t w[10];
+	const int32_t step = (int32_t)(int16_t)((int16_t)(x >> 3) - x) * 8192; // (Offset_0x00A720: a 16.16 step of (x/8 - x)/8)
+	uint32_t acc = (uint16_t)x;
+	for (int k = 0; k < 7; k++) {
+		w[k] = (int16_t)acc;
+		acc = (acc << 16) | (acc >> 16);
+		acc += (uint32_t)step;
+		acc = (acc << 16) | (acc >> 16);
+	}
+	int16_t e = (int16_t)(x >> 3);
+	w[9] = e;
+	e = (int16_t)(e >> 1);
+	w[7] = w[8] = e;
+
+	enum { WAVE = 16 };
+	static const uint16_t heights[10] = { 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, WAVE | SCROLL_BAND_PER_LINE, 0xF0 };
+	int16_t pos[8 + WAVE + 1];
+	int n = 0;
+	for (int k = 0; k < 8; k++)
+		pos[n++] = w[k];
+	const int8_t *wave = Deform_EHZ_Data + ((-((uint8_t)frame_count >> 3)) & 0x1F);
+	for (int i = 0; i < WAVE; i++)
+		pos[n++] = (int16_t)(w[8] - wave[i]); // (the original writes the wave over the negated speed)
+	pos[n++] = w[9];
+	ScrollEngine_ApplyDeformation(heights, 10, pos, (int16_t)(bg_scrpos_y.f.u & 0x1FF), scrpos_x.f.u, true, SCREEN_HEIGHT, hscroll_buffer);
 }
 
 // The prototype's bands of a background (the loop at loc_6526 and loc_6A36): `heights` are the bands' heights in lines and `values` their scroll; the background's own Y says which band is at the top and how
