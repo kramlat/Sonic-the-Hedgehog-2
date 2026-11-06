@@ -20,6 +20,9 @@ my %zones = (
     # Neo Green Hill (ARZ, slot $0F): the files' names have no underscore before Col and Map
     NGHZ => { dir => 'NGHz', prefix => 'NGHz', pal => 'NGHz.pal', water => 'NGHz_UW.pal', water_res => 'NGHZWater', cols => ['NGHzCol1.dat', 'NGHzCol2.dat'], maps => ['NGHzMap1.Kos', 'NGHzMap2.Kos'] },
     CNZ => { dir => 'CNz', prefix => 'CNz', pal => 'CNz.pal' }, # (its blocks $2EC-$2FF are not in Blocks.kos: the level start puts them there, AnimatedArt.c's APM_Casino, the pre-beta's Map16Delta_CNz)
+    # Hill Top: Emerald Hill's tiles (its first $1FC), blocks (to $12F), chunks and collision (the pre-beta's Hill_Top_Colision_Data is Green Hill's) with its own on top: its tiles from $1FC (Tiles.nem), its
+    # blocks from $130 (HTz_16.dat: the same as the port's), then its own layouts, objects, rings and palette; `share` keeps the shared ones, `secondary_tiles` writes its own
+    HTZ => { dir => 'HTz', prefix => 'HTz', pal => 'HTz.pal', share => 1, secondary_tiles => ['Tiles.nem', 'HTZSecondary'] },
     CPZ => { dir => 'CPz', prefix => 'CPz', pal => 'CPz.pal', water => 'CPz_UW.pal', water_res => 'CPZWater' },
     # Sky Fortress: one layout, one object list and one ring list for both acts (the pre-beta's labels for the second are the first's), and its files are named a little differently
     # Death Egg and Sky Chase: one act each, and the tiles, blocks, chunks and collision of another zone (Chemical Plant's and Sky Fortress's: `share`), with a layout, objects and palette of their own; Death Egg has no rings
@@ -78,6 +81,11 @@ unless ($z->{share}) {
     kos("$res/S2Collision/${zone}2", slurp("$src/" . ($z->{cols} ? $z->{cols}[1] : "$z->{prefix}_Col2.dat")));
     run($solids2s3, "$res/S2Collision/$zone", "$res/S2Collision/${zone}1", "$res/S2Collision/${zone}2");
     unlink "$res/S2Collision/${zone}1", "$res/S2Collision/${zone}2";
+}
+if ($z->{secondary_tiles}) {
+    run($nem2kos, "$res/S2Art/$z->{secondary_tiles}[1]", "$src/$z->{secondary_tiles}[0]");
+    # the whole set as one file (the editor and the importer still have those): the primary group, then the secondary
+    kos("$res/S2Art/$zone", unkos("$res/S2Art/EHZPrimary") . unkos("$res/S2Art/$z->{secondary_tiles}[1]"));
 }
 spit("$res/S2Palette/$zone", slurp("$src/$z->{pal}"));
 spit("$res/S2Palette/$z->{water_res}", slurp("$src/$z->{water}")) if $z->{water};

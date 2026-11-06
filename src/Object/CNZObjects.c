@@ -638,8 +638,7 @@ void Obj_CNZCrawl(Sst *self) {
 // ---------------------------------------------------------------------------------------------------------------------------------------
 // Object 84, the pre-beta's Auto Spin (Casino Night's): a line that a character crosses. With the subtype's bit 2 clear it is a vertical line (it tests x) and with it set a horizontal one (y); the
 // subtype's low two bits are how far along it reaches either way ($20, $40, $80, $100). A character who crosses it from the left (above), inside its reach, is put into the pinball mode (rolled up, and
-// kept so: the pre-beta's spin dash flag, MUST_ROLL here) and one who crosses back is let out of it; flipped, it is the other way round. Hill Top and Hidden Palace have the alpha's box until
-// their own import.
+// kept so: the pre-beta's spin dash flag, MUST_ROLL here) and one who crosses back is let out of it; flipped, it is the other way round. Hidden Palace has the alpha's box (Hill Top has the pre-beta's since its own import).
 // ---------------------------------------------------------------------------------------------------------------------------------------
 typedef struct {
     uint8_t subtype;
@@ -723,7 +722,7 @@ static void PreBetaAutoSpin(Sst *self) {
 }
 
 void Obj_AutoSpin(Sst *self) {
-    if (LEVEL_ZONE(level_id) == ZoneId_CNZ)
+    if (LEVEL_ZONE(level_id) == ZoneId_CNZ || LEVEL_ZONE(level_id) == ZoneId_HTZ)
         PreBetaAutoSpin(self);
     else
         AlphaAutoSpin(self);

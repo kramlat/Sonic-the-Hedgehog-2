@@ -121,7 +121,6 @@ void Obj_Spiker(Sst *self) {
                 d->timer = (uint8_t)(self - sst);
                 drill->x_pos.f.u = self->x_pos.f.u;
                 drill->y_pos.f.u = self->y_pos.f.u;
-                drill->collision_flags |= 0x80;
                 drill->mapping_frame = 4;
                 self->mapping_frame = 2;
                 self->anim = 1;

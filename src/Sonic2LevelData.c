@@ -43,8 +43,6 @@
 #include "Resource/S2Art/HTZSecondary.h"
 #include "Resource/S2Map16/HTZSecondary.h"
 #include "Resource/S2Map16/HTZ.h"
-#include "Resource/S2Map128/HTZ.h"
-#include "Resource/S2Collision/HTZ.h"
 // HPZ
 #include "Resource/S2Art/HPZ.h"
 #include "Resource/S2Map16/HPZ.h"
@@ -338,7 +336,7 @@ const LevelLoadBlock level_load_block[ZoneId_Num][4] = {
     [0x03] = LLB_ACTS(LLB(PlcId_SSZ, S2Art_SSZ, PlcId_SSZ2, S2Map16_SSZ, PalId_SSZ, S2Map128_SSZ)),
     [0x04] = LLB_ACTS(LLB(PlcId_MTZ, S2Art_MTZ, PlcId_MTZ2, S2Map16_MTZ, PalId_MTZ, S2Map128_MTZ)),
     [0x06] = LLB_ACTS(LLB(PlcId_SFZ, S2Art_SFZ, PlcId_SFZ2, S2Map16_SFZ, PalId_SFZ, S2Map128_SFZ)),
-    [0x07] = LLB_ACTS({ PlcId_SBZ, PlcId_SBZ2, PalId_HTZ, { S2Art_EHZPrimary, S2Art_HTZSecondary }, { S2Map16_EHZPrimary, S2Map16_HTZSecondary }, { S2Map128_HTZ, S2Map128_HTZ } }),
+    [0x07] = LLB_ACTS({ PlcId_SBZ, PlcId_SBZ2, PalId_HTZ, { S2Art_EHZPrimary, S2Art_HTZSecondary }, { S2Map16_EHZPrimary, S2Map16_HTZSecondary }, { S2Map128_EHZ, S2Map128_EHZ } }), // (the pre-beta's Hill Top has Green Hill's chunks)
     [0x08] = LLB_ACTS(LLB(PlcId_SYZ, S2Art_HPZ, 0, S2Map16_HPZ, PalId_HPZ, S2Map128_HPZ)),
     [0x09] = LLB_ACTS(LLB(0, S2Art_GCZ, 0, S2Map16_GCZ, PalId_GCZ, S2Map128_GCZ)),
     [0x0A] = LLB_ACTS(LLB(PlcId_OOZ, S2Art_OOZ, PlcId_OOZ2, S2Map16_OOZ, PalId_OOZ, S2Map128_OOZ)),
@@ -362,7 +360,7 @@ const uint8_t* level_solids[ZoneId_Num - 1] = {
     [0x03] = S2Collision_SSZ,
     [0x04] = S2Collision_MTZ,
     [0x06] = S2Collision_SFZ,
-    [0x07] = S2Collision_HTZ,
+    [0x07] = S2Collision_EHZ, // (and its collision: Hill_Top_Colision_Data is Green_Hill_Colision_Data's address)
     [0x08] = S2Collision_HPZ,
     [0x09] = S2Collision_GCZ,
     [0x0A] = S2Collision_OOZ,
