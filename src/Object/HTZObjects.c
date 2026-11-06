@@ -325,6 +325,7 @@ void Obj_HTZLift(Sst *self) {
         self->art_tile = TILE_MAP(0, 2, 0, 0, 0x3E6);
         self->render_flags |= SST_RENDER_LEVEL;
         self->width_pixels = 0x20;
+        self->height_pixels = 0x40; // (the pre-beta's: its own height for the sprite)
         self->mapping_frame = 0;
         self->priority = 1 * 0x80;
         scratch->timer = (int16_t)(self->subtype << 3);
@@ -420,6 +421,7 @@ void Obj_HTZBreakFloor(Sst *self) {
         self->art_tile = TILE_MAP(1, 2, 0, 0, 0);
         self->render_flags = SST_RENDER_LEVEL;
         self->width_pixels = 0x10;
+        self->height_pixels = 0x20; // (the pre-beta's)
         self->priority = 4 * 0x80;
         const int height = ((self->subtype & 0x1E) >> 1) % 5;
         self->y_radius = (int8_t)floor_heights[height][0];
