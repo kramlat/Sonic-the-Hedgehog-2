@@ -109,7 +109,7 @@ static void AutoSpin_Roll(Sst *chr) {
         chr->ground_vel = 0x200;
 }
 
-void Obj_AutoSpin(Sst *self) {
+static void AlphaAutoSpin(Sst *self) {
     static const uint8_t collision[4] = { 0xC6, 0x94, 0x95, 0x00 };
     uint8_t subtype = self->subtype;
 
@@ -633,4 +633,98 @@ void Obj_CNZCrawl(Sst *self) {
         SstOnScreenTest(self);
         return;
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// Object 84, the pre-beta's Auto Spin (Casino Night's): a line that a character crosses. With the subtype's bit 2 clear it is a vertical line (it tests x) and with it set a horizontal one (y); the
+// subtype's low two bits are how far along it reaches either way ($20, $40, $80, $100). A character who crosses it from the left (above), inside its reach, is put into the pinball mode (rolled up, and
+// kept so: the pre-beta's spin dash flag, MUST_ROLL here) and one who crosses back is let out of it; flipped, it is the other way round. Hill Top and Hidden Palace have the alpha's box until
+// their own import.
+// ---------------------------------------------------------------------------------------------------------------------------------------
+typedef struct {
+    uint8_t subtype;
+    uint8_t pad[9];
+    int16_t reach;    // 0x32: how far along the line either way
+    uint8_t side[2];  // 0x34, 0x35: which side of the line Sonic and Tails were on (1: right of it, or below)
+} Own_PreBetaAutoSpin;
+
+static void AutoSpin_EnterPinball(Sst *chr) {
+    if (!(chr->status & SST_PSTATUS_IN_BALL)) {
+        chr->status |= SST_PSTATUS_IN_BALL;
+        chr->y_radius = 0x0E;
+        chr->x_radius = 7;
+        chr->anim = SonAnimId_Roll;
+        chr->y_pos.f.u += 5;
+        QueueSound2(sfx_Roll);
+    }
+}
+
+// the line's test for one character: `line` the object's coordinate across it, `pos` the character's, `along` the other's, with the reach about `centre`
+static void AutoSpin_Character(Sst *self, Own_PreBetaAutoSpin *own, Sst *chr, int who, bool horizontal) {
+    const int16_t line = horizontal ? self->y_pos.f.u : self->x_pos.f.u;
+    const int16_t across = horizontal ? chr->y_pos.f.u : chr->x_pos.f.u;
+    const int16_t centre = horizontal ? self->x_pos.f.u : self->y_pos.f.u;
+    const int16_t along = horizontal ? chr->x_pos.f.u : chr->y_pos.f.u;
+    const bool flipped = (self->render_flags & SST_RENDER_X_FLIP) != 0;
+    bool entering;
+    if (!own->side[who]) {
+        if ((uint16_t)line > (uint16_t)across)
+            return; // (still on the first side)
+        own->side[who] = 1;
+        entering = !flipped;
+    } else {
+        if ((uint16_t)line <= (uint16_t)across)
+            return;
+        own->side[who] = 0;
+        entering = flipped;
+    }
+    if ((uint16_t)along < (uint16_t)(centre - own->reach) || (uint16_t)along >= (uint16_t)(centre + own->reach))
+        return; // (not within its reach)
+    if (entering) {
+        chr->status |= SST_PSTATUS_MUST_ROLL;
+        AutoSpin_EnterPinball(chr);
+    } else {
+        chr->status &= (uint8_t)~SST_PSTATUS_MUST_ROLL;
+    }
+}
+
+static void PreBetaAutoSpin(Sst *self) {
+    static const int16_t reaches[4] = { 0x20, 0x40, 0x80, 0x100 };
+    Own_PreBetaAutoSpin *own = (Own_PreBetaAutoSpin *)self->own.u8;
+    const bool horizontal = (self->subtype & 4) != 0;
+
+    if (self->routine == 0) {
+        self->routine += 2;
+        self->mappings = Mappings_AutoSpin;
+        self->art_tile = TILE_MAP(1, 0, 0, 0, 0x680);
+        self->render_flags |= SST_RENDER_LEVEL;
+        self->width_pixels = 0x10;
+        self->priority = 5 * 0x80;
+        self->mapping_frame = (uint8_t)(self->subtype & 3);
+        own->reach = reaches[self->subtype & 3];
+        // which side of the line each character is on at the start
+        const int16_t line = horizontal ? self->y_pos.f.u : self->x_pos.f.u;
+        own->side[0] = (uint16_t)line < (uint16_t)(horizontal ? player->y_pos.f.u : player->x_pos.f.u);
+        own->side[1] = (uint16_t)line < (uint16_t)(horizontal ? TAILS_OBJ->y_pos.f.u : TAILS_OBJ->x_pos.f.u);
+    }
+    if (!debug_use) {
+        AutoSpin_Character(self, own, player, SolidChar_Sonic, horizontal);
+        if (TAILS_OBJ->code != NULL)
+            AutoSpin_Character(self, own, TAILS_OBJ, SolidChar_Tails, horizontal);
+    }
+    if (debug_mode) {
+        SstOnScreenTest(self);
+        return;
+    }
+    if (!camera_split && SstOutOfRange(self->x_pos.f.u)) {
+        Sst_Delete(self);
+        return;
+    }
+}
+
+void Obj_AutoSpin(Sst *self) {
+    if (LEVEL_ZONE(level_id) == ZoneId_CNZ)
+        PreBetaAutoSpin(self);
+    else
+        AlphaAutoSpin(self);
 }

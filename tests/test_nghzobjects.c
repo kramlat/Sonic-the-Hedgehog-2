@@ -360,6 +360,32 @@ static void CNZObjects_TheFlipperThrowsWhoStandsOnItWhenAButtonIsPressed(void) {
     CHECK(player->y_vel < 0); // (thrown up)
 }
 
+static void CNZObjects_TheAutoSpinLineRollsWhoCrossesItAndLetsHimOutBack(void) {
+    Reset();
+    level_id = LEVEL_ID(ZoneId_CNZ, 0);
+    Sst *line = SpawnSst(0x84, 0x01, 500, 300); // (a vertical line reaching $40 either way)
+    player->x_pos.f.u = 480;
+    player->y_pos.f.u = 310;
+    player->status &= (uint8_t)~(SST_PSTATUS_IN_BALL | SST_PSTATUS_MUST_ROLL);
+    Obj_AutoSpin(line);
+    player->x_pos.f.u = 510; // (across it, within its reach)
+    Obj_AutoSpin(line);
+    CHECK((player->status & SST_PSTATUS_IN_BALL) != 0);
+    CHECK((player->status & SST_PSTATUS_MUST_ROLL) != 0);
+    player->x_pos.f.u = 490; // (and back)
+    Obj_AutoSpin(line);
+    CHECK((player->status & SST_PSTATUS_MUST_ROLL) == 0);
+    player->x_pos.f.u = 510;
+    player->y_pos.f.u = 400; // (across it, but too far along it)
+    player->status &= (uint8_t)~SST_PSTATUS_IN_BALL;
+    Obj_AutoSpin(line);
+    player->x_pos.f.u = 490;
+    Obj_AutoSpin(line);
+    player->x_pos.f.u = 510;
+    Obj_AutoSpin(line);
+    CHECK((player->status & SST_PSTATUS_MUST_ROLL) == 0);
+}
+
 static void CNZObjects_TheGreenPlatformTurnsThroughItsFramesAndWaits(void) {
     Reset();
     level_id = LEVEL_ID(ZoneId_CNZ, 0);
@@ -556,6 +582,7 @@ void RegisterNGHZObjectTests(void) {
     RUN_TEST(SSZObjects_TheSwingingPlatformIsDrawnFromTheLevelsTilesWithAChain);
     RUN_TEST(SSZObjects_TheHangingSwingIsAColumnWithThePlatformBelowIt);
     RUN_TEST(CNZObjects_TheGreenBumperThrowsAndGoesAtTheThirdHit);
+    RUN_TEST(CNZObjects_TheAutoSpinLineRollsWhoCrossesItAndLetsHimOutBack);
     RUN_TEST(CNZObjects_TheGreenPlatformTurnsThroughItsFramesAndWaits);
     RUN_TEST(CNZObjects_TheCrawlGuardsAgainstAnyoneNear);
     RUN_TEST(CNZObjects_TheBlueBoxSwingsAboutWhereItWasPut);

@@ -595,8 +595,8 @@ static void CNZ_TheBossArenaLocksTheCameraAtTheEndOfActTwoOnly(void) {
     dle_routine = 0;
 }
 
-static void CNZ_TheAutoSpinRollsWhoeverTouchesItIntoABall(void) {
-    Reset(ZoneId_CNZ);
+static void CNZ_TheAutoSpinRollsWhoeverTouchesItIntoABall(void) { // (the alpha's box, which Hidden Palace and Hill Top still have: Casino Night has the pre-beta's line)
+    Reset(ZoneId_HPZ);
     Sst *box = Spawn(0x84, 0, 300, 300);
     Obj_AutoSpin(box);
     CHECK_EQ(box->collision_flags, 0xC6);
