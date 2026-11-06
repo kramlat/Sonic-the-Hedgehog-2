@@ -23,6 +23,9 @@
 // the platform with spikes at its sides.
 
 void Obj_CollapsingPlatform(Sst *obj);
+void Obj_OOZBreakBoost(Sst *self);
+void Obj_OOZFan(Sst *self);
+void Obj_Octus(Sst *self);
 void Spikes_HurtCharacter(Sst *self, Sst *chr, int who);
 extern const uint8_t Mappings_DHZVines[]; // (the resources define their tables: a test names them from here)
 extern const uint8_t Mappings_SFZHookChain[];
@@ -785,6 +788,145 @@ static void DHZ_SpikesHurtTailsWhileSonicIsInvincibleExceptInSandShower(void) {
     CHECK(!TailsHurtBySpikes(ZoneId_SSZ));
 }
 
+// --- 3D (Oil Ocean's block that is broken for a boost) ---
+
+static void OOZ_ABlockBreaksUnderARollingCharacterAndCarriesHimAlong(void) {
+    Reset(ZoneId_OOZ);
+    Sst *block = Spawn(0x3D, 0, 300, 400);
+    Obj_OOZBreakBoost(block);
+    StandOn(300, 400 - 0x10);
+    player->anim = SonAnimId_Walk;
+    Obj_OOZBreakBoost(block);
+    CHECK_EQ(block->routine, 2); // (walking on it does nothing)
+    CHECK_EQ(CountOf(0x3D, 4), 0);
+    StandOn(300, 400 - 0x10);
+    player->anim = SonAnimId_Roll;
+    player->y_vel = 0x300;
+    block->render_flags |= SST_RENDER_ON_SCREEN; // (it was drawn the frame before: a piece that is off screen is deleted)
+    Obj_OOZBreakBoost(block);
+    CHECK_EQ(block->routine, 4);
+    CHECK_EQ(CountOf(0x3D, 4), 16);   // (the block is its first piece)
+    CHECK_EQ(CountOf(0x3D, 6), 1);    // (the tracker)
+    CHECK_EQ(player->routine, 2);
+    CHECK_EQ(player->y_vel, 0x300);
+    Sst *tracker = NULL;
+    for (int i = 0x20; i < 0x60; i++)
+        if (sst[i].code == sst_object_codes[0x3D] && sst[i].routine == 6)
+            tracker = &sst[i];
+    CHECK(tracker != NULL);
+    player->x_pos.f.u = 300;
+    player->y_pos.f.u = 400;
+    Obj_OOZBreakBoost(tracker); // he is in the middle: it takes hold of him
+    CHECK_EQ(player->x_vel, 0x800);
+    CHECK_EQ(player->y_vel, 0);
+    CHECK_EQ(OBJ_CONTROL(player), 0x81);
+    int16_t x = player->x_pos.f.u;
+    Obj_OOZBreakBoost(tracker);
+    CHECK(player->x_pos.f.u > x);
+}
+
+static void OOZ_TheVerticalBlockSendsHimUp(void) {
+    Reset(ZoneId_OOZ);
+    Sst *block = Spawn(0x3D, 1, 300, 400);
+    Obj_OOZBreakBoost(block);
+    CHECK_EQ(block->mapping_frame, 2);
+    StandOn(300, 400 - 0x10);
+    player->anim = SonAnimId_Roll;
+    block->render_flags |= SST_RENDER_ON_SCREEN;
+    Obj_OOZBreakBoost(block);
+    CHECK_EQ(block->mapping_frame, 3);
+    Sst *tracker = NULL;
+    for (int i = 0x20; i < 0x60; i++)
+        if (sst[i].code == sst_object_codes[0x3D] && sst[i].routine == 6)
+            tracker = &sst[i];
+    CHECK(tracker != NULL);
+    player->x_pos.f.u = 300 + 4;
+    player->y_pos.f.u = 400 - 0x10;
+    Obj_OOZBreakBoost(tracker);
+    CHECK_EQ(player->x_pos.f.u, 300);
+    CHECK_EQ(player->y_vel, -0x800);
+}
+
+// --- 3F (Oil Ocean's fans) ---
+
+static void OOZ_AVerticalFanPushesACharacterSidewaysWhileItBlows(void) {
+    Reset(ZoneId_OOZ);
+    Sst *fan = Spawn(0x3F, 0x02, 300, 400); // (bit 1: it blows all the time)
+    player->x_pos.f.u = 300 + 0x10;
+    player->y_pos.f.u = 400 - 0x30;
+    Obj_OOZFan(fan);
+    CHECK(sst_object_codes[0x3F] == Obj_OOZFan);
+    const int16_t x = player->x_pos.f.u;
+    Obj_OOZFan(fan);
+    CHECK(player->x_pos.f.u != x);
+    player->x_pos.f.u = 300 + 0x200; // (far away)
+    const int16_t far_x = player->x_pos.f.u;
+    Obj_OOZFan(fan);
+    CHECK_EQ(player->x_pos.f.u, far_x);
+}
+
+static void OOZ_AHorizontalFanLiftsAndTumblesACharacter(void) {
+    Reset(ZoneId_OOZ);
+    Sst *fan = Spawn(0x3F, 0x82, 300, 400);
+    player->x_pos.f.u = 300;
+    player->y_pos.f.u = 400 - 0x40;
+    player->status &= (uint8_t)~SST_PSTATUS_IN_AIR;
+    Obj_OOZFan(fan);
+    Obj_OOZFan(fan);
+    CHECK((player->status & SST_PSTATUS_IN_AIR) != 0);
+    CHECK_EQ(player->y_vel, 0);
+    CHECK(player->y_pos.f.u != 400 - 0x40);
+    CHECK_EQ(((Scratch_Sonic *)player->own.u8)->flips_remaining, 0x7F);
+}
+
+static void OOZ_TheFanSpinsUpForAWhileThenBlows(void) {
+    Reset(ZoneId_OOZ);
+    Sst *fan = Spawn(0x3F, 0x00, 300, 400);
+    player->x_pos.f.u = 300 + 0x10;
+    player->y_pos.f.u = 400 - 0x30;
+    Obj_OOZFan(fan); // the first frame: it starts spinning up
+    const int16_t x = player->x_pos.f.u;
+    for (int i = 0; i < 0x70; i++)
+        Obj_OOZFan(fan);
+    CHECK_EQ(player->x_pos.f.u, x); // (spinning up it does not blow)
+    for (int i = 0; i < 0x20; i++)
+        Obj_OOZFan(fan);
+    CHECK(player->x_pos.f.u != x); // (and then it does)
+}
+
+// --- 4A (Oil Ocean's Octus) ---
+
+static void OOZ_TheOctusWaitsRisesAndFiresAShotAndAPuff(void) {
+    Reset(ZoneId_OOZ);
+    Sst *octus = Spawn(0x4A, 0, 300, 400);
+    octus->routine = 2; // (landed)
+    player->x_pos.f.u = 300 + 0x200;
+    player->y_pos.f.u = 400;
+    Obj_Octus(octus);
+    Obj_Octus(octus);
+    CHECK_EQ(octus->routine_secondary, 0); // (Sonic is far: it waits)
+    player->x_pos.f.u = 300 + 0x40;
+    Obj_Octus(octus);
+    CHECK_EQ(octus->routine_secondary, 2); // (he is near: it rises)
+    CHECK_EQ(octus->anim, 1);
+    ((int16_t *)octus->own.u8)[3] = 400; // (its home height, at $2E: where it landed)
+    for (int i = 0; i < 40 && octus->routine_secondary == 2; i++)
+        Obj_Octus(octus);
+    CHECK_EQ(octus->routine_secondary, 4);
+    Obj_Octus(octus); // it fires
+    CHECK_EQ(CountOf(0x4A, 4), 1);    // the puff
+    CHECK_EQ(CountOf(0x4A, 6), 1);    // the shot
+    Sst *shot = NULL;
+    for (int i = 0x20; i < 0x60; i++)
+        if (sst[i].code == sst_object_codes[0x4A] && sst[i].routine == 6)
+            shot = &sst[i];
+    CHECK(shot != NULL);
+    if (shot == NULL)
+        return;
+    CHECK_EQ(shot->x_vel, -0x580);
+    CHECK_EQ(shot->collision_flags, 0); // (the pre-beta gives it none)
+}
+
 void RegisterDHZObjectTests(void) {
     RUN_TEST(DHZ_TheCradleSwingsOutOnOneSideOnlyAndTheMiddleHangsStill);
     RUN_TEST(DHZ_TheCollapsingPlatformBreaksIntoSixPiecesOnceStoodOn);
@@ -815,6 +957,12 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(DHZ_TheCrawltonsBodyIsAsBigAsTheChainsAndGoesWhereTheHeadGoes);
     RUN_TEST(DHZ_TheFlashersAnimationsEachStartFromTheirBeginning);
     RUN_TEST(DHZ_SpikesHurtTailsWhileSonicIsInvincibleExceptInSandShower);
+    RUN_TEST(OOZ_ABlockBreaksUnderARollingCharacterAndCarriesHimAlong);
+    RUN_TEST(OOZ_TheVerticalBlockSendsHimUp);
+    RUN_TEST(OOZ_TheOctusWaitsRisesAndFiresAShotAndAPuff);
+    RUN_TEST(OOZ_AVerticalFanPushesACharacterSidewaysWhileItBlows);
+    RUN_TEST(OOZ_AHorizontalFanLiftsAndTumblesACharacter);
+    RUN_TEST(OOZ_TheFanSpinsUpForAWhileThenBlows);
     RUN_TEST(DHZ_TheBossRisesDropsRocksAndMovesToWhereSonicIs);
     RUN_TEST(DHZ_TheBossArenaLocksTheCameraAndLoadsTheBossOnce);
     RUN_TEST(CNZ_TheRoundBumperThrowsWhoeverTouchesIt);

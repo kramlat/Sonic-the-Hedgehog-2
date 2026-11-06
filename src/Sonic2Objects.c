@@ -119,6 +119,9 @@ void Obj_Masher(Sst *self);
 void Obj_NAWaterSurface(Sst *self);
 void Obj_NGHZBoss(Sst *self);
 void Obj_OOZCannon(Sst *self);
+void Obj_OOZBreakBoost(Sst *self);
+void Obj_OOZFan(Sst *self);
+void Obj_Octus(Sst *self);
 void Obj_OOZLauncher(Sst *self);
 void Obj_OOZPushSpring(Sst *self);
 void Obj_OOZSpikeball(Sst *self);
@@ -231,6 +234,9 @@ const SstCode sst_object_codes[0x100] = {
 	[0x45] = Obj_OOZPushSpring,
 	[0x46] = Obj_OOZSpringBall,
 	[0x47] = Obj_Switch,
+	[0x3D] = Obj_OOZBreakBoost,
+	[0x3F] = Obj_OOZFan,
+	[0x4A] = Obj_Octus,
 	[0x48] = Obj_OOZCannon,
 	[0x49] = Obj_EHZWaterfall,
 	[0x4B] = Obj_Buzzer,
@@ -371,5 +377,4 @@ const SstCode sst_object_codes[0x100] = {
 	[ObjId_GHZRock] = Obj_GHZRock,
 	[ObjId_Helix] = Obj_Helix,
 	[ObjId_Explosion] = Obj_Explosion,
-	[ObjId_ExplosionBomb] = Obj_ExplosionBomb, // (Sonic 1's, shared)
 };

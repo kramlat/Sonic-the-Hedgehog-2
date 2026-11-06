@@ -116,7 +116,7 @@ static const ZoneGolden zone_goldens[] = {
     { ZoneId_HTZ, 0, -1, 0xba0eebd73ad15cf6ull },
     { ZoneId_WZ, 0, -1, 0x7ac5405b04af7249ull },
     { ZoneId_MTZ, 0, -1, 0x4cb5b9b96bfc1efeull },
-    { ZoneId_OOZ, 0, -1, 0xd5dd899da2d6ba05ull },
+    { ZoneId_OOZ, 0, -1, 0x88838371cb7947d8ull }, // (the pre-beta's Oil Ocean: its chunks, blocks and tiles differ from the alpha's)
     { ZoneId_MCZ, 0, -1, 0x73d0d845ffd7d591ull },
     { ZoneId_MCZ, 1, -1, 0x6822c9a4af424564ull },
     { ZoneId_CNZ, 0, -1, 0x120a029ccae745eeull }, // (the pre-beta's Casino Night, with its own background bands)
@@ -128,6 +128,8 @@ static const ZoneGolden zone_goldens[] = {
 static void ScrollZones_BackgroundsShowWhatTheOriginalsDid(void) {
     for (size_t i = 0; i < sizeof(zone_goldens) / sizeof(zone_goldens[0]); i++) {
         uint64_t h = ZoneBackgroundHash(zone_goldens[i].zone, zone_goldens[i].act, zone_goldens[i].start_x);
+        if (h != zone_goldens[i].hash)
+            printf("\n    zone %d act %d: hash %016llx", zone_goldens[i].zone, zone_goldens[i].act, (unsigned long long)h);
         CHECK(h == zone_goldens[i].hash);
     }
 }

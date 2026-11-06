@@ -743,7 +743,7 @@ static void Cannon_Char(Sst *self, Own_Cannon *own, Sst *chr, int who) {
             return;
         if (((chr->status & SST_PSTATUS_OBJECT_STAND) != 0) && sscratch->standing_obj >= STANDING_SST) { // (it was on another cannon: that one lets go of it)
             Sst *prev = &sst[(sscratch->standing_obj - STANDING_SST) % SST_COUNT];
-            if (prev != self && prev->code == self->code) {
+            if (prev != self && (prev->code == self->code || prev->code == sst_object_codes[0x3D])) { // (the block that is broken for a boost keeps its states at the same places)
                 Own_Cannon *other = (Own_Cannon *)prev->own.u8;
                 if (who == SolidChar_Sonic)
                     other->state_sonic = 0;

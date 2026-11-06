@@ -260,6 +260,7 @@
 #include "Resource/Art/OOZFireBooster.h"
 #include "Resource/Art/OOZBreakVertical.h"
 #include "Resource/Art/OOZFans.h"
+#include "Resource/Art/Octus.h"
 #include "Resource/Art/BBat.h"
 #include "Resource/Art/HPZWaterfall.h"
 #include "Resource/Art/HPZPlatform.h"
@@ -756,7 +757,7 @@ static const PLCList PLC_OOZ = { // (the zone's own art is the level header's) t
 };
 
 static const PLCList PLC_OOZ2 = {
-    12,
+    13,
     (const PLC[]) {
         { Art_OOZBall,          ART_VRAM(0x6A80 >> 5) },
         { Art_OOZLaunchBall,    ART_VRAM(0x6D00 >> 5) },
@@ -770,6 +771,7 @@ static const PLCList PLC_OOZ2 = {
         { Art_SpringDiag,       ART_VRAM(0x8780 >> 5) },
         { Art_SpringUp,         ART_VRAM(0x8B80 >> 5) },
         { Art_SpringSide,       ART_VRAM(0x8E00 >> 5) },
+        { Art_Octus,            ART_VRAM(0xA700 >> 5) },
     }
 };
 
