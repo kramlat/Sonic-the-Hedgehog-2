@@ -477,10 +477,10 @@ void Obj_HTZQuakeBlock(Sst *self) {
         self->routine += 2;
         own->base_y = self->y_pos.f.u;
         own->base_x = self->x_pos.f.u;
-        static const uint8_t widths[5] = { 0xC0, 0xC0, 0xC0, 0xE0, 0xFF };
+        static const uint8_t widths[5] = { 0xC0, 0xC0, 0xC0, 0xE0, 0xC0 };
         self->width_pixels = widths[(self->subtype >> 1) % 5];
         if (self->subtype >= 6) { // the camera decides whether they are there (loc_17A68)
-            if (self->subtype == 6 ? scrpos_y.f.u >= 0x380 : scrpos_y.f.u < 0x380) {
+            if (self->subtype == 6 ? scrpos_y.f.u < 0x380 : scrpos_y.f.u >= 0x380) { // (kind 6 is the lower route's, kind 8 the upper's)
                 if (self->respawn)
                     (*SstLoad_State(self)) &= 0x7F;
                 Sst_Delete(self);

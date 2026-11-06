@@ -52,11 +52,11 @@ static void Spiker_SetUp(Sst *self) {
     self->routine += 2;
 }
 
-// It stops to fire when Sonic is within $20 pixels each side of it (and has not fired already). Returns that it did
+// It stops to fire when it is on screen and Sonic is within $20 pixels each side of it and $80 above or below (and it has not fired already). Returns that it did
 static bool Spiker_Check(Sst *self, Own_Spiker *own) {
-    if (own->fired)
+    if (own->fired || !(self->render_flags & SST_RENDER_ON_SCREEN))
         return false;
-    if ((uint16_t)(DistanceX(self) + 0x20) >= 0x40)
+    if ((uint16_t)(DistanceX(self) + 0x20) >= 0x40 || (uint16_t)((int16_t)(self->y_pos.f.u - player->y_pos.f.u) + 0x80) >= 0x100)
         return false;
     own->saved = self->routine;
     self->routine = SpikerRoutine_Fire;

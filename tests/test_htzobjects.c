@@ -9,6 +9,7 @@
 #include "Object/HTZObjects.h"
 #include "Object/Platform.h"
 #include "Object/Sonic.h"
+#include "HTZQuake.h"
 
 // Hill Top's lift (16), the valve barrier and rock (2D, 32, the objects Chemical Plant shares) and the platform (18) with its size field and solid kind.
 
@@ -120,7 +121,52 @@ static void HTZObjects_ThePlatformSizeIsThreeBitsAndBitSevenIsTheSolidKind(void)
     CHECK_EQ(arz->y_radius, 0x28);
 }
 
+// The seesaw keeps how fast the faster of the two came down only while nobody is on it (the pre-beta stores it there alone): the ball is thrown by it after he has landed
+static void HTZObjects_TheSeesawKeepsTheLandingSpeedWhileSomeoneIsOnIt(void) {
+    Reset();
+    Sst *seesaw = Spawn(0x14, 1, 300, 300); // (subtype 1: no ball)
+    player->y_vel = 0xA00;
+    Obj_HTZSeesaw(seesaw);
+    const int16_t *speed = (const int16_t *)(seesaw->own.u8 + 0x10); // (0x38)
+    CHECK_EQ(*speed, 0xA00);
+    seesaw->status |= 8; // (Sonic has landed: his speed is gone)
+    player->y_vel = 0;
+    Obj_HTZSeesaw(seesaw);
+    CHECK_EQ(*speed, 0xA00);
+}
+
+// The breakable floor is $20 high to stand on whatever its subtype says (the pre-beta stores $20 over the half height its table gives)
+static void HTZObjects_TheBreakableFloorIsAlways20High(void) {
+    Reset();
+    Sst *floor = Spawn(0x2F, 0x08, 300, 300); // (the last of its five heights: the table's $08)
+    Obj_HTZBreakFloor(floor);
+    CHECK_EQ(floor->y_radius, 0x20);
+    CHECK_EQ(floor->mapping_frame, 8);
+}
+
+// The quake blocks of kind 6 are the lower route's (kept with the camera at $380 or below it), kind 8 the upper route's
+static void HTZObjects_TheQuakeBlocksBelongToTheirRouteByTheCamera(void) {
+    Reset();
+    scrpos_y.f.u = 0x400;
+    Sst *lower = Spawn(0x30, 6, 300, 0x4F0);
+    Obj_HTZQuakeBlock(lower);
+    CHECK(lower->code != NULL);
+    Sst *upper = Spawn(0x30, 8, 600, 0x40);
+    Obj_HTZQuakeBlock(upper);
+    CHECK(upper->code == NULL);
+    scrpos_y.f.u = 0x100;
+    Sst *lower2 = Spawn(0x30, 6, 900, 0x4F0);
+    Obj_HTZQuakeBlock(lower2);
+    CHECK(lower2->code == NULL);
+    Sst *upper2 = Spawn(0x30, 8, 1200, 0x40);
+    Obj_HTZQuakeBlock(upper2);
+    CHECK(upper2->code != NULL);
+}
+
 void RegisterHTZObjectTests(void) {
+    RUN_TEST(HTZObjects_TheSeesawKeepsTheLandingSpeedWhileSomeoneIsOnIt);
+    RUN_TEST(HTZObjects_TheBreakableFloorIsAlways20High);
+    RUN_TEST(HTZObjects_TheQuakeBlocksBelongToTheirRouteByTheCamera);
     RUN_TEST(HTZObjects_ALiftSlidesForItsSubtypeAndThenFalls);
     RUN_TEST(HTZObjects_AFlippedLiftSlidesLeft);
     RUN_TEST(HTZObjects_TheValveBarrierHasItsOwnArtAndWidth);

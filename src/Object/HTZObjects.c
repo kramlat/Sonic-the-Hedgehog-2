@@ -131,7 +131,10 @@ static void Seesaw_Main(Sst *self, Own_Seesaw *scratch) {
     Seesaw_ChangeFrame(self, scratch, wanted);
 
     const uint8_t *slope = (self->mapping_frame & 1) ? seesaw_flat : seesaw_slope;
-    scratch->speed = player->y_vel; // (how fast Sonic comes down on it, before he lands and his speed is lost)
+    if (!sonic_on && !tails_on) { // how fast the faster of them comes down on it, kept until the next time nobody is on it (the pre-beta stores it only here)
+        const int16_t tails_y = TAILS_OBJ->code != NULL ? TAILS_OBJ->y_vel : 0;
+        scratch->speed = player->y_vel > tails_y ? player->y_vel : tails_y;
+    }
     int16_t x = self->x_pos.f.u;
     for (int who = SolidChar_Sonic; who <= SolidChar_Tails; who++) {
         Sst *chr = Character(who);
@@ -385,7 +388,7 @@ typedef struct {
     uint8_t subtype; // 0x28: bits 1-3 the height (bit 7: breaks for any roller)
 } Own_BreakFloor;
 
-// loc_17490: the half height and the frame of each height
+// loc_17490: the table's half height and the frame of each height (the half height is not used: the pre-beta stores $20 over it)
 static const uint8_t floor_heights[5][2] = { { 0x24, 0 }, { 0x20, 2 }, { 0x18, 4 }, { 0x10, 6 }, { 0x08, 8 } };
 // loc_17662: the speed of each piece (x, y), a piece of the frame after the one that was there taking the pair at its frame number (the table goes on into zeros past its end)
 static const int16_t floor_pieces[32][2] = {
@@ -413,8 +416,6 @@ static void BreakFloor_PrimaryPath(Sst *chr) {
 }
 
 void Obj_HTZBreakFloor(Sst *self) {
-    Own_BreakFloor *scratch = (Own_BreakFloor *)self->own.u8;
-
     if (self->routine == 0) {
         self->routine += 2;
         self->mappings = Mappings_HTZBreakFloor;
@@ -424,8 +425,8 @@ void Obj_HTZBreakFloor(Sst *self) {
         self->height_pixels = 0x20; // (the pre-beta's)
         self->priority = 4 * 0x80;
         const int height = ((self->subtype & 0x1E) >> 1) % 5;
-        self->y_radius = (int8_t)floor_heights[height][0];
         self->mapping_frame = floor_heights[height][1];
+        self->y_radius = 0x20; // (the pre-beta reads the table's half height and then stores $20 over it: every height is $20 to stand on)
     }
 
     if (self->routine == 4) { // a piece

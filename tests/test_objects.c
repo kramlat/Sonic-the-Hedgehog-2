@@ -605,12 +605,40 @@ static void Scroll_AWrappingLevelKeepsTheCameraWithACharacterOverTheWrap(void) {
     limit_btm2 = 0x720;
 }
 
-// Hill Top's Spiker: it walks to and fro, and with Sonic within $20 pixels across it stops, and fires its drill (once)
-static void Spiker_FiresItsDrillOnceWhenSonicIsAbove(void) {
+// Hill Top's Spiker: it walks to and fro, and with Sonic within $20 pixels across and $80 above or below (and itself on screen) it stops, and fires its drill (once)
+static int SpikerDrillsAfter(int16_t sonic_y, bool on_screen) {
     SstTestClear();
     player->code = sst_object_codes[ObjId_Sonic];
     player->x_pos.f.u = 0x410;
-    player->y_pos.f.u = 0x200;
+    player->y_pos.f.u = sonic_y;
+    scrpos_x.f.u = 0x300;
+    scrpos_y.f.u = 0x100;
+    Sst *spiker = &sst[0x20];
+    spiker->code = sst_object_codes[ObjId_Spiker];
+    spiker->x_pos.f.u = 0x400;
+    spiker->y_pos.f.u = 0x300;
+    Obj_Spiker(spiker);
+    for (int f = 0; f < 40; f++) {
+        if (on_screen)
+            spiker->render_flags |= SST_RENDER_ON_SCREEN;
+        else
+            spiker->render_flags &= (uint8_t)~SST_RENDER_ON_SCREEN;
+        Obj_Spiker(spiker);
+    }
+    int drills = 0;
+    for (int i = 1; i < 0x40; i++)
+        if (sst[i].code == sst_object_codes[ObjId_SpikerDrill])
+            drills++;
+    return drills;
+}
+
+static void Spiker_FiresItsDrillOnceWhenSonicIsAbove(void) {
+    CHECK_EQ(SpikerDrillsAfter(0x2C0, false), 0); // (not while it is off screen)
+    CHECK_EQ(SpikerDrillsAfter(0x200, true), 0);  // (not with Sonic $100 above)
+    SstTestClear();
+    player->code = sst_object_codes[ObjId_Sonic];
+    player->x_pos.f.u = 0x410;
+    player->y_pos.f.u = 0x2C0;
     scrpos_x.f.u = 0x300;
     scrpos_y.f.u = 0x100;
     Sst *spiker = &sst[0x20];
@@ -620,8 +648,10 @@ static void Spiker_FiresItsDrillOnceWhenSonicIsAbove(void) {
     Obj_Spiker(spiker);
     CHECK_EQ(spiker->routine, 2);
     CHECK_EQ(spiker->collision_flags, 0x12);
-    for (int f = 0; f < 40; f++)
+    for (int f = 0; f < 40; f++) {
+        spiker->render_flags |= SST_RENDER_ON_SCREEN;
         Obj_Spiker(spiker);
+    }
     int drills = 0;
     for (int i = 1; i < 0x40; i++)
         if (sst[i].code == sst_object_codes[ObjId_SpikerDrill])
