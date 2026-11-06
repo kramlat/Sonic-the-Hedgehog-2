@@ -1,5 +1,5 @@
-// Dust Hill's badniks for Sonic 2, as the alpha has them (objects 9E and A3: the prototype has neither): the Crawlton, a caterpillar that turns to Sonic when he is near and crawls at him and back (its head is the
-// object, its body an object of its own that follows), and the Flasher, a firefly that drifts about, and flashes brighter and brighter until it is dangerous to touch.
+// Dust Hill's badniks for Sonic 2, as the pre-beta has them (objects 9E and A3: the Simon Wai prototype has neither): the Crawlton, a caterpillar that turns to Sonic when he is near and crawls at him and back (its
+// head is the object, its body an object of its own that follows), and the Flasher, a firefly that drifts about, and flashes brighter and brighter until it is dangerous to touch.
 #include "Object/DHZBadniks.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
@@ -31,14 +31,15 @@ typedef struct {
 enum { Crawl_Init = 0, Crawl_Wait = 2, Crawl_Gather = 4, Crawl_Go = 6, Crawl_Rest = 8, Crawl_Body = 0xA };
 
 static void Crawlton_MakeBody(Sst *head) {
-    Sst *body = Sst_AllocateAfter(head);
+    Sst *body = Sst_Allocate(); // (SingleObjectLoad: the first free slot, not the one after the head's)
     if (body == NULL)
         return;
     body->code = head->code;
     body->render_flags = head->render_flags | 0x40; // (the sub-sprites)
     body->mappings = head->mappings;
     body->art_tile = head->art_tile;
-    body->width_pixels = head->width_pixels;
+    body->width_pixels = 0x40; // ($0E and Obj_Inertia: how wide and how high the body counts as for being on screen)
+    body->height_pixels = 0x40;
     body->mapping_frame = 0; // (no sprite of its own)
     body->child_count = 7;
     body->priority = 5 * 0x80;
@@ -116,6 +117,8 @@ void Obj_Crawlton(Sst *self) {
             return;
         }
         const Own_Crawlton *head_state = (const Own_Crawlton *)head->own.u8;
+        self->x_pos.f.u = head->x_pos.f.u;
+        self->y_pos.f.u = head->y_pos.f.u;
         if (head_state->state == Crawl_Go) { // the pieces of the body follow, one after another as the head's crawl goes on
             const int16_t dx = (int16_t)(head->x_vel >> 8), dy = (int16_t)(head->y_vel >> 8);
             int threshold = 0x18;
@@ -153,18 +156,24 @@ enum { Flasher_Init = 0, Flasher_Rest = 2, Flasher_Drift = 4, Flasher_Flash = 6,
 static const uint16_t flasher_turns[8] = { 0x0100, 0x01A0, 0x0208, 0x0285, 0x0300, 0x0340, 0x0390, 0x0440 };
 static const uint8_t flasher_flips[9][2] = { { 0xF0, 0x00 }, { 0x01, 0x01 }, { 0x00, 0x01 }, { 0x01, 0x01 }, { 0x00, 0x01 }, { 0x00, 0x01 }, { 0x01, 0x00 }, { 0x00, 0x01 }, { 0x00, 0x01 } };
 
-// The alpha's AnimateSprite, for the end command $FC: it moves the routine on, and also moves the frame on and clears the time to the next (Sonic 1's, which the engine has, does neither: nothing there goes on animating after it).
-// The Flasher's three animations all share animation 0, so the place in the script carries over from one to the next, as it did in the alpha: its flashing ends (at its $20th byte) just short of where the alert's
-// script has the byte that restarts it, which is what runs it. (Its fade ends at the 7th byte, so that the flashing that follows begins in the middle of its script: after the first time)
+// The pre-beta's AnimateSprite, for the end command $FC: it moves the routine on, and also moves the frame on and clears the time to the next (Sonic 1's, which the engine has, does neither: nothing there goes on
+// animating after it). The Flasher's three animations all share animation 0, so the place in the script carries over from one to the next unless the object clears it (it does, between them)
 static void Flasher_Animate(Sst *self, const uint8_t *script) {
     const uint8_t routine = self->routine;
     Sst_Animate(self, script);
     if (self->routine != routine) {
         self->anim_frame++;
         self->anim_frame_timer = 0;
-        if (routine == Flasher_Flash)
-            self->anim_frame = 0; // (the alpha reads the byte after the alert's script, which is $FF, and starts it again)
     }
+}
+
+// clr.l Obj_Map_Id(A0) and clr.w Obj_Ani_Time(A0): the frame, the place in the script, the script and the one before it, and the time to the next frame
+static void Flasher_ClearAnimation(Sst *self) {
+    self->mapping_frame = 0;
+    self->anim_frame = 0;
+    self->anim = 0;
+    self->prev_anim = 0;
+    self->anim_frame_timer = 0;
 }
 
 void Obj_Flasher(Sst *self) {
@@ -226,13 +235,20 @@ void Obj_Flasher(Sst *self) {
         SstOnScreenTest(self);
         break;
 
-    case Flasher_Flash:
+    case Flasher_Flash: {
+        const uint8_t routine = self->routine;
         Flasher_Animate(self, Animation_Flasher);
+        if (self->routine != routine) { // the script is done: the glow starts from the beginning of its own, on the fourth frame
+            Flasher_ClearAnimation(self);
+            self->mapping_frame = 3;
+        }
         SstOnScreenTest(self);
         break;
+    }
     case Flasher_Glow:
         if (--own->wait < 0) {
             self->routine += 2;
+            Flasher_ClearAnimation(self);
             SstOnScreenTest(self);
             break;
         }
@@ -248,6 +264,7 @@ void Obj_Flasher(Sst *self) {
         self->routine = Flasher_Drift;
         own->wait = 0x80;
         self->collision_flags &= 0x7F;
+        Flasher_ClearAnimation(self);
         SstOnScreenTest(self);
         break;
     }

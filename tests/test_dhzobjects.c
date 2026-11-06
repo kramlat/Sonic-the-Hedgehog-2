@@ -10,9 +10,12 @@
 #include "Object/CNZBoss.h"
 #include "Object/CNZObjects.h"
 #include "Object/BossCommon.h"
+#include "Object/CharControl.h"
 #include "Object/DHZObjects.h"
+#include "Object/DHZVines.h"
 #include "Object/Sonic.h"
 #include "Object/Tails.h"
+#include "Solid.h"
 #include "EnginePLC.h"
 #include "Oscillatory Routines.h"
 
@@ -20,6 +23,9 @@
 // the platform with spikes at its sides.
 
 void Obj_CollapsingPlatform(Sst *obj);
+void Spikes_HurtCharacter(Sst *self, Sst *chr, int who);
+extern const uint8_t Mappings_DHZVines[]; // (the resources define their tables: a test names them from here)
+extern const uint8_t Mappings_SFZHookChain[];
 
 // (the slots below $20 are taken, so that the objects a test makes get the slots the old tests named)
 static void SstTestFiller(Sst *self) { (void)self; }
@@ -634,6 +640,151 @@ static void CNZ_TheBumperKnowsWhichCharacterTouchedIt(void) {
     TAILS_OBJ->code = sst_object_codes[0];
 }
 
+// --- the pre-beta's differences from the alpha (2026-11-06) ---
+
+// the roots (7F) take hold of a character who is 40 pixels under them, if nothing else holds him (object control bit 7), he is not dead (routine 6; a hurt one, 4, can take hold) and not in debug mode
+static bool RootsHold(uint8_t routine, uint8_t control, bool debug) {
+    Reset(ZoneId_MCZ);
+    Sst *obj = Spawn(0x7F, 2, 300, 400);
+    player->x_pos.f.u = 300;
+    player->y_pos.f.u = 400 + 0x28;
+    player->routine = routine;
+    OBJ_CONTROL(player) = control;
+    debug_use = debug;
+    Obj_DHZVinesSwitch(obj);
+    debug_use = false;
+    return (f_switch[2] & 1) != 0 && player->anim == 0x14;
+}
+
+static void DHZ_TheRootsHoldAHurtCharacterButNotADeadOneOrOneHeldOrInDebugMode(void) {
+    CHECK(RootsHold(2, 0, false));
+    CHECK(RootsHold(4, 0, false));
+    CHECK(!RootsHold(6, 0, false));
+    CHECK(!RootsHold(2, 0x80, false));
+    CHECK(!RootsHold(2, 0, true));
+}
+
+static void DHZ_TheLongRootsAreALongerChainWithAHookInSkyFortressAndCountTheirOwnHeight(void) {
+    Reset(ZoneId_SFZ);
+    Sst *obj = Spawn(0x80, 0x10, 300, 400); // (it starts hanging down)
+    Obj_DHZVines(obj);
+    CHECK(obj->mappings == Mappings_SFZHookChain);
+    CHECK_EQ(obj->y_pos.f.u, 400 + 0xA0);
+    CHECK_EQ(obj->mapping_frame, 6);
+    Reset(ZoneId_MCZ);
+    obj = Spawn(0x80, 0x10, 300, 400);
+    Obj_DHZVines(obj);
+    CHECK(obj->mappings == Mappings_DHZVines);
+    CHECK_EQ(obj->y_pos.f.u, 400 + 0xB0);
+    CHECK_EQ(obj->height_pixels, 0x80); // (the pre-beta's Obj_Height_2: what keeps it on screen)
+}
+
+static void DHZ_TheChainsCountAs40PixelsWideAndHighWhereTheirFifthLinkIs(void) {
+    Reset(ZoneId_MCZ);
+    Sst *ball = Spawn(0x75, 0x16, 200, 400);
+    Obj_SpikeballChain(ball);
+    CHECK_EQ(sst[0x21].width_pixels, 0x40);
+    CHECK_EQ(sst[0x21].height_pixels, 0x40);
+    CHECK_EQ(sst[0x21].x_pos.f.u, sst[0x21].children[4].x);
+    CHECK_EQ(sst[0x21].y_pos.f.u, sst[0x21].children[4].y);
+
+    Reset(ZoneId_MCZ);
+    Sst *bridge = Spawn(0x81, 4, 300, 400);
+    Obj_DHZVerticalBridge(bridge);
+    Sst *chain = &sst[0x21];
+    CHECK_EQ(chain->width_pixels, 0x40);
+    CHECK_EQ(chain->height_pixels, 0x40);
+    CHECK_EQ(chain->x_pos.f.u, chain->children[4].x);
+    CHECK_EQ(chain->y_pos.f.u, chain->children[4].y);
+    f_switch[4] = 1;
+    for (int i = 0; i < 8; i++)
+        Obj_DHZVerticalBridge(bridge);
+    CHECK_EQ(chain->x_pos.f.u, chain->children[4].x); // (and keeps it while the bridge swings)
+    CHECK_EQ(chain->y_pos.f.u, chain->children[4].y);
+}
+
+static void DHZ_ABridgeFlippedInXAndNothingElseMovesLeftOfItsFootWhenItsSwitchGoesDown(void) {
+    Reset(ZoneId_MCZ);
+    Sst *plain = Spawn(0x81, 4, 300, 400);
+    Obj_DHZVerticalBridge(plain);
+    f_switch[4] = 1;
+    Obj_DHZVerticalBridge(plain);
+    CHECK_EQ(plain->x_pos.f.u, 300);
+
+    Reset(ZoneId_MCZ);
+    Sst *flipped = Spawn(0x81, 4, 300, 400);
+    flipped->status = SST_STATUS_X_FLIP;
+    Obj_DHZVerticalBridge(flipped);
+    CHECK_EQ(flipped->x_pos.f.u, 300);
+    f_switch[4] = 1;
+    Obj_DHZVerticalBridge(flipped);
+    CHECK_EQ(flipped->x_pos.f.u, 300 - 0x48);
+}
+
+static void DHZ_TheCrawltonsBodyIsAsBigAsTheChainsAndGoesWhereTheHeadGoes(void) {
+    Reset(ZoneId_MCZ);
+    Sst *head = Spawn(0x9E, 0x22, 200, 400);
+    player->x_pos.f.u = 200 + 0x100;
+    player->y_pos.f.u = 400;
+    Obj_Crawlton(head);
+    Sst *body = &sst[0x21];
+    CHECK_EQ(body->width_pixels, 0x40);
+    CHECK_EQ(body->height_pixels, 0x40);
+    head->x_pos.f.u = 230;
+    head->y_pos.f.u = 410;
+    Obj_Crawlton(body);
+    CHECK_EQ(body->x_pos.f.u, 230);
+    CHECK_EQ(body->y_pos.f.u, 410);
+}
+
+// frames until the Flasher is in `routine`, from where it is (a frame it spends in it first does not count)
+static int FlasherFramesTo(Sst *obj, uint8_t routine) {
+    int frames = 0;
+    while (obj->routine != routine && frames < 0x800) {
+        Obj_Flasher(obj);
+        frames++;
+    }
+    return frames;
+}
+
+static void DHZ_TheFlashersAnimationsEachStartFromTheirBeginning(void) {
+    Reset(ZoneId_MCZ);
+    Sst *obj = Spawn(0xA3, 0x2C, 300, 300);
+    FlasherFramesTo(obj, 6);
+    const int first_flash = FlasherFramesTo(obj, 8); // (its script ends: the glow comes on its fourth frame, from the start of its own script)
+    CHECK_EQ(obj->mapping_frame, 3);
+    CHECK_EQ(obj->anim_frame, 0);
+    FlasherFramesTo(obj, 0xA); // (the glow ends: the fade starts from the beginning of its own, on the first frame)
+    CHECK_EQ(obj->mapping_frame, 0);
+    CHECK_EQ(obj->anim_frame, 0);
+    FlasherFramesTo(obj, 4);
+    CHECK_EQ(obj->mapping_frame, 0);
+    FlasherFramesTo(obj, 6);
+    const int second_flash = FlasherFramesTo(obj, 8);
+    CHECK_EQ(first_flash, second_flash); // (the same length each time: it does not start in the middle of its script)
+}
+
+// Sonic's invincibility is his own: spikes hurt Tails all the same (Sand Shower keeps the one flag for both)
+static bool TailsHurtBySpikes(int zone) {
+    Reset(zone);
+    Sst *spikes = Spawn(0x36, 0, 300, 400);
+    TAILS_OBJ->code = SstTestFiller;
+    TAILS_OBJ->routine = 2;
+    TAILS_OBJ->x_pos.f.u = 300;
+    TAILS_OBJ->y_pos.f.u = 380;
+    invincibility = true;
+    Spikes_HurtCharacter(spikes, TAILS_OBJ, SolidChar_Tails);
+    invincibility = false;
+    const bool hurt = TAILS_OBJ->routine == 4;
+    TAILS_OBJ->code = NULL;
+    return hurt;
+}
+
+static void DHZ_SpikesHurtTailsWhileSonicIsInvincibleExceptInSandShower(void) {
+    CHECK(TailsHurtBySpikes(ZoneId_MCZ));
+    CHECK(!TailsHurtBySpikes(ZoneId_SSZ));
+}
+
 void RegisterDHZObjectTests(void) {
     RUN_TEST(DHZ_TheCradleSwingsOutOnOneSideOnlyAndTheMiddleHangsStill);
     RUN_TEST(DHZ_TheCollapsingPlatformBreaksIntoSixPiecesOnceStoodOn);
@@ -657,6 +808,13 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(DHZ_TheCrawltonWaitsUntilSonicIsNearThenTurnsToHimAndCrawls);
     RUN_TEST(DHZ_TheCrawltonBodyFollowsTheHeadWhileItCrawls);
     RUN_TEST(DHZ_TheFlasherDriftsFlashesAndGlowsDangerously);
+    RUN_TEST(DHZ_TheRootsHoldAHurtCharacterButNotADeadOneOrOneHeldOrInDebugMode);
+    RUN_TEST(DHZ_TheLongRootsAreALongerChainWithAHookInSkyFortressAndCountTheirOwnHeight);
+    RUN_TEST(DHZ_TheChainsCountAs40PixelsWideAndHighWhereTheirFifthLinkIs);
+    RUN_TEST(DHZ_ABridgeFlippedInXAndNothingElseMovesLeftOfItsFootWhenItsSwitchGoesDown);
+    RUN_TEST(DHZ_TheCrawltonsBodyIsAsBigAsTheChainsAndGoesWhereTheHeadGoes);
+    RUN_TEST(DHZ_TheFlashersAnimationsEachStartFromTheirBeginning);
+    RUN_TEST(DHZ_SpikesHurtTailsWhileSonicIsInvincibleExceptInSandShower);
     RUN_TEST(DHZ_TheBossRisesDropsRocksAndMovesToWhereSonicIs);
     RUN_TEST(DHZ_TheBossArenaLocksTheCameraAndLoadsTheBossOnce);
     RUN_TEST(CNZ_TheRoundBumperThrowsWhoeverTouchesIt);

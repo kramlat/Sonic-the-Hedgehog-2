@@ -24,7 +24,8 @@ static Sst *Character(int who) {
 
 // Touch_ChkHurt2: the character is pushed back out of the spikes and hurt (unless he is invincible or already hurt)
 void Spikes_HurtCharacter(Sst *self, Sst *chr, int who) {
-    if (invincibility)
+    // (the pre-beta tests the character's own invincibility, and only Sonic's monitor makes one: Tails is hurt by spikes while Sonic is invincible. Sand Shower, the final game's data, keeps the one flag for both)
+    if (invincibility && (who == SolidChar_Sonic || LEVEL_ZONE(level_id) == ZoneId_SSZ))
         return;
     // (the prototype's Touch_ChkHurt2 has no check for the flashing after a hit -- Sonic 1's "Proper Spike Bug Fix" is not in it: spikes hurt a character who is still flashing, and the port keeps that)
     if (chr->routine >= 4)

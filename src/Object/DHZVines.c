@@ -1,6 +1,6 @@
-// Dust Hill's roots and bridge for Sonic 2, as the alpha has them (objects 7F, 80 and 81: the prototype has none of them): the roots that a character hangs from and that are switches for the bridges (7F: a short
-// one; 80: a long one that rises and falls, hung from by pressing against it), and the bridge that swings from upright to flat (81) when its switch is down. A character that hangs has his own controls off
-// and the animation $14; a jump lets go. All carry Sonic and Tails.
+// Dust Hill's roots and bridge for Sonic 2, as the pre-beta has them (objects 7F, 80 and 81: the Simon Wai prototype has none of them): the roots that a character hangs from and that are switches for the bridges (7F: a short
+// one; 80: a long one that rises and falls, hung from by pressing against it; in Sky Fortress the same object is a chain with a hook, $A0 long), and the bridge that swings from upright to flat (81) when its switch is
+// down. A character that hangs has his own controls off and the animation $14; a jump lets go. All carry Sonic and Tails.
 #include "Object/DHZVines.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
@@ -21,6 +21,7 @@
 #include "Resource/Mappings/DHZVerticalBridge.h"
 #include "Resource/Mappings/DHZVines.h"
 #include "Resource/Mappings/DHZVinesSwitch.h"
+#include "Resource/Mappings/SFZHookChain.h"
 
 #define FOR_EACH_CHARACTER(chr, who) \
     for (int who = SolidChar_Sonic; who <= SolidChar_Tails; who++) \
@@ -57,6 +58,7 @@ typedef struct {
     int16_t length;      // 0x38: (80) how far down it is, 0 to $B0
     int16_t step;        // 0x3A: (80) how fast it moves
     int16_t home_y;      // 0x3C: (80)
+    int16_t max_length;  // 0x3E: (80) $B0, or $A0 for the chain in Sky Fortress (Obj_Control_Var_02 of the pre-beta)
 } Own_Roots;
 
 static void SwitchSet(const Sst *self, bool down) {
@@ -94,7 +96,7 @@ static void Roots_Character(Sst *self, Own_Roots *own, Sst *chr, int who) {
         return;
     if ((uint16_t)(chr->y_pos.f.u - self->y_pos.f.u - 0x28) >= 0x10)
         return;
-    if (chr->routine >= 4)
+    if ((int8_t)OBJ_CONTROL(chr) < 0 || chr->routine >= 6 || debug_use) // (held by something else, dead, or in debug mode)
         return;
     chr->x_vel = 0;
     chr->y_vel = 0;
@@ -155,7 +157,7 @@ static void Vines_Character(Sst *self, Own_Roots *own, Sst *chr, int who) {
         return;
     if ((uint16_t)(chr->y_pos.f.u - self->y_pos.f.u - 0x88) >= 0x18)
         return;
-    if (chr->routine >= 4)
+    if ((int8_t)OBJ_CONTROL(chr) < 0 || chr->routine >= 6 || debug_use)
         return;
     chr->x_vel = 0;
     chr->y_vel = 0;
@@ -174,21 +176,23 @@ void Obj_DHZVines(Sst *self) {
 
     if (self->routine == 0) {
         self->routine += 2;
-        self->mappings = Mappings_DHZVines;
-        self->art_tile = TILE_MAP(0, 3, 0, 0, 0x41E);
+        const bool hook = LEVEL_ZONE(level_id) == ZoneId_SFZ; // (cmpi.b #6, Level_Id: Sky Fortress has its own mappings, art and length for the object)
+        self->mappings = hook ? Mappings_SFZHookChain : Mappings_DHZVines;
+        self->art_tile = hook ? TILE_MAP(0, 1, 0, 0, 0x3FE) : TILE_MAP(0, 3, 0, 0, 0x41E);
+        own->max_length = hook ? 0xA0 : 0xB0;
         self->render_flags = SPRITE_CAM_FIELD | 0x10; // (bit 4: the height is its own: y_rad)
-        self->height_pixels = self->y_radius;
         self->width_pixels = 0x10;
         self->priority = 4 * 0x80;
-        self->y_radius = (int8_t)0x80;
+        self->y_radius = 0x80;
+        self->height_pixels = self->y_radius;
         own->home_y = self->y_pos.f.u;
         if (self->subtype & 0x80)
             own->linked = 1;
         own->step = 2;
         if (self->subtype & 0x70) { // it starts hanging down
-            own->length = 0xB0;
+            own->length = own->max_length;
             own->extended = 1;
-            self->y_pos.f.u += 0xB0;
+            self->y_pos.f.u += own->max_length;
             self->mapping_frame = 6;
         }
     }
@@ -196,7 +200,7 @@ void Obj_DHZVines(Sst *self) {
     const bool anyone = own->hanging[0] || own->hanging[1];
     bool grow = own->extended ? !anyone : anyone;
     if (grow) {
-        if (own->length != 0xB0) {
+        if (own->length != own->max_length) {
             own->length += own->step;
             self->y_pos.f.u = (int16_t)(own->home_y + own->length);
             self->mapping_frame = (uint8_t)((own->length >> 5) + (own->length ? 1 : 0));
@@ -230,7 +234,7 @@ enum { BridgeRoutine_Init = 0, BridgeRoutine_Swing = 2, BridgeRoutine_Done = 4 }
 
 // Offset_0x01EF72: where each link is, from the angle: a link every 16 pixels further from the foot (a sixteenth of the sine and cosine, in 16.16)
 static void Bridge_Links(Sst *self, const Own_Bridge *own) {
-    if (!own->opening)
+    if (!own->opening || own->chain == 0)
         return;
     Sst *chain = &sst[own->chain];
     int16_t sin, cos;
@@ -243,6 +247,8 @@ static void Bridge_Links(Sst *self, const Own_Bridge *own) {
         y += step_y;
         x += step_x;
     }
+    chain->x_pos.f.u = chain->children[4].x; // (the chain is where its fifth link is: that is what culls it)
+    chain->y_pos.f.u = chain->children[4].y;
 }
 
 void Obj_DHZVerticalBridge(Sst *self) {
@@ -281,9 +287,8 @@ void Obj_DHZVerticalBridge(Sst *self) {
             chain->render_flags = SST_RENDER_LEVEL;
             chain->render_flags |= SST_RENDER_MULTI_DRAW;
             chain->priority = 5 * 0x80;
-            chain->width_pixels = 0xFF; // (the links reach far to each side: the object is drawn while its place is near)
-            chain->x_pos.f.u = own->foot_x;
-            chain->y_pos.f.u = own->foot_y;
+            chain->width_pixels = 0x40; // ($0E and Obj_Inertia: how wide and how high the chain counts as for being on screen)
+            chain->height_pixels = 0x40;
             chain->child_count = 8;
             int16_t y = own->foot_y;
             for (int i = 0; i < 8; i++) {
@@ -292,14 +297,20 @@ void Obj_DHZVerticalBridge(Sst *self) {
                 chain->children[i].y = y;
                 chain->children[i].frame = 1;
             }
+            chain->x_pos.f.u = chain->children[4].x; // (the fifth link, as the swing keeps it)
+            chain->y_pos.f.u = chain->children[4].y;
             own->chain = (uint8_t)(chain - sst);
         }
         // (falls on into the swing)
     }
         // fall through
     case BridgeRoutine_Swing: {
-        if (f_switch[self->subtype & 0xF] & 1)
-            own->opening = 1; // (the alpha's sound for it ($E7) is behind a branch that is always taken: it is never played)
+        if ((f_switch[self->subtype & 0xF] & 1) && !own->opening) { // the switch is down: it starts to swing
+            own->opening = 1;
+            PlaySound(sfx_DHZRoots);
+            if (self->status == 0x81) // (cmpi.b #$81: flipped in x and nothing else set, bit 7 aside)
+                self->x_pos.f.u = (int16_t)(own->foot_x - 0x48);
+        }
         if (own->opening) {
             int16_t d1 = 0x48;
             if (self->angle != 0) {
@@ -331,7 +342,8 @@ void Obj_DHZVerticalBridge(Sst *self) {
         FOR_EACH_CHARACTER(chr, who)
             Solid_Character(self, chr, who, d1, d2, d3, self->x_pos.f.u, NULL);
         if (SstOutOfRange(own->foot_x)) {
-            Sst_Delete(&sst[own->chain]);
+            if (own->chain != 0)
+                Sst_Delete(&sst[own->chain]);
             SstLoad_Forget(self);
             Sst_Delete(self);
             return;

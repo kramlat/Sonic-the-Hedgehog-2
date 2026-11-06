@@ -23,6 +23,8 @@ my %zones = (
     # Hill Top: Emerald Hill's tiles (its first $1FC), blocks (to $12F), chunks and collision (the pre-beta's Hill_Top_Colision_Data is Green Hill's) with its own on top: its tiles from $1FC (Tiles.nem), its
     # blocks from $130 (HTz_16.dat: the same as the port's), then its own layouts, objects, rings and palette; `share` keeps the shared ones, `secondary_tiles` writes its own
     HTZ => { dir => 'HTz', prefix => 'HTz', pal => 'HTz.pal', share => 1, secondary_tiles => ['Tiles.nem', 'HTZSecondary'] },
+    # Dust Hill (MCZ, slot $0B): one collision file for both paths (the pre-beta points both of its tables at the same address)
+    DHZ => { dir => 'DHz', prefix => 'DHz', pal => 'DHz.pal', cols => ['DHz_Col.dat', 'DHz_Col.dat'] },
     CPZ => { dir => 'CPz', prefix => 'CPz', pal => 'CPz.pal', water => 'CPz_UW.pal', water_res => 'CPZWater' },
     # Sky Fortress: one layout, one object list and one ring list for both acts (the pre-beta's labels for the second are the first's), and its files are named a little differently
     # Death Egg and Sky Chase: one act each, and the tiles, blocks, chunks and collision of another zone (Chemical Plant's and Sky Fortress's: `share`), with a layout, objects and palette of their own; Death Egg has no rings

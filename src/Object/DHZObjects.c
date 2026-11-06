@@ -343,9 +343,9 @@ void Obj_SpikeballChain(Sst *self) {
             chain->art_tile = self->art_tile;
             chain->render_flags = SST_RENDER_LEVEL;
             chain->render_flags |= SST_RENDER_MULTI_DRAW;
-            chain->height_pixels = chain->y_radius;
-            chain->width_pixels = 0x40;
+            chain->width_pixels = 0x40; // ($0E and Obj_Inertia: how wide and how high the chain counts as for being on screen)
             chain->y_radius = 0x40;
+            chain->height_pixels = chain->y_radius;
             chain->priority = 5 * 0x80;
             chain->mapping_frame = 0;
             chain->child_count = (uint8_t)links;
