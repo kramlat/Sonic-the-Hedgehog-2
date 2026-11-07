@@ -10,6 +10,7 @@
 #include "Object/DebugList.h"
 #include "Object/DebugMarkers.h"
 #include "Object/Tails.h"
+#include "Object/ObjectHit.h"
 #include "Object/CharControl.h"
 #include "Object/Sonic.h"
 #include "Object/SuperSonic.h"
@@ -350,6 +351,42 @@ static void Countdown_CountsAPlayersAirAndDrownsHim(void) {
 }
 
 
+// Free movement mode can be called while he drowns, and its exit gives him back his breath: no death 120 frames on, his control back
+static void Countdown_FreeMovementDuringDrowningResetsItOnExit(void) {
+    SstTestClear();
+    Sst *sonic = player;
+    sonic->code = sst_object_codes[ObjId_Sonic];
+    sonic->routine = 2;
+    sonic->status |= SST_PSTATUS_UNDERWATER;
+    sonic->x_pos.f.u = 0x200;
+    sonic->y_pos.f.u = 0x400;
+    wtr_pos1 = 0x100;
+    ((Scratch_Sonic *)sonic->own.u8)->air = 0;
+    Countdown_Make(13, false);
+    Sst *counter = &sst[13];
+    for (int f = 0; f < 60; f++)
+        Obj_Countdown(counter);
+    CHECK_EQ(sonic->anim, SonAnimId_Drown);
+    CHECK(OBJ_CONTROL(sonic) != 0);
+
+    debug_cheat = true;
+    jpad1_press1 = JPAD_B;
+    Obj_Sonic(sonic);
+    CHECK(debug_use != 0);
+    jpad1_press1 = 0;
+    Obj_Sonic(sonic);
+    jpad1_press1 = JPAD_B;
+    Obj_Sonic(sonic);
+    CHECK_EQ(debug_use, 0);
+    CHECK_EQ(OBJ_CONTROL(sonic), 0);
+    CHECK_EQ(sonic->routine, 2);
+    jpad1_press1 = 0;
+    for (int f = 0; f < 0x100; f++)
+        Obj_Countdown(counter);
+    CHECK_EQ(sonic->routine, 2); // (the drowning is over: no death)
+    debug_cheat = false;
+}
+
 // The alpha's animals: each zone has its pair (the cue its title cards load), one of the two comes out of a badnik with the kind and the speeds the pair gives, and those of the end of a level have the kind of
 // movement, speeds and art of their subtype
 static void Animals_ZonesHaveTheirPairAndEndAnimalsTheirOwnMovement(void) {
@@ -480,6 +517,71 @@ static void Slicer_RaisesItsBladesAndSendsTwoPincers(void) {
 }
 
 // Sky Fortress's rotating platforms ($C3) are only a picture with a collision type in the pre-beta: tile $46D, $20 wide, type $2A, and it stays where it is
+// The debug cheat no longer saves Sonic from dying; B in the hurt and the dead states enters object placement mode (and B again gives him back his normal state)
+static void Sonic_DebugCheatDiesButBEntersPlacementModeFromHurtAndDead(void) {
+    SstTestClear();
+    player->code = sst_object_codes[ObjId_Sonic];
+    player->routine = 2;
+    player->x_pos.f.u = 0x400;
+    player->y_pos.f.u = 0x300;
+    debug_cheat = true;
+    debug_use = 0;
+    rings = 0;
+    shield = 0;
+    CHECK_EQ(HurtSonicFrom(player, 0x500, false), -1);
+    CHECK_EQ(player->routine, 6); // (dead, whatever the cheat)
+
+    jpad1_press1 = JPAD_B;
+    Obj_Sonic(player);
+    CHECK(debug_use != 0); // (placement mode from the dead state)
+    jpad1_press1 = 0;
+    Obj_Sonic(player);
+    jpad1_press1 = JPAD_B;
+    Obj_Sonic(player); // (B again: out)
+    CHECK_EQ(debug_use, 0);
+    CHECK_EQ(player->routine, 2);
+
+    jpad1_press1 = 0;
+    debug_cheat = false;
+}
+
+// The pre-beta's object hit ($27): Sonic 2's own art at tile $5A4, the first frame for 4 frames and the others for 8, five frames, an animal first; and its points ($29) in palette line 0
+static void ObjectHit_FollowsThePreBetasTimingAndArt(void) {
+    SstTestClear();
+    scrpos_x.f.u = 0x100;
+    Sst *hit = &sst[0x20];
+    hit->code = Obj_ObjectHit;
+    hit->x_pos.f.u = 0x200;
+    hit->y_pos.f.u = 0x200;
+    int calls = 0;
+    while (hit->code != NULL && hit->mapping_frame == 0 && calls < 20) {
+        Obj_ObjectHit(hit);
+        calls++;
+    }
+    CHECK_EQ(hit->art_tile & 0x7FF, 0x5A4);
+    CHECK_EQ(calls, 4);
+    int second = 0;
+    while (hit->code != NULL && hit->mapping_frame == 1 && second < 20) {
+        Obj_ObjectHit(hit);
+        second++;
+    }
+    CHECK_EQ(second, 8);
+    int total = calls + second;
+    while (hit->code != NULL && total < 100) {
+        Obj_ObjectHit(hit);
+        total++;
+    }
+    CHECK_EQ(total, 4 + 8 * 4); // (gone when the fifth frame would show)
+
+    Sst *pts = &sst[0x21];
+    pts->code = Obj_EnemyPoints;
+    pts->x_pos.f.u = 0x200;
+    pts->y_pos.f.u = 0x200;
+    Obj_EnemyPoints(pts);
+    CHECK_EQ((pts->art_tile >> 13) & 3, 0); // (palette line 0)
+    CHECK_EQ(pts->y_vel, -0x300 + 0x18); // (moved, then gravity)
+}
+
 // The pre-beta's Hurt_Player for Tails: the computer's Tails is only thrown (the rings and the shield stay); in the two player mode he loses the shared rings like Sonic, loses the shield first, and dies with neither
 static void Tails_HurtFollowsThePreBetasHurtPlayer(void) {
     SstTestClear();
@@ -1143,6 +1245,7 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(TailsTails_ShowWhileRollingAndDashing);
     RUN_TEST(TailsTails_WagWhileHePushes);
     RUN_TEST(Countdown_CountsAPlayersAirAndDrownsHim);
+    RUN_TEST(Countdown_FreeMovementDuringDrowningResetsItOnExit);
     RUN_TEST(Coconuts_ThrowACoconutWhenSonicIsNear);
     RUN_TEST(BossExplosion_RunsSevenFramesAndGoes);
     RUN_TEST(Scroll_AWrappingLevelKeepsTheCameraWithACharacterOverTheWrap);
@@ -1162,6 +1265,8 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(Slicer_RaisesItsBladesAndSendsTwoPincers);
     RUN_TEST(SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType);
     RUN_TEST(Tails_HurtFollowsThePreBetasHurtPlayer);
+    RUN_TEST(ObjectHit_FollowsThePreBetasTimingAndArt);
+    RUN_TEST(Sonic_DebugCheatDiesButBEntersPlacementModeFromHurtAndDead);
     RUN_TEST(MTZBoss_MakesSevenBallsThatOrbitTheShip);
     RUN_TEST(Animals_ZonesHaveTheirPairAndEndAnimalsTheirOwnMovement);
     RUN_TEST(DustSplash_FollowsTheSpinDashAndSplashesAtTheWater);

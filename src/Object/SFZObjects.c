@@ -44,7 +44,7 @@
 #include "Oscillatory Routines.h"
 #include "LevelData.h"
 #include "Resource/Mappings/SFZTornado.h"
-#include "Object/Explosion.h"
+#include "Object/ObjectHit.h"
 #include "MathUtil.h"
 #include "Solid.h"
 #include "Object/Sonic.h"
@@ -390,8 +390,8 @@ void Obj_SFZTornado(Sst *self) {
 // The smoke (Obj_0xC4_SFz_Tornado_Smoke): the explosion's puff (its mappings and its art), placed a little behind the plane, going up and back, five frames of 8
 void Obj_SFZTornadoSmoke(Sst *self) {
     if (self->routine == 0) {
-        self->mappings = Explosion_Mappings();
-        self->art_tile = TILE_MAP(0, 0, 0, 0, 0x5A0);
+        self->mappings = ObjectHit_Mappings();
+        self->art_tile = TILE_MAP(0, 0, 0, 0, ArtTile_ObjectHit);
         self->render_flags |= SST_RENDER_LEVEL;
         self->priority = 5 * 0x80;
         self->width_pixels = 0x0C;
@@ -747,7 +747,7 @@ void Obj_SFZBossSwitch(Sst *self) {
         SstOnScreenTest(self);
         return;
     }
-    self->code = Obj_Explosion;
+    self->code = Obj_ObjectHit;
     self->routine = 2;
     player->status |= SST_PSTATUS_IN_AIR;
     player->status &= (uint8_t)~SST_PSTATUS_OBJECT_STAND;

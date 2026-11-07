@@ -96,7 +96,8 @@
 #include "Resource/Art/BuzzBomber.h"
 #include "Resource/Art/Chopper.h"
 #include "Resource/Art/Crabmeat.h"
-#include "Resource/Art/Explosion.h"
+#include "Resource/Art/ObjectHit.h"
+#include "Object/ObjectHit.h"
 #include "Resource/Art/GHZBall.h"
 #include "Resource/Art/GHZBridge.h"
 #include "Resource/Art/GHZLog.h"
@@ -338,7 +339,7 @@ static const PLCList PLC_Main2 = {
 static const PLCList PLC_Explode = {
     1,
     (const PLC[]) {
-        { Art_Explosion,     ART_VRAM(ArtTile_Explosion) },
+        { Art_ObjectHit,     ART_VRAM(ArtTile_ObjectHit) },
     }
 };
 // ---------------------------------------------------------------------------

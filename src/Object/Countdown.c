@@ -331,3 +331,24 @@ void Obj_Countdown(Sst *self) {
     }
     }
 }
+
+// Free movement mode (the debug cheat's object placement) can be called during a player's drowning too, and gives him his breath back on its exit: the sinking stops, his control comes back, his air is 30 again with
+// the level's music, and the scrolling goes on. True when he was drowning.
+bool Countdown_CancelDrowning(Sst *chr) {
+    const bool tails = chr == SST_PLAYER_2;
+    Sst *counter = &sst[tails ? COUNTDOWN_TAILS_SLOT : COUNTDOWN_SONIC_SLOT];
+    if (counter->code != sst_object_codes[ObjId_DrownCount])
+        return false;
+    Own_Countdown *c = (Own_Countdown *)counter->own.u8;
+    if (!c->drown_timer)
+        return false;
+    c->drown_timer = 0;
+    c->flags = 0;
+    c->bubbles_left = 0;
+    c->timer = 0;
+    OBJ_CONTROL(chr) = 0;
+    Countdown_ResumeMusic(chr);
+    if (!tails)
+        nobgscroll = false;
+    return true;
+}

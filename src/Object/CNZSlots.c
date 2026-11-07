@@ -27,7 +27,7 @@
 #include "Resource/Art/CNZSlotCheck.h"
 #include "Resource/Mappings/CNZSlotStarter.h"
 
-void Obj_Points(Sst *self);
+void Obj_EnemyPoints(Sst *self);
 
 #define ArtTile_CNZSlotStarter 0x388 // ($7100: the zone's list)
 
@@ -457,7 +457,7 @@ static void SlotStarter_Character(Sst *self, Own_SlotStarter *own, Sst *chr, int
         if ((int16_t)--own->timer[who] >= 0) {
             if ((own->timer[who] & 7) == 0) {
                 AddPoints(0xA);
-                Sst *points = Sst_SpawnCode(Obj_Points, self->x_pos.f.u, self->y_pos.f.u);
+                Sst *points = Sst_SpawnCode(Obj_EnemyPoints, self->x_pos.f.u, self->y_pos.f.u);
                 if (points != NULL)
                     points->mapping_frame = 0;
             }

@@ -155,7 +155,7 @@ typedef struct {
     uint8_t head;        // 0x3E (var_12)
 } Own_Grabber;
 
-void Obj_Explosion(Sst *self);
+void Obj_ObjectHit(Sst *self);
 
 enum { GrabberRoutine_Init = 0, GrabberRoutine_Run = 2 };
 enum { GrabberState_Patrol = 0, GrabberState_Wait = 2, GrabberState_Down = 4, GrabberState_Up = 6, GrabberState_Top = 8, GrabberState_Done = 10 };
@@ -204,7 +204,7 @@ static void Grabber_Flash(Sst *self, Own_Grabber *own) {
         self->art_tile ^= 0x2000;
         return;
     }
-    self->code = Obj_Explosion;
+    self->code = Obj_ObjectHit;
     self->routine = 2;
     self->art_tile |= 0x2000;
     if (own->held != 0) {

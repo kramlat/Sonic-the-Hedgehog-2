@@ -3,7 +3,7 @@
 // carrying flight yet; hurting him loses SONIC'S rings (the copy of the hurt code works on the shared ring count); he does not die from enemies, only from falling below the level, and then he comes back above Sonic.
 #include "ScrollEngine.h"
 #include "Standing.h"
-void Obj_Explosion(Sst *self);
+void Obj_ObjectHit(Sst *self);
 #include "SstLoad.h"
 #include "ObjectSst.h"
 #include "Object.h"
@@ -1332,7 +1332,7 @@ static signed int React_Enemy(Sst *self, Sst *hit)
         AddPoints(point_bonus);
 
         // Explode object and bounce
-        hit->code = Obj_Explosion;
+        hit->code = Obj_ObjectHit;
         hit->routine = 0;
 
         if (self->y_vel >= 0) {

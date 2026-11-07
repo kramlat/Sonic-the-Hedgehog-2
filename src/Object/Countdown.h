@@ -24,4 +24,7 @@ void Countdown_Make(uint8_t slot, bool tails);
 // What the alpha does when a player has air again (Resume_Music): the level's music back if he was in the last 12 and his air to 30
 void Countdown_ResumeMusic(Sst *player);
 
+// Takes a player out of his drowning (free movement mode's exit): see Countdown.c
+bool Countdown_CancelDrowning(Sst *chr);
+
 #endif //_COUNTDOWN_H

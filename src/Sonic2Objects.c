@@ -159,7 +159,7 @@ void Obj_Whisp(Sst *self);
 #include "Object/Animals.h"
 #include "Object/Monitor.h"
 #include "Object/Signpost.h"
-#include "Object/Points.h"
+#include "Object/ObjectHit.h"
 #include "Object/HUD.h"
 #include "Object/PrisonCapsule.h"
 #include "Object/Ring.h"
@@ -173,7 +173,6 @@ void Obj_Whisp(Sst *self);
 #include "Object/SmashWall.h"
 #include "Object/GHZRock.h"
 #include "Object/Helix.h"
-#include "Object/Explosion.h"
 #include "Object.h"
 
 #include "Object/AirBubbles.h"
@@ -374,9 +373,9 @@ const SstCode sst_object_codes[0x100] = {
 	[ObjId_02] = Obj_Tails,
 	[ObjId_05] = Obj_TailsTails,
 	[ObjId_SpecialSonic] = Obj_SpecialSonic,
-	[ObjId_Points] = Obj_Points,
+	[ObjId_Points] = Obj_EnemyPoints,
 	[ObjId_SmashWall] = Obj_SmashWall,
 	[ObjId_GHZRock] = Obj_GHZRock,
 	[ObjId_Helix] = Obj_Helix,
-	[ObjId_Explosion] = Obj_Explosion,
+	[ObjId_Explosion] = Obj_ObjectHit,
 };
