@@ -26,6 +26,8 @@ my %zones = (
     # Dust Hill (MCZ, slot $0B): one collision file for both paths (the pre-beta points both of its tables at the same address)
     # Oil Ocean (slot $0A): one collision file for both paths too
     OOZ => { dir => 'OOz', prefix => 'OOz', pal => 'OOz.pal', cols => ['OOz_Col.dat', 'OOz_Col.dat'] },
+    # Metropolis (MTZ, slot $04): three acts, one collision file for both paths (the pre-beta points both of its tables at the same address), the layouts and lists named Mz_Map1-3, Obj_Act1-3, Rng_Act1-3
+    MTZ => { dir => 'Mz', prefix => 'Mz', pal => 'Mz.pal', cols => ['Mz_Col.dat', 'Mz_Col.dat'], acts => 3 },
     DHZ => { dir => 'DHz', prefix => 'DHz', pal => 'DHz.pal', cols => ['DHz_Col.dat', 'DHz_Col.dat'] },
     CPZ => { dir => 'CPz', prefix => 'CPz', pal => 'CPz.pal', water => 'CPz_UW.pal', water_res => 'CPZWater' },
     # Sky Fortress: one layout, one object list and one ring list for both acts (the pre-beta's labels for the second are the first's), and its files are named a little differently

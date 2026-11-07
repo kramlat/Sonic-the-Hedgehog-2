@@ -48,22 +48,36 @@ static const struct GotCard_Item {
     { 0x020C, 0x014C, 0x00CC, 2, 5 }, // Blue oval
 };
 
-// What each act leads to, by zone slot and act (the Simon Wai prototype's level order, word_BF9A): the first act of a zone to its second, the second to the first of the next zone. An entry of 0 is the first act of Emerald Hill,
-// where the prototype sends the acts of zones that have none, as its own table does (it does not go to the Sega screen, as Sonic 1 does for such an entry).
-static const uint16_t level_order[ZoneId_Num][2] = {
-    [0x00] = { LEVEL_ID(0x00, 1), LEVEL_ID(0x02, 0) },
-    [0x02] = { LEVEL_ID(0x02, 1), LEVEL_ID(0x04, 0) },
-    [0x04] = { LEVEL_ID(0x04, 1), LEVEL_ID(0x07, 0) },
-    [0x07] = { LEVEL_ID(0x07, 1), 0 },
-    [0x08] = { LEVEL_ID(0x08, 1), LEVEL_ID(0x0A, 0) },
-    [0x09] = { LEVEL_ID(0x09, 1), LEVEL_ID(0x0F, 0) },
-    [0x0A] = { LEVEL_ID(0x0A, 1), LEVEL_ID(0x0B, 0) },
-    [0x0B] = { LEVEL_ID(0x0B, 1), LEVEL_ID(0x0C, 0) },
-    [0x0C] = { LEVEL_ID(0x0C, 1), LEVEL_ID(0x0D, 0) },
-    [0x0D] = { LEVEL_ID(0x0D, 1), LEVEL_ID(0x07, 0) },
-    [0x0F] = { LEVEL_ID(0x0F, 1), LEVEL_ID(0x0D, 0) },
-    [0x10] = { LEVEL_ID(0x10, 1), 0 },
+// What each act leads to: the pre-beta's Level_Sequence_List (and Level_Sequence_List_2P, for the versus play), one pair of entries for each of its zone numbers (the first act's, then the second's); the high byte of an entry
+// is the zone and the low byte the act. Emerald Hill 2 goes to Chemical Plant, which goes to Neo Green Hill, Casino Night, Hill Top, Dust Hill, Oil Ocean, Metropolis, then Sky Chase (the pre-beta's own entry), Sky
+// Fortress and Death Egg, whose entry ends the game ($FFFF: the Sega screen, as `Game_Mode = 0`). The entries of the zones the pre-beta has none of are 0 (the first act of Emerald Hill, as its own table does). Its third
+// act of Metropolis is the pre-beta's zone 5 (row 5 here), which leads to Neo Green Hill.
+static const uint16_t level_order[2][17][2] = {
+    { // one player
+        { 0x0001, 0x0D00 }, { 0, 0 }, { 0x0201, 0x0400 }, { 0, 0 }, { 0x0401, 0x1000 }, { 0x0F00, 0 }, { 0x0E00, 0 }, { 0x0701, 0x0B00 }, { 0x0801, 0x0A00 },
+        { 0, 0 }, { 0x0A01, 0x0400 }, { 0x0B01, 0x0A00 }, { 0x0C01, 0x0700 }, { 0x0D01, 0x0F00 }, { 0xFFFF, 0 }, { 0x0F01, 0x0C00 }, { 0x0600, 0 },
+    },
+    { // two players (versus)
+        { 0x0001, 0x0C00 }, { 0, 0 }, { 0x0201, 0x0400 }, { 0, 0 }, { 0x0401, 0x1000 }, { 0x0F00, 0 }, { 0x0E00, 0 }, { 0x0701, 0x0B00 }, { 0x0801, 0x0A00 },
+        { 0, 0 }, { 0x0A01, 0x0400 }, { 0x0B01, 0xFFFF }, { 0x0C01, 0x0B00 }, { 0x0D01, 0x0F00 }, { 0xFFFF, 0 }, { 0x0F01, 0x0C00 }, { 0x0600, 0 },
+    },
 };
+
+// The act after this one, in the form the level id has it, or 0xFFFF for the end of the game
+uint16_t TitleCard_NextLevel(void) {
+    int zone = LEVEL_ZONE(level_id), act = LEVEL_ACT(level_id);
+    if (zone == ZoneId_MTZ && act == 2) { // (the third act of Metropolis is the pre-beta's zone 5)
+        zone = 5;
+        act = 0;
+    }
+    if (zone > 0x10)
+        return 0;
+    return level_order[two_player_mode != 0][zone][act & 1];
+}
+
+// The pre-beta draws neither the end of act card nor anything of it: its object (Obj_0x3A_Level_Results) has an `rts` in front of every `bra DisplaySprite`, so the elements move, the bonuses are added up
+// and the next level comes, with nothing on the screen (the user, 2026-11-06: as the ROM). Set to 1 to have the card shown again (the later builds have it).
+#define GOTTHROUGH_CARD_DRAWN 0
 
 // SBZ2 post-level cutscene: has the Ring Bonus element (the one that drives the tally) reached its slide-out
 // routine? (real: cmpi.b #$E,(v_endcardring+obRoutine))
@@ -93,7 +107,7 @@ static void GotCard_SBZ2_MoveOut(Sst *self, Own_TitleCard *own) {
     if (self->x_pos.f.u > own->final_x)
         speed = -speed;
     self->x_pos.f.u += speed;
-    if (self->x_pos.f.u >= 0 && self->x_pos.f.u < (0x200 + SCREEN_WIDEADD))
+    if (GOTTHROUGH_CARD_DRAWN && self->x_pos.f.u >= 0 && self->x_pos.f.u < (0x200 + SCREEN_WIDEADD))
         Sst_Draw(self);
 }
 
@@ -191,8 +205,13 @@ void Obj_GotThroughCard(Sst *self) {
         break;
     }
     case 0xA: { // Advance to the next act
-        level_id = (LEVEL_ZONE(level_id) == ZoneId_MTZ && LEVEL_ACT(level_id) == 2) ? 0 : level_order[LEVEL_ZONE(level_id)][LEVEL_ACT(level_id) & 1]; // (Metropolis' third act has no next one yet: the prototype's own entry for it was empty)
+        const uint16_t next = TitleCard_NextLevel();
         last_lamp = 0;
+        if (next == 0xFFFF) { // (the end of the game: the Sega screen)
+            gamemode = GameMode_Sega;
+            break;
+        }
+        level_id = next;
 
         // Sonic jumped into a giant ring (Obj_RingFlash set big_ring): the next screen is a special stage
         if (big_ring)
@@ -212,7 +231,7 @@ void Obj_GotThroughCard(Sst *self) {
     }
 
     // Draw (card stays fully on-screen throughout this whole sequence)
-    if (self->x_pos.f.u >= 0 && self->x_pos.f.u < (0x200 + SCREEN_WIDEADD))
+    if (GOTTHROUGH_CARD_DRAWN && self->x_pos.f.u >= 0 && self->x_pos.f.u < (0x200 + SCREEN_WIDEADD))
         Sst_Draw(self);
 }
 

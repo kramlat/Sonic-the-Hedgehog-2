@@ -23,6 +23,7 @@
 #include "LevelScroll.h"
 #include "Object/Spiral.h"
 #include "Object/MTZBadniks.h"
+#include "Object/SFZObjects.h"
 #include "Object/HTZBadniks.h"
 #include "Object/MTZBoss.h"
 #include "Object/HTZBoss.h"
@@ -474,6 +475,24 @@ static void Slicer_RaisesItsBladesAndSendsTwoPincers(void) {
         if (sst[i].code == sst_object_codes[ObjId_SlicerPincers])
             pincers++;
     CHECK_EQ(pincers, 2);
+}
+
+// Sky Fortress's rotating platforms ($C3) are only a picture with a collision type in the pre-beta: tile $46D, $20 wide, type $2A, and it stays where it is
+static void SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType(void) {
+    SstTestClear();
+    scrpos_x.f.u = 0x100;
+    Sst *p = &sst[0x20];
+    p->code = sst_object_codes[0xC3];
+    p->x_pos.f.u = 0x200;
+    p->y_pos.f.u = 0x200;
+    Obj_SFZRotatingPlatforms(p);
+    CHECK_EQ(p->routine, 2);
+    CHECK_EQ(p->art_tile & 0x7FF, 0x46D);
+    CHECK_EQ(p->width_pixels, 0x20);
+    CHECK_EQ(p->collision_flags, 0x2A);
+    Obj_SFZRotatingPlatforms(p);
+    CHECK_EQ(p->x_pos.f.u, 0x200);
+    CHECK_EQ(p->y_pos.f.u, 0x200);
 }
 
 // The alpha's unfinished Metropolis boss: its ship makes the object of the balls, which makes seven of them (the object itself the first) that orbit the ship; a hit lets them go
@@ -1099,6 +1118,7 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(Rexon_RearsUpIntoFiveHeads);
     RUN_TEST(Sol_MakesFourFireballs);
     RUN_TEST(Slicer_RaisesItsBladesAndSendsTwoPincers);
+    RUN_TEST(SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType);
     RUN_TEST(MTZBoss_MakesSevenBallsThatOrbitTheShip);
     RUN_TEST(Animals_ZonesHaveTheirPairAndEndAnimalsTheirOwnMovement);
     RUN_TEST(DustSplash_FollowsTheSpinDashAndSplashesAtTheWater);

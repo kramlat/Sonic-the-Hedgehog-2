@@ -9,11 +9,13 @@
 #include "Object/CharControl.h"
 #include "Object/CPZObjects.h"
 #include "Object/DHZObjects.h"
+#include "Object/MTZBadniks.h"
 #include "Object/MTZObjects.h"
 #include "Object/Sonic.h"
 #include "Object/Tails.h"
 #include "Oscillatory Routines.h"
 #include "Solid.h"
+#include "SplitScreen.h"
 
 // Metropolis' objects: the teleporter, the platforms that go round a path, the machinery, the elevators, the gears, the conveyor belts and the boxes that wait to be stepped off.
 
@@ -415,7 +417,202 @@ static void MTZ_TheBlockOfMetropolisIsTheSlidePlatformsOwn(void) {
     CHECK_EQ(b->width_pixels, 0x20);
 }
 
+
+// --- the pre-beta's Metropolis (2026-11-06) ---
+
+static void FaceRight(Sst *s) { // (a flipped object in the layout: its render flags and status say so)
+    s->render_flags |= SST_RENDER_X_FLIP;
+    s->status |= SST_STATUS_X_FLIP;
+}
+
+static void MTZ_AFlippedShellcrackerAlsoTakesSonicOnItsRight(void) {
+    Reset();
+    scrpos_x.f.u = 0xF00;
+    Sst *crab = Spawn(SLOT(0x20), 0x9F, 0, 0x1000, 0x400);
+    Obj_Shellcracker(crab);
+    CHECK_EQ(crab->routine, 2);
+    player->x_pos.f.u = 0x1020; // (on its right, $20 away)
+    player->y_pos.f.u = 0x400;
+    Obj_Shellcracker(crab);
+    CHECK(crab->routine != 6); // (facing left: nothing in front of it)
+
+    Sst *flipped = Spawn(SLOT(0x21), 0x9F, 0, 0x1000, 0x400);
+    FaceRight(flipped);
+    Obj_Shellcracker(flipped);
+    Obj_Shellcracker(flipped);
+    CHECK_EQ(flipped->routine, 6);
+    CHECK_EQ(flipped->own.u8[0x2A - 0x28], 8); // (its timer: the wait before the claw)
+}
+
+static void MTZ_AWaitingShellcrackerLooksForSonicOnlyOnTheScreen(void) {
+    Reset();
+    scrpos_x.f.u = 0xF00;
+    player->x_pos.f.u = 0xFE0; // (in front of it, $20 away)
+    player->y_pos.f.u = 0x400;
+    Sst *crab = Spawn(SLOT(0x20), 0x9F, 0, 0x1000, 0x400);
+    Obj_Shellcracker(crab);
+    crab->routine = 4;
+    crab->render_flags &= (uint8_t)~SST_RENDER_ON_SCREEN;
+    Obj_Shellcracker(crab);
+    CHECK_EQ(crab->routine, 4); // (out of sight: it does not see him)
+    crab->render_flags |= SST_RENDER_ON_SCREEN;
+    Obj_Shellcracker(crab);
+    CHECK_EQ(crab->routine, 6);
+}
+
+static void MTZ_TheShellcrackersArtIsWhereThePreBetasListPutsIt(void) {
+    Reset();
+    Sst *crab = Spawn(SLOT(0x20), 0x9F, 0, 0x1000, 0x400);
+    Obj_Shellcracker(crab);
+    CHECK_EQ(crab->art_tile & 0x7FF, 0x31C); // ($6380)
+}
+
+static void MTZ_TheSlicerLooksUpAndDownAsWellAsAhead(void) {
+    Reset();
+    scrpos_x.f.u = 0xF00;
+    player->x_pos.f.u = 0xFC0; // (in front of it, $40 away)
+    player->y_pos.f.u = 0x300; // ... but $100 above
+    Sst *slicer = Spawn(SLOT(0x20), 0xA1, 0, 0x1000, 0x400);
+    Obj_Slicer(slicer);
+    Obj_Slicer(slicer);
+    CHECK(slicer->routine != 6);
+    player->y_pos.f.u = 0x420; // ... and $20 below: close enough
+    slicer->routine = 2; // (the first calls had it turn at the edge of the empty test floor)
+    Obj_Slicer(slicer);
+    CHECK_EQ(slicer->routine, 6);
+}
+
+static void MTZ_AFlippedSlicerWalksTheOtherWay(void) {
+    Reset();
+    Sst *slicer = Spawn(SLOT(0x20), 0xA1, 0, 0x1000, 0x400);
+    FaceRight(slicer);
+    Obj_Slicer(slicer);
+    CHECK_EQ(slicer->x_vel, 0x40);
+}
+
+static void MTZ_TheAsteronWaitsUntilSonicIsNearThenSetsOff(void) {
+    Reset();
+    scrpos_x.f.u = 0xF00;
+    Sst *star = Spawn(SLOT(0x20), 0xA4, 0, 0x1000, 0x400);
+    player->y_pos.f.u = 0x400;
+    player->x_pos.f.u = 0x1080; // ($80 away: past its $60)
+    Obj_Asteron(star);
+    Obj_Asteron(star);
+    CHECK_EQ(star->routine, 2);
+    player->x_pos.f.u = 0x1030; // ($30 away)
+    Obj_Asteron(star);
+    CHECK_EQ(star->routine, 4); // (the waiting step is over)
+    Obj_Asteron(star);
+    CHECK_EQ(star->routine, 6);
+    CHECK_EQ(star->x_vel, 0x40); // (towards him)
+}
+
+static void MTZ_ThePistonsWaitNinetyFramesAtEachEnd(void) {
+    Reset();
+    scrpos_x.f.u = 0xF00;
+    Sst *piston = Spawn(SLOT(0x20), 0x64, 0x01, 0x1000, 0x400);
+    Obj_MTZPiston(piston);
+    CHECK_EQ(SCRATCH_S16(piston, 0x36), 0x5A);
+}
+
+static void MTZ_TheTeleportersFlashIsInTheSecondListsArt(void) {
+    Reset();
+    Sst *tele = Spawn(SLOT(0x20), 0x67, 1, 0xC58, 0x5F0);
+    Obj_MTZTeleport(tele);
+    CHECK_EQ(tele->art_tile & 0x7FF, 0x56B); // ($AD60)
+}
+
+static void MTZ_TheThirdActsPlatformStopsAtItsFirstEnd(void) {
+    Reset();
+    level_id = LEVEL_ID(ZoneId_MTZ, 2);
+    scrpos_x.f.u = 0x1B80;
+    Sst *platform = Spawn(SLOT(0x20), 0x65, 0x05, 0x1CBC, 0x400);
+    for (int i = 0; i < 6; i++)
+        Obj_MTZPlatform(platform);
+    CHECK_EQ(platform->x_pos.f.u, 0x1CC0);
+    CHECK_EQ(platform->subtype, 0);
+}
+
+static int LivePlatforms(void) {
+    int n = 0;
+    for (int i = 0x20; i < 0x80; i++)
+        n += sst[i].code == sst_object_codes[0x65] && sst[i].routine == 2;
+    return n;
+}
+
+// A platform with a switch (subtype bit 7) is placed once, however the camera goes: the pre-beta clears its respawn byte's bit 7 when it starts, which in this loader would put it there again at every row
+static void MTZ_ASwitchPlatformIsLoadedOnce(void) {
+    Reset();
+    sst_load_everything_in_range = false;
+    static const uint8_t layout[] = { 0x04, 0x00, 0x82, 0x00, 0x65, 0x81, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00 };
+    static const SstObjectIndex index_ = {sst_object_codes, 0x100};
+    SstLoadCamera camera = {0, 0x200, false, 0xFFF};
+    SstLoad_Init(&index_, layout, false, &camera);
+    int max_alive = 0;
+    camera.x = 0x300;
+    scrpos_x.f.u = camera.x;
+    for (int k = 0; k < 24; k++) {
+        camera.y = (int16_t)(0x100 + ((k & 1) ? 0x100 : 0) + (k / 2) * 0x80);
+        scrpos_y.f.u = camera.y;
+        SstLoad_Update(&camera);
+        for (int i = 0x20; i < 0x80; i++)
+            if (sst[i].code == sst_object_codes[0x65])
+                sst[i].code(&sst[i]);
+        if (LivePlatforms() > max_alive)
+            max_alive = LivePlatforms();
+    }
+    CHECK(max_alive >= 1);
+    CHECK_EQ(max_alive, 1);
+    sst_load_everything_in_range = true;
+}
+
+
+// The order the acts follow after the end of act card: the pre-beta's Level_Sequence_List (and the versus list)
+uint16_t TitleCard_NextLevel(void);
+
+static void Order_TheActsFollowThePreBetasSequence(void) {
+    // one player: Emerald Hill, Chemical Plant, Neo Green Hill, Casino Night, Hill Top, Dust Hill, Oil Ocean, Metropolis, Sky Chase, Sky Fortress, Death Egg, the end
+    static const int zones[] = { ZoneId_EHZ, ZoneId_CPZ, ZoneId_ARZ, ZoneId_CNZ, ZoneId_HTZ, ZoneId_MCZ, ZoneId_OOZ, ZoneId_MTZ };
+    two_player_mode = 0;
+    for (size_t i = 0; i < sizeof(zones) / sizeof(zones[0]); i++) {
+        level_id = LEVEL_ID(zones[i], 0);
+        CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(zones[i], 1)); // (the first act leads to the second)
+        level_id = LEVEL_ID(zones[i], 1);
+        const uint16_t next = TitleCard_NextLevel();
+        if (i + 1 < sizeof(zones) / sizeof(zones[0]))
+            CHECK_EQ(next, LEVEL_ID(zones[i + 1], 0));
+        else
+            CHECK_EQ(next, LEVEL_ID(ZoneId_SCZ, 0)); // (Metropolis 2: the pre-beta's entry is Sky Chase)
+    }
+    level_id = LEVEL_ID(ZoneId_SCZ, 0);
+    CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_SFZ, 0));
+    level_id = LEVEL_ID(ZoneId_SFZ, 0);
+    CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_DEZ, 0));
+    level_id = LEVEL_ID(ZoneId_DEZ, 0);
+    CHECK_EQ(TitleCard_NextLevel(), 0xFFFF);
+    level_id = LEVEL_ID(ZoneId_MTZ, 2); // (the third act is the pre-beta's zone 5: Neo Green Hill)
+    CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_ARZ, 0));
+    // versus: Emerald Hill 2 goes to Casino Night, Dust Hill 2 ends it
+    two_player_mode = 1;
+    level_id = LEVEL_ID(ZoneId_EHZ, 1);
+    CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_CNZ, 0));
+    level_id = LEVEL_ID(ZoneId_MCZ, 1);
+    CHECK_EQ(TitleCard_NextLevel(), 0xFFFF);
+    two_player_mode = 0;
+}
+
 void RegisterMTZObjectTests(void) {
+    RUN_TEST(Order_TheActsFollowThePreBetasSequence);
+    RUN_TEST(MTZ_AFlippedShellcrackerAlsoTakesSonicOnItsRight);
+    RUN_TEST(MTZ_AWaitingShellcrackerLooksForSonicOnlyOnTheScreen);
+    RUN_TEST(MTZ_TheShellcrackersArtIsWhereThePreBetasListPutsIt);
+    RUN_TEST(MTZ_TheSlicerLooksUpAndDownAsWellAsAhead);
+    RUN_TEST(MTZ_AFlippedSlicerWalksTheOtherWay);
+    RUN_TEST(MTZ_TheAsteronWaitsUntilSonicIsNearThenSetsOff);
+    RUN_TEST(MTZ_ThePistonsWaitNinetyFramesAtEachEnd);
+    RUN_TEST(MTZ_TheTeleportersFlashIsInTheSecondListsArt);
+    RUN_TEST(MTZ_TheThirdActsPlatformStopsAtItsFirstEnd);
+    RUN_TEST(MTZ_ASwitchPlatformIsLoadedOnce);
     RUN_TEST(MTZ_TheTeleporterTakesACharacterAlongItsPath);
     RUN_TEST(MTZ_ANegativeSubtypeSendsHimBackwards);
     RUN_TEST(MTZ_ALongerPathFollowsEveryPoint);

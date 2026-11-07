@@ -279,7 +279,7 @@ void Obj_MTZTeleport(Sst *self) {
     if (self->routine == 0) {
         self->routine += 2;
         self->mappings = Mappings_MTZTeleport;
-        self->art_tile = TILE_MAP(0, 3, 0, 0, 0x33C);
+        self->art_tile = TILE_MAP(0, 3, 0, 0, 0x56B); // ($656B: the flash art of the second list, at $AD60; the alpha drew from $33C)
         self->render_flags |= SST_RENDER_LEVEL;
         self->width_pixels = 0x10;
         self->priority = 5 * 0x80;

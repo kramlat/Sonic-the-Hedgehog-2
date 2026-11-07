@@ -115,7 +115,7 @@ static const ZoneGolden zone_goldens[] = {
     { ZoneId_HPZ, 0, -1, 0x83bc803ef861421cull },
     { ZoneId_HTZ, 0, -1, 0xba0eebd73ad15cf6ull },
     { ZoneId_WZ, 0, -1, 0x7ac5405b04af7249ull },
-    { ZoneId_MTZ, 0, -1, 0x4cb5b9b96bfc1efeull },
+    { ZoneId_MTZ, 0, -1, 0x71b625869d9b76c5ull }, // (the pre-beta's Metropolis: its chunks, blocks, tiles and layouts differ from the alpha's)
     { ZoneId_OOZ, 0, -1, 0x88838371cb7947d8ull }, // (the pre-beta's Oil Ocean: its chunks, blocks and tiles differ from the alpha's)
     { ZoneId_MCZ, 0, -1, 0x73d0d845ffd7d591ull },
     { ZoneId_MCZ, 1, -1, 0x6822c9a4af424564ull },

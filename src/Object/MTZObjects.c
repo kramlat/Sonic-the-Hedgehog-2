@@ -219,7 +219,7 @@ void Obj_MTZPiston(Sst *self) {
             if (own->offset != 0) {
                 own->offset -= 8;
             } else if (--own->wait < 0) {
-                own->wait = 0x3C;
+                own->wait = 0x5A; // (the pre-beta's pause: 90 frames; the alpha's was 60)
                 own->out = 1;
             }
         }
@@ -227,7 +227,7 @@ void Obj_MTZPiston(Sst *self) {
             if (own->offset != own->reach) {
                 own->offset += 8;
             } else if (--own->wait < 0) {
-                own->wait = 0x3C;
+                own->wait = 0x5A;
                 own->out = 0;
             }
         }
@@ -356,7 +356,7 @@ void Obj_MTZPlatform(Sst *self) {
                 cog->priority = 4 * 0x80;
                 ((Own_MTZCog *)cog->own.u8)->platform = (uint8_t)(self - sst);
             }
-            ForgetIfRemembered(self);
+            // (the pre-beta clears the respawn byte's bit 7 here, which the original's loader takes as "load me again" only when its window comes by; in this loader it is "out there", and a platform that cleared it was placed again at every crossing of a 128 pixel row or column)
         }
         self->subtype &= 0xF;
     }
@@ -453,7 +453,7 @@ void Obj_MTZPlatform(Sst *self) {
         if (!own->out) {
             self->x_pos.f.u += 2;
             if (LEVEL_ZONE(level_id) == ZoneId_MTZ && LEVEL_ACT(level_id) == 2) { // (the third act of Metropolis)
-                if (self->x_pos.f.u == 0x2940)
+                if (self->x_pos.f.u == 0x1CC0 || self->x_pos.f.u == 0x2940) // (it stops at the first of the two: the alpha's only knew $2940)
                     self->subtype = 0;
             } else if (self->x_pos.f.u == 0x1BC0) {
                 own->out = 1;

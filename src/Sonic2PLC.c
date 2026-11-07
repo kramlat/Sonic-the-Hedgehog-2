@@ -780,7 +780,7 @@ static const PLCList PLC_OOZ2 = {
 // ---------------------------------------------------------------------------
 // Pattern load cues - Metropolis (Metropolis_Sprites_1 and 2)
 // ---------------------------------------------------------------------------
-static const PLCList PLC_MTZ = { // (the zone's own art is the level header's) the alpha's list 0C: the Shellcracker and the Asteron are in it, the prototype's drills' place is the Asteron's
+static const PLCList PLC_MTZ = { // (the zone's own art is the level header's) the pre-beta's list 0C (the alpha's, but for the Shellcracker's place): the Shellcracker and the Asteron are in it, the prototype's drills' place is the Asteron's
     9,
     (const PLC[]) {
         { Art_MTZWheel,      ART_VRAM(0x6F00 >> 5) },
@@ -790,7 +790,7 @@ static const PLCList PLC_MTZ = { // (the zone's own art is the level header's) t
         { Art_MTZSteam,      ART_VRAM(0x80A0 >> 5) },
         { Art_MTZSpikeBlock, ART_VRAM(0x8280 >> 5) },
         { Art_MTZSpike,      ART_VRAM(0x8380 >> 5) },
-        { Art_Shellcracker,  ART_VRAM(0x61E0 >> 5) },
+        { Art_Shellcracker,  ART_VRAM(0x6380 >> 5) }, // (the alpha's was $61E0)
         { Art_Asteron,       ART_VRAM(0x6D00 >> 5) },
     }
 };
@@ -807,7 +807,7 @@ static const PLCList PLC_MTZ2 = { // the alpha's list 0D (the Slicer is where th
         { Art_MTZLavaBubble, ART_VRAM(0xA6C0 >> 5) },
         { Art_MTZPlatform,   ART_VRAM(0xA7E0 >> 5) },
         { Art_MTZCog,        ART_VRAM(0xABE0 >> 5) },
-        { Art_MTZTeleport,   ART_VRAM(0xAD60 >> 5) }, // (the object draws tile $33C, as in the alpha, where the Shellcracker's art is)
+        { Art_MTZTeleport,   ART_VRAM(0xAD60 >> 5) },
     }
 };
 

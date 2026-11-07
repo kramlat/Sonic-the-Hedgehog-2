@@ -21,7 +21,7 @@
 #include "Resource/Mappings/Shellcracker.h"
 #include "Resource/Mappings/Slicer.h"
 
-#define ArtTile_Shellcracker 0x30F // ($61E0 in the alpha's Metropolis list)
+#define ArtTile_Shellcracker 0x31C // ($6380 in the pre-beta's Metropolis list; the alpha's was $61E0)
 #define ArtTile_Asteron      0x368 // ($6D00)
 #define ArtTile_Slicer       0x43C // ($8780)
 
@@ -59,8 +59,9 @@ typedef struct {
 enum { ShellRoutine_Init = 0, ShellRoutine_Walk = 2, ShellRoutine_Wait = 4, ShellRoutine_Attack = 6 };
 enum { ClawRoutine_Init = 0, ClawRoutine_Main = 2, ClawRoutine_Fall = 4 };
 
-static bool InAttackReach(const Where *w) {
-    return w->d0 == 0 && (uint16_t)(w->dx + 0x60) < 0xC0;
+// In front of it and within $60 pixels: a crab that is flipped (it faces right) also takes Sonic on its right, as the pre-beta's test does (`tst.w D0 / beq`, else `btst #0, Obj_Flags`)
+static bool InAttackReach(const Sst *self, const Where *w) {
+    return (w->d0 == 0 || (self->render_flags & SST_RENDER_X_FLIP)) && (uint16_t)(w->dx + 0x60) < 0xC0;
 }
 
 static void Shell_Stop(Sst *self, Own_Shell *own) {
@@ -88,7 +89,9 @@ static void Shell_MakeClaw(Sst *self) {
         piece->priority = 4 * 0x80;
         s->timer = (uint16_t)(self - sst);
         s->index = i;
-        piece->x_pos.f.u = (int16_t)(self->x_pos.f.u - 0x14);
+        // (at the crab's front: 20 pixels to the left, or to the right if it is flipped, and 12 closer for all the pieces but the first)
+        const bool flipped = (self->render_flags & SST_RENDER_X_FLIP) != 0;
+        piece->x_pos.f.u = (int16_t)(self->x_pos.f.u + (flipped ? (i == 0 ? 0x14 : 0x08) : -0x14));
         piece->y_pos.f.u = (int16_t)(self->y_pos.f.u - 8);
     }
 }
@@ -113,7 +116,7 @@ void Obj_Shellcracker(Sst *self) {
 
     case ShellRoutine_Walk: {
         const Where w = WhereIsSonic(self);
-        if (InAttackReach(&w)) {
+        if (InAttackReach(self, &w)) {
             Shell_Attack(self, own);
             SstOnScreenTest(self);
             break;
@@ -139,8 +142,9 @@ void Obj_Shellcracker(Sst *self) {
     }
 
     case ShellRoutine_Wait: {
+        // (it looks for Sonic only while it is on the screen: `tst.b Obj_Flags / bpl`)
         const Where w = WhereIsSonic(self);
-        if (InAttackReach(&w)) {
+        if ((self->render_flags & SST_RENDER_ON_SCREEN) && InAttackReach(self, &w)) {
             Shell_Attack(self, own);
         } else if ((int16_t)--own->timer < 0) {
             self->routine -= 2;
@@ -196,6 +200,7 @@ void Obj_ShellcrackerClaw(Sst *self) {
         self->render_flags |= SST_RENDER_LEVEL;
         self->priority = 4 * 0x80;
         self->width_pixels = 0xC;
+        self->render_flags |= (own->timer < SST_COUNT) ? (sst[own->timer].render_flags & SST_RENDER_X_FLIP) : 0; // (the claw faces as the crab does)
         self->collision_flags = 0x9A;
         self->routine += 2;
         if (own->index != 0) {
@@ -222,7 +227,7 @@ void Obj_ShellcrackerClaw(Sst *self) {
                 break;
             self->routine_secondary += 2;
             if (own->index < 0xE) {
-                self->x_vel = -0x400;
+                self->x_vel = (self->render_flags & SST_RENDER_X_FLIP) ? 0x400 : -0x400;
                 own->count_a = own->count_b = claw_lengths[own->index >> 1];
             } else {
                 own->count_a = 0;
@@ -323,26 +328,34 @@ void Obj_Asteron(Sst *self) {
         self->routine += 2;
         break;
 
-    case 2: { // it sets off towards Sonic when he is $10 to $60 pixels away, on either axis
+    case 2: { // it waits until Sonic is within $60 pixels across and $40 up or down (the pre-beta's own step: the alpha's went straight on)
+        const Where w = WhereIsSonic(self);
+        if ((uint16_t)(w.dx + 0x60) < 0xC0 && (uint16_t)(w.dy + 0x40) < 0x80)
+            self->routine = 4;
+        SstOnScreenTest(self);
+        break;
+    }
+
+    case 4: { // it sets off towards Sonic when he is $10 to $60 pixels away, on either axis
         static const int16_t speeds[2] = { -0x40, 0x40 };
         Where w = WhereIsSonic(self);
         int16_t dx = w.dx < 0 ? (int16_t)-w.dx : w.dx;
         int16_t dy = w.dy < 0 ? (int16_t)-w.dy : w.dy;
         if (dx >= 0x10 && dx < 0x60) {
             self->x_vel = speeds[w.d0 >> 1];
-            self->routine = 4;
+            self->routine = 6;
             own->timer = 0x40;
         }
         if (dy >= 0x10 && dy < 0x60) {
             self->y_vel = speeds[w.d1 >> 1];
-            self->routine = 4;
+            self->routine = 6;
             own->timer = 0x40;
         }
         SstOnScreenTest(self);
         break;
     }
 
-    case 4:
+    case 6:
         if ((int8_t)--own->timer < 0) {
             Asteron_Explode(self);
             SstOnScreenTest(self);
@@ -404,14 +417,14 @@ void Obj_Slicer(Sst *self) {
         self->width_pixels = 0x10;
         self->collision_flags = 0x06;
         self->routine += 2;
-        self->x_vel = -0x40;
+        self->x_vel = (self->render_flags & SST_RENDER_X_FLIP) ? 0x40 : -0x40; // (it walks the way it faces)
         self->y_radius = 0x10;
         self->x_radius = 0x10;
         break;
 
     case SlicerRoutine_Walk: {
         const Where w = WhereIsSonic(self);
-        if (w.d0 == 0 && (uint16_t)(w.dx + 0x80) < 0x100) { // Sonic in front of it
+        if (w.d0 == 0 && (uint16_t)(w.dx + 0x80) < 0x100 && (uint16_t)(w.dy + 0x40) < 0x80) { // Sonic in front of it, within $80 across and $40 above or $40 below (the vertical test was not in the alpha's)
             self->routine += 4;
             self->mapping_frame = 3;
             Slicer_SetTimer(self, 8);
