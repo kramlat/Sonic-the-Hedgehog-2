@@ -1009,10 +1009,10 @@ static const PLCList PLC_CPZBoss = { // the pre-beta's list $28: Chemical Plant'
     }
 };
 
-static const PLCList PLC_CNZBoss = { // the alpha's list $2D: Casino Night's boss: the ship's art (Robotnik), the boss and the explosions
+static const PLCList PLC_CNZBoss = { // the pre-beta's list $2D: Casino Night's boss: the ship's art (Robotnik) at $A000, the boss at $80E0 and the explosions
     3,
     (const PLC[]) {
-        { Art_BossShip,      ART_VRAM(0x74E0 >> 5) },
+        { Art_BossShip,      ART_VRAM(0xA000 >> 5) },
         { Art_CNZBoss,       ART_VRAM(0x80E0 >> 5) },
         { Art_BossExplosion, ART_VRAM(0xB000 >> 5) },
     }

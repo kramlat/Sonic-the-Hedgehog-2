@@ -23,7 +23,7 @@
 #include "Resource/Animation/CNZBoss.h"
 #include "Resource/Mappings/CNZBoss.h"
 
-#define ArtTile_CNZBoss 0x3A7 // ($74E0: list $2D)
+#define ArtTile_CNZBoss 0x3A7 // (the art word $03A7: the mapping adds its own tile numbers, which reach the ship at $A000 and the boss at $80E0 of list $2D)
 
 enum { Boss_Start = 0, Boss_Run = 2, Boss_Ball = 4 };
 // What the boss is doing (Obj_Ani_Boss_Routine; the animations of its parts move it on too)
