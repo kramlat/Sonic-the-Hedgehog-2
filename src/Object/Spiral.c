@@ -74,7 +74,7 @@ static void Spiral_Character(Sst *self, Sst *chr, int who) {
         int16_t d1 = chr->y_pos.f.u - self->y_pos.f.u - 0x10;
         if ((uint16_t)d1 >= 0x30)
             return;
-        if (CharObjControl(chr) != 0) // (the pre-beta's: a character that an object holds is not taken up)
+        if (!((chr->status & SST_PSTATUS_OBJECT_STAND) != 0) && CharObjControl(chr) != 0) // (the pre-beta tests Obj_Timer only for one who is not standing on another object)
             return;
         Solid_Ride(self, chr, who);
         return;
@@ -130,6 +130,7 @@ static void Cylinder_Character(Sst *self, Sst *chr, int who) {
         if (chr->routine >= 6)
             return;
         chr->y_pos.f.u = (int16_t)(chr->y_pos.f.u + (int16_t)d0 + 3);
+        CHAR_FLIP_FLAG(chr) = 1;
         Solid_Ride(self, chr, who);
         chr->anim = 0;
         chr->prev_anim = 1;

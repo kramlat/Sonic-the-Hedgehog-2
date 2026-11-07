@@ -10,6 +10,7 @@
 #include "Object/DebugList.h"
 #include "Object/DebugMarkers.h"
 #include "Object/Tails.h"
+#include "Object/CharControl.h"
 #include "Object/Sonic.h"
 #include "Object/SuperSonic.h"
 #include "Object/SuperSonicStars.h"
@@ -609,6 +610,7 @@ static void Cylinder_TakesACharacterAndLetsGoAtTheEnd(void) {
     CHECK_EQ(cyl->routine, 4);
     CHECK(cyl->status & 8); // (he is on it)
     CHECK_EQ(player->y_pos.f.u, 0x428);
+    CHECK_EQ(CHAR_FLIP_FLAG(player), 1); // (the pre-beta's Flip_Flag: his tumble counts up whichever way he runs)
     Obj_Spiral(cyl);
     const int16_t y_start = player->y_pos.f.u;
     for (int f = 0; f < 4; f++)

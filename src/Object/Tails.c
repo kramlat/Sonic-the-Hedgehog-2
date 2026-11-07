@@ -911,6 +911,7 @@ void Tails_ResetOnFloor(Sst *self) {
     tails_flying = 0; // (the flight can be used again)
     item_bonus = 0;
     scratch->flips_remaining = 0;
+    CHAR_FLIP_FLAG(self) = 0;
     if (self->anim == 0x14 || self->anim >= TAILS_ANIM_FLY)
         self->anim = SonAnimId_Walk; // (the alpha: a landing ends a flip's animation; and the guide's: the flight's animations end too)
 }
@@ -2059,7 +2060,7 @@ static void Tails_JumpAngle(Sst *self) {
     if (flip == 0)
         return;
 
-    if (self->ground_vel >= 0) {
+    if (self->ground_vel >= 0 || CHAR_FLIP_FLAG(self)) {
         unsigned sum = flip + scratch->flip_speed;
         flip = (uint8_t)sum;
         if (sum > 0xFF && (int8_t)--scratch->flips_remaining < 0) {

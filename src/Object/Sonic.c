@@ -395,6 +395,7 @@ void Sonic_ResetOnFloor(Sst *self) {
     scratch->jumping = false;
     item_bonus = 0;
     scratch->flips_remaining = 0;
+    CHAR_FLIP_FLAG(self) = 0;
     if (self->anim == SONIC_ANIM_FLIP)
         self->anim = SonAnimId_Walk; // (the alpha: a landing ends a flip's animation)
 }
@@ -1628,7 +1629,7 @@ static void Sonic_JumpAngle(Sst *self) {
     if (flip == 0)
         return;
 
-    if (self->ground_vel >= 0) {
+    if (self->ground_vel >= 0 || CHAR_FLIP_FLAG(self)) {
         unsigned sum = flip + scratch->flip_speed;
         flip = (uint8_t)sum;
         if (sum > 0xFF && (int8_t)--scratch->flips_remaining < 0) {
