@@ -13,6 +13,7 @@
 #include "Object/ObjectHit.h"
 #include "Object/SFZBoss.h"
 #include "Object/DEZRunning.h"
+#include "Object/DEZFinalBoss.h"
 #include "Object/CharControl.h"
 #include "Object/Sonic.h"
 #include "Object/SuperSonic.h"
@@ -70,7 +71,7 @@ static const Pending pending[] = {
     { ZoneId_HPZ, 0, { 0 } },
     { ZoneId_CPZ, 0, { 0 } },
     { ZoneId_SFZ, 0, { 0 } },
-    { ZoneId_DEZ, 1, { 0xC7 } }, // (Death Egg's final boss: it waits)
+    { ZoneId_DEZ, 0, { 0 } },
     { ZoneId_SCZ, 0, { 0 } },
     { ZoneId_ARZ, 0, { 0 } },
     { ZoneId_CNZ, 0, { 0 } }, // (Casino Night: everything its layouts place is ported)
@@ -688,6 +689,78 @@ static void DEZRunning_RunsThrowsAndOpensItsDoor(void) {
     CHECK(door_gone);
     CHECK(rob->x_pos.f.u > 0x400); // (he ran right)
     CHECK(thrown > 0);
+}
+
+// The pre-beta's giant Robotnik ($C7, subtype $9E in the Death Egg's layout): the body makes ten parts; the eye waits for Robotnik running ($C6) to hop away, plays its animation and tells the body, which rises for $79
+// frames, puts its parts at their places and then runs the puppet's tables
+static void DEZFinalBoss_MakesItsPartsAndRunsThePuppetOnceRobotnikHasHopped(void) {
+    SstTestClear();
+    scrpos_x.f.u = 0x100;
+    scrpos_y.f.u = 0x100;
+    player->code = sst_object_codes[ObjId_Sonic];
+    player->x_pos.f.u = 0x300;
+    player->y_pos.f.u = 0x200;
+    Sst *rob = &sst[0x20];
+    rob->code = Obj_DEZRunning;
+    rob->subtype = 0x96;
+    rob->x_pos.f.u = 0x300;
+    rob->y_pos.f.u = 0x160;
+    Sst *boss = &sst[0x21];
+    boss->code = Obj_DEZFinalBoss;
+    boss->subtype = 0x9E;
+    boss->x_pos.f.u = 0x400;
+    boss->y_pos.f.u = 0x180;
+    int parts = 0;
+    for (int f = 0; f < 6; f++) {
+        for (int i = 0x20; i < 0x80; i++)
+            if (sst[i].code == Obj_DEZRunning || sst[i].code == Obj_DEZFinalBoss)
+                sst[i].code(&sst[i]);
+    }
+    for (int i = 0x21; i < 0x80; i++)
+        if (sst[i].code == Obj_DEZFinalBoss)
+            parts++;
+    CHECK_EQ(parts, 12); // (the body and its eleven)
+    CHECK_EQ(boss->routine_secondary, 2);
+    CHECK_EQ(boss->mapping_frame, 3);
+    rob->status |= 0x08; // (Robotnik has hopped away)
+    for (int f = 0; f < 700; f++) {
+        for (int i = 0x20; i < 0x80; i++)
+            if (sst[i].code == Obj_DEZRunning || sst[i].code == Obj_DEZFinalBoss)
+                sst[i].code(&sst[i]);
+    }
+    CHECK_EQ(boss->routine_secondary, 8);
+    CHECK(boss->y_pos.f.u < 0x180); // (it rose)
+    CHECK(boss->own.u8[0x41 - 0x28] > 0); // (the puppet has run on)
+}
+
+// Death Egg's events (DynResize_DEz, without Metal Sonic's boss yet): past X $140 the first step is done, the step after the boss is the boss's (nothing moves it), then the left edge follows the camera, the giant's art is
+// queued at $300, and at $680 the arena is shut between $680 and $740
+static void DEZEvents_FollowTheCameraAndShutTheArena(void) {
+    level_id = LEVEL_ID(ZoneId_DEZ, 0);
+    camera_split = false;
+    dle_routine = 0;
+    scrpos_x.f.u = 0x100 - SCREEN_WIDEADD2 - 1;
+    DynamicLevelEvents();
+    CHECK_EQ(dle_routine, 0);
+    scrpos_x.f.u = 0x200;
+    DynamicLevelEvents();
+    CHECK_EQ(dle_routine, 2);
+    DynamicLevelEvents();
+    CHECK_EQ(dle_routine, 2); // (the boss moves it on)
+    dle_routine = 4;
+    scrpos_x.f.u = 0x2F0 - SCREEN_WIDEADD2;
+    DynamicLevelEvents();
+    CHECK_EQ(limit_left2, scrpos_x.f.u);
+    CHECK_EQ(dle_routine, 4);
+    scrpos_x.f.u = 0x400;
+    DynamicLevelEvents();
+    CHECK_EQ(dle_routine, 6);
+    scrpos_x.f.u = 0x700;
+    DynamicLevelEvents();
+    CHECK_EQ(dle_routine, 8);
+    CHECK_EQ(limit_left2, 0x680 - SCREEN_WIDEADD2);
+    CHECK_EQ(limit_right2, 0x740);
+    dle_routine = 0;
 }
 
 // The pre-beta's Hurt_Player for Tails: the computer's Tails is only thrown (the rings and the shield stay); in the two player mode he loses the shared rings like Sonic, loses the shield first, and dies with neither
@@ -1373,6 +1446,8 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(Slicer_RaisesItsBladesAndSendsTwoPincers);
     RUN_TEST(SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType);
     RUN_TEST(Tails_HurtFollowsThePreBetasHurtPlayer);
+    RUN_TEST(DEZEvents_FollowTheCameraAndShutTheArena);
+    RUN_TEST(DEZFinalBoss_MakesItsPartsAndRunsThePuppetOnceRobotnikHasHopped);
     RUN_TEST(DEZRunning_RunsThrowsAndOpensItsDoor);
     RUN_TEST(SFZEvents_StartAsTheCameraAndMoveOnWithPadTwosStart);
     RUN_TEST(SFZBoss_BodyMakesItsPartsAndTheBouncerStaysInItsBox);

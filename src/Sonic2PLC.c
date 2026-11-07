@@ -26,6 +26,7 @@
 #include "Resource/Art/DEZMetalSonic.h"
 #include "Resource/Art/DEZRobotnik.h"
 #include "Resource/Art/DEZRobotnikBody.h"
+#include "Resource/Art/DEZFinalBoss.h"
 #include "Resource/Art/DEZRobotnikFaces.h"
 #include "Resource/Art/DEZRobotnikWindow.h"
 #include "Resource/Art/Nebula.h"
@@ -977,6 +978,13 @@ static const PLCList PLC_DEZ2 = { // Death Egg's secondary list, the pre-beta's 
     }
 };
 
+static const PLCList PLC_DEZFinal = { // the pre-beta's list $31: the giant Robotnik's art, loaded as the camera nears him
+    1,
+    (const PLC[]) {
+        { Art_DEZFinalBoss, ART_VRAM(0x6600 >> 5) },
+    }
+};
+
 static const PLCList PLC_SCZ2 = { // Sky Chase's secondary list, the pre-beta's $25 (its tiles are Sky Fortress's: the level's own)
     7,
     (const PLC[]) {
@@ -1103,5 +1111,6 @@ const PLCList* plcs[PlcId_Num] = {
     /* PlcId_DEZ2        */ &PLC_DEZ2,
     /* PlcId_SCZ2        */ &PLC_SCZ2,
     /* PlcId_CPZBoss     */ &PLC_CPZBoss,
+    /* PlcId_DEZFinal    */ &PLC_DEZFinal,
 };
 

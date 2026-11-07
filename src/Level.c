@@ -365,6 +365,33 @@ void ColIndexLoad(void) {
     collision_path = 0;
 }
 
+// Death Egg's dynamic level events (DynResize_DEz): once the camera has passed X $140 the way to Metal Sonic's fight begins (its boss, $AF, is made here in the pre-beta, with the explosions' art list $30: both wait for the
+// boss); the step after is the boss's to take (it moves the events on when Metal Sonic is beaten); then the camera's left edge follows the camera, the giant Robotnik's art (list $31) is loaded at X $300, and at X $680 the
+// arena is shut ($680 to $740)
+static void DEZ_Events(void) {
+	switch (dle_routine) {
+	case 0:
+		if (scrpos_x.f.u >= 0x140 - SCREEN_WIDEADD2)
+			dle_routine += 2; // (the boss is made here: not yet)
+		break;
+	case 4:
+		limit_left2 = scrpos_x.f.u;
+		if (scrpos_x.f.u >= 0x300 - SCREEN_WIDEADD2) {
+			dle_routine += 2;
+			AddPLC(PlcId_DEZFinal);
+		}
+		break;
+	case 6:
+		limit_left2 = scrpos_x.f.u;
+		if (scrpos_x.f.u >= 0x680 - SCREEN_WIDEADD2) {
+			dle_routine += 2;
+			limit_left2 = 0x680 - SCREEN_WIDEADD2;
+			limit_right2 = 0x740;
+		}
+		break;
+	}
+}
+
 // Dynamic level events: Nick Arcade's per-zone events (s2.asm, DynResize_*). Green Hill's are Sonic 1's own; Chemical Plant's, Emerald Hill's act 1 and Hidden Palace's act 1 have none
 // (the Marble and Spring Yard code Sonic 1 puts in those slots is "leftover from Sonic 1" there and never runs), and the zones with a boss end in an arena whose boss Nick Arcade has
 // but this port has not ported yet (the boss objects are empty, so the camera locks there and nothing else happens). The camera limits are named as in Sonic 1: limit_btm1 is
@@ -408,6 +435,9 @@ void DynamicLevelEvents(void) {
             }
             break;
         }
+        break;
+    case ZoneId_DEZ:
+        DEZ_Events(); // (the pre-beta's DynResize_DEz, without Metal Sonic's boss yet)
         break;
     case ZoneId_SFZ:
         SFZ_Events(); // (the pre-beta's DynResize_SFz: it steers the background; the zone has no boss in its events)

@@ -24,6 +24,12 @@ typedef struct {
     uint16_t door;     // 0x3E: his door
 } Own_DEZRunning;
 
+static uint16_t robotnik_address; // ($F660)
+
+Sst *DEZRunning_Robotnik(void) {
+    return robotnik_address == 0 ? NULL : &sst[(robotnik_address - 0xB000) / 0x40];
+}
+
 enum { Routine_Init = 0, Routine_Robotnik = 2, Routine_Door = 4, Routine_Thrown = 6 };
 
 static uint16_t Address(const Sst *obj) {
@@ -67,7 +73,8 @@ static void Robotnik(Sst *self, Own_DEZRunning *own) {
             door->x_pos.f.u = 0x3F8;
             door->y_pos.f.u = 0x160;
         }
-        break; // (the pre-beta also keeps his address in $F660, which nothing here reads)
+        robotnik_address = Address(self); // ($F660: the final boss looks at him)
+        break;
     }
     case 2: {
         const uint16_t d = (uint16_t)((uint16_t)self->x_pos.f.u - (uint16_t)player->x_pos.f.u + 0x5C);

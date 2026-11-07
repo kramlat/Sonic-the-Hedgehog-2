@@ -28,3 +28,4 @@ PlcId_SFZ2, // its secondary (the pre-beta's list $11: the lasers, the cannon, t
 PlcId_DEZ2, // Death Egg's secondary list (the pre-beta's $21: its door, Metal Sonic, Robotnik's window, his faces and his body)
 PlcId_SCZ2, // Sky Chase's secondary list (the pre-beta's $25: the Tornado, the clouds, the helices, the Balkiry, the Turtloid and the Nebula)
 PlcId_CPZBoss, // the pre-beta's list $28: Chemical Plant's boss (the ship, its boost, the boss, the smoke and the explosions)
+PlcId_DEZFinal, // the pre-beta's list $31: the giant Robotnik of the Death Egg

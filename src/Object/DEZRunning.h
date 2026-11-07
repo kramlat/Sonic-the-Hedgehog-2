@@ -7,4 +7,7 @@
 // build makes it. The subtype less $94 is the routine: $96 Robotnik, $98 the door, $9A what he throws.
 void Obj_DEZRunning(Sst *self);
 
+// Robotnik himself, once he has made his door (the pre-beta keeps his address in $F660), or NULL: the final boss waits for his status bit 3, set when he hops away
+Sst *DEZRunning_Robotnik(void);
+
 #endif //_DEZRUNNING_H
