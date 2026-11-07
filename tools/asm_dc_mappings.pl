@@ -21,6 +21,7 @@ my $pos = 2 * @names;
 my (@offsets, $data);
 $data = '';
 for my $n (@names) {
+    if ($n eq $table) { push @offsets, 0; next } # (the table itself is the frame: its count word is the table's first offset, 0)
     my @l = grep { /\S/ } @{ $body{$n} // die "no frame $n\n" };
     $l[0] =~ /^\s*dc\.w\s+\$([0-9A-Fa-f]+)\s*$/ or die "$n: no count\n";
     my $count = hex $1;

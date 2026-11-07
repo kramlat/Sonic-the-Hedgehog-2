@@ -15,6 +15,7 @@ void Obj_ObjectHit(Sst *self);
 #include "Object/BossCommon.h"
 #include "Object/HTZBoss.h"
 #include "Object/NGHZBoss.h"
+#include "Object/CNZBoss.h"
 #include "Object/Sonic.h"
 #include "Constants.h"
 
@@ -1397,6 +1398,12 @@ static signed int ReactToItem(Sst *self) {
         // The pre-beta's Neo Green Hill boss hurts with its hammer while it is down: a box in front of the ship
         int16_t hammer_x, hammer_y, hammer_w, hammer_h;
         if (NGHZBoss_HammerBox(hit, &hammer_x, &hammer_y, &hammer_w, &hammer_h)) {
+            const int16_t hx = x - (hammer_x - hammer_w);
+            const int16_t hy = y - (hammer_y - hammer_h);
+            if (hx >= -width && hx <= hammer_w * 2 && hy >= -height && hy <= hammer_h * 2)
+                return React_ChkHurt(self, hit);
+        }
+        if (CNZBoss_CatcherBox(hit, &hammer_x, &hammer_y, &hammer_w, &hammer_h)) { // (the pre-beta's Casino Night boss hurts with its catchers: a box under the ship)
             const int16_t hx = x - (hammer_x - hammer_w);
             const int16_t hy = y - (hammer_y - hammer_h);
             if (hx >= -width && hx <= hammer_w * 2 && hy >= -height && hy <= hammer_h * 2)

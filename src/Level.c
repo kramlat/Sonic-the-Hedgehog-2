@@ -226,6 +226,7 @@ void LevelSizeLoad(void) {
     HTZQuake_Reset();
     HTZBackground_Reset();
     NGHZBoss_Reset();
+    CNZBoss_Reset();
     CNZ_ResetBumperGroups();
     SlotMachine_Reset();
 

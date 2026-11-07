@@ -557,17 +557,22 @@ static void CNZ_TheRoundBumperThrowsWhoeverTouchesIt(void) {
     CHECK_EQ(bumper->anim, 1);
 }
 
-static void CNZ_TheBossGoesRoundTheArenaAndLetsTheBallFall(void) {
+// The pre-beta's Casino Night boss: it starts at ($29D0,$590) and is on its track at Y $63A at once; it goes to and fro between $28A0 and $29E0, opens its catchers (and lets a ball fall from one side), and the ball
+// falls, rolls and breaks away
+static void CNZ_TheBossGoesToAndFroAndLetsTheBallFall(void) {
     Reset(ZoneId_CNZ);
     level_id = LEVEL_ID(ZoneId_CNZ, 1);
+    boss_flag = 6;
     Sst *boss = Spawn(0x51, 0, 0, 0);
     Obj_CNZBoss(boss);
     CHECK_EQ(boss->child_count, 4);
-    CHECK_EQ(boss->x_pos.f.u, 0x2850);
-    CHECK_EQ(boss->y_pos.f.u, 0x600);
+    CHECK_EQ(boss->collision_property, 2);
+    CHECK_EQ(boss->x_pos.f.u, 0x29D0);
+    CHECK_EQ(boss->y_pos.f.u, 0x590);
     player->x_pos.f.u = 0x2800;
     int balls = 0;
-    int16_t min_x = 0x7FFF;
+    int16_t min_x = 0x7FFF, max_x = 0;
+    bool open = false;
     for (int i = 0; i < 1500; i++) {
         scrpos_x.f.u = 0x2700;
         scrpos_y.f.u = 0x500;
@@ -575,39 +580,64 @@ static void CNZ_TheBossGoesRoundTheArenaAndLetsTheBallFall(void) {
         Obj_CNZBoss(boss);
         if (boss->x_pos.f.u < min_x)
             min_x = boss->x_pos.f.u;
+        if (boss->x_pos.f.u > max_x)
+            max_x = boss->x_pos.f.u;
+        {
+            int16_t cx, cy, hw, hh;
+            open |= CNZBoss_CatcherBox(boss, &cx, &cy, &hw, &hh);
+        }
+        int now = 0;
         for (int j = 0x21; j < 0x60; j++) {
-            if (sst[j].code == sst_object_codes[0x51] && ((uint8_t *)&sst[j].own)[0] == 4) {
-                balls++;
+            if (sst[j].code == sst_object_codes[0x51] && sst[j].routine == 4) {
+                now++;
                 Obj_CNZBoss(&sst[j]);
             }
         }
+        if (now > balls)
+            balls = now;
     }
-    CHECK(balls > 0);                // (it lets a ball fall)
-    CHECK(min_x <= 0x2730 + 4);      // (it goes to the left corner of the arena)
-    CHECK(boss->y_pos.f.u <= 0x600 && boss->y_pos.f.u >= 0x59C);
+    CHECK(balls > 0);                           // (it lets a ball fall)
+    CHECK(open);                                // (its catchers hurt while out)
+    CHECK(min_x <= 0x28A0 + 4);                 // (the left end of its track)
+    CHECK(max_x >= 0x29E0 - 4 && max_x <= 0x29E0 + 8); // (and the right)
+    CHECK(boss->y_pos.f.u <= 0x63A + 6 && boss->y_pos.f.u >= 0x63A - 6);
     ClearPLC();
+    boss_flag = 0;
 }
 
-static void CNZ_TheBossArenaLocksTheCameraAtTheEndOfActTwoOnly(void) {
+// DynResize_CNz (act 2) of the pre-beta: X $27C0 fixes the left edge and the lower limit; X $2890 shuts the arena between $2860 and $28E0, Boss_Flag 6; then the top is held at $4E0 and, $5A frames on, the boss is made
+static void CNZ_TheEventsShutTheArenaAndMakeTheBossLast(void) {
     Reset(ZoneId_CNZ);
     dle_routine = 0;
     level_id = LEVEL_ID(ZoneId_CNZ, 1);
-    scrpos_x.f.u = 0x2400 - SCREEN_WIDEADD2 - 1;
+    scrpos_x.f.u = 0x27C0 - SCREEN_WIDEADD2 - 1;
     CNZBoss_Events();
     CHECK_EQ(dle_routine, 0);
-    scrpos_x.f.u = 0x2400 - SCREEN_WIDEADD2;
+    scrpos_x.f.u = 0x27C0 - SCREEN_WIDEADD2;
     CNZBoss_Events();
     CHECK_EQ(dle_routine, 2);
-    CHECK_EQ(boss_flag, 6);
-    CHECK_EQ(limit_btm1, 0x5C0 - SCREEN_TALLADD);
-    scrpos_x.f.u = 0x2700 - SCREEN_WIDEADD2;
+    CHECK_EQ(limit_btm1, 0x062E - SCREEN_TALLADD);
+    CHECK_EQ(boss_flag, 0);
+    scrpos_x.f.u = 0x2890 - SCREEN_WIDEADD2;
     CNZBoss_Events();
     CHECK_EQ(dle_routine, 4);
-    CHECK_EQ(limit_left2, 0x2700 - SCREEN_WIDEADD2);
+    CHECK_EQ(boss_flag, 6);
+    CHECK_EQ(limit_left2, 0x2860 - SCREEN_WIDEADD2);
+    CHECK_EQ(limit_right2, 0x28E0 + SCREEN_WIDEADD2);
+    { int made = 0; for (int j = 1; j < 0x60; j++) made += sst[j].code == sst_object_codes[0x51]; CHECK_EQ(made, 0); } // (the boss is made later)
+    scrpos_y.f.u = 0x4E0 - SCREEN_TALLADD;
+    for (int i = 0; i < 0x59; i++)
+        CNZBoss_Events();
+    CHECK_EQ(limit_top2, 0x4E0 - SCREEN_TALLADD);
+    CHECK_EQ(dle_routine, 4);
+    CNZBoss_Events();
+    CHECK_EQ(dle_routine, 6);
+    { int made = 0; for (int j = 1; j < 0x60; j++) made += sst[j].code == sst_object_codes[0x51]; CHECK_EQ(made, 1); }
     ClearPLC();
     boss_flag = 0;
     dle_routine = 0;
 }
+
 
 static void CNZ_TheAutoSpinRollsWhoeverTouchesItIntoABall(void) { // (the alpha's box, which Hidden Palace and Hill Top still have: Casino Night has the pre-beta's line)
     Reset(ZoneId_HPZ);
@@ -1111,8 +1141,8 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(DHZ_TheBossRisesDropsRocksAndMovesToWhereSonicIs);
     RUN_TEST(DHZ_TheBossArenaLocksTheCameraAndLoadsTheBossOnce);
     RUN_TEST(CNZ_TheRoundBumperThrowsWhoeverTouchesIt);
-    RUN_TEST(CNZ_TheBossGoesRoundTheArenaAndLetsTheBallFall);
-    RUN_TEST(CNZ_TheBossArenaLocksTheCameraAtTheEndOfActTwoOnly);
+    RUN_TEST(CNZ_TheBossGoesToAndFroAndLetsTheBallFall);
+    RUN_TEST(CNZ_TheEventsShutTheArenaAndMakeTheBossLast);
     RUN_TEST(CNZ_TheAutoSpinRollsWhoeverTouchesItIntoABall);
     RUN_TEST(CNZ_TheBumperKnowsWhichCharacterTouchedIt);
 }
