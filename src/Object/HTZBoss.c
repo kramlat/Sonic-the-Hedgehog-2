@@ -42,7 +42,7 @@ static void Boss_SavePlace(Sst *self) {
 static void Ship_Bob(Sst *self, Own_AlphaBoss *own) {
     int16_t sin, cos;
     CalcSine(own->angle, &sin, &cos);
-    self->y_pos.f.u = (int16_t)((sin >> 7) + boss_move.y.f.u);
+    self->y_pos.f.u = (int16_t)((cos >> 7) + boss_move.y.f.u);
     own->angle = (uint8_t)(own->angle + 4);
 }
 
@@ -79,9 +79,9 @@ static void Ship_Run(Sst *self, Own_AlphaBoss *own) {
     case Ship_Rise:
         cannon_open = 0;
         Boss_Move();
-        if (boss_move.y.f.u <= (left_side ? 0x520 : 0x4D8)) {
-            boss_move.y.f.u = left_side ? 0x520 : 0x4D8;
+        if (boss_move.y.f.u <= (left_side ? 0x518 : 0x4FC)) { // (no clamp: it goes on from where it is)
             boss_move.ysp = 0;
+            own->angle = 4;
             own->anim_routine += 2;
             own->count = 0x3C;
         }
@@ -131,8 +131,9 @@ static void Ship_Run(Sst *self, Own_AlphaBoss *own) {
 
     case Ship_Descend: {
         Boss_Move();
-        if (boss_move.y.f.u >= (left_side ? 0x540 : 0x4F0) && !own->flag) {
+        if (boss_move.y.f.u >= (left_side ? 0x538 : 0x548) && !own->flag) {
             own->flag = 0xFF;
+            QueueSound2(sfx_Fireball);
             Sst *balls = Sst_Allocate(); // the lava
             if (balls != NULL) {
                 balls->code = sst_object_codes[ObjId_HTZBoss];
@@ -141,18 +142,18 @@ static void Ship_Run(Sst *self, Own_AlphaBoss *own) {
                 balls->y_pos.f.u = self->y_pos.f.u;
             }
         }
-        if (boss_move.y.f.u >= (left_side ? 0x5D0 : 0x580)) { // at the bottom: up again, on the side that Sonic is not on
-            boss_move.y.f.u = left_side ? 0x5D0 : 0x580;
+        if (boss_move.y.f.u >= (left_side ? 0x5A0 : 0x580)) { // at the bottom: up again, on the side that Sonic is not on
+            boss_move.y.f.u = left_side ? 0x5A0 : 0x580;
             boss_move.ysp = (int16_t)0xFF20;
             own->anim_routine = Ship_Rise;
             own->flag = 0;
-            if ((int16_t)(player->x_pos.f.u - 0x2FEC) >= 0) {
+            if ((int16_t)(player->x_pos.f.u - 0x2FC0) >= 0) {
                 boss_move.y.f.u = 0x580;
-                self->x_pos.f.u = 0x30A0;
+                self->x_pos.f.u = 0x3040;
                 own->side = 0xFF;
             } else {
-                self->x_pos.f.u = 0x2F38;
-                boss_move.y.f.u = 0x5D0;
+                self->x_pos.f.u = 0x2F40;
+                boss_move.y.f.u = 0x5A0;
                 own->side = 0;
             }
             SST_RENDER_SET(self, SST_RENDER_X_FLIP, self->x_pos.f.u <= (int16_t)player->x_pos.f.u); // (faces Sonic)
@@ -184,13 +185,12 @@ static void Ship_Run(Sst *self, Own_AlphaBoss *own) {
             break;
         }
         self->y_pos.f.u += 2; // (sinking)
-        if (self->y_pos.f.u <= (left_side ? 0x540 : 0x4F0)) {
+        if (self->y_pos.f.u <= (left_side ? 0x538 : 0x548)) {
             Sst_Draw(self);
             break;
         }
         if (!boss_status) {
             boss_status = 1; // the boss is beaten
-            limit_right2 = limit_right1;
             Sst_Delete(self);
         } else {
             Sst_Draw(self);
@@ -209,7 +209,7 @@ void Obj_HTZBoss(Sst *self) {
         self->render_flags |= SST_RENDER_LEVEL;
         self->width_pixels = 0x90;
         self->priority = 4 * 0x80;
-        self->x_pos.f.u = 0x30A0;
+        self->x_pos.f.u = 0x3040;
         self->y_pos.f.u = 0x580;
         own->side = 1;
         self->mapping_frame = 1;
@@ -284,7 +284,7 @@ void Obj_HTZBoss(Sst *self) {
                 ball->x_radius = 8;
                 ball->x_pos.v &= ~0xFFFF; // (no fraction)
                 ball->x_vel = (int16_t)(i == 0 ? -0x1C00 : 0x1C00);
-                ball->y_vel = (int16_t)(ball->x_pos.f.u == 0x2F38 ? 0xAC00 : 0x9C00);
+                ball->y_vel = (int16_t)(ball->x_pos.f.u == 0x2F40 ? 0xAC00 : 0x9C00);
             }
         } else {
             self->x_pos.v += (int32_t)self->x_vel << 4;

@@ -1293,10 +1293,6 @@ static signed int React_Enemy(Sst *self, Sst *hit)
         if (hit->collision_property) {
             self->x_vel = -self->x_vel;
             self->y_vel = -self->y_vel;
-            if (boss_flag != 3) { // (Hill Top's does not take the speed from him)
-                self->x_vel >>= 1;
-                self->y_vel >>= 1;
-            }
             hit->collision_flags = 0;
             hit->collision_property--;
         }
@@ -1306,8 +1302,8 @@ static signed int React_Enemy(Sst *self, Sst *hit)
     // Check if enemy is a boss
     if (hit->collision_property) {
         // Hit boss
-        self->x_vel = -self->x_vel >> 1;
-        self->y_vel = -self->y_vel >> 1;
+        self->x_vel = -self->x_vel; // (the pre-beta bounces him off a boss at the speed he came with)
+        self->y_vel = -self->y_vel;
         hit->collision_flags = 0;
         if (!(--hit->collision_property))
             hit->status |= 0x80;
@@ -1416,7 +1412,7 @@ static signed int ReactToItem(Sst *self) {
             const int16_t cx = x - (cannon_x - cannon_w);
             const int16_t cy = y - (cannon_y - 4);
             if (cx >= -width && cx <= cannon_w * 2 && cy >= -height && cy <= 8)
-                return React_Enemy(self, hit);
+                return React_ChkHurt(self, hit); // (its open cannon's flame hurts: the pre-beta's touch code of Boss_Flag 3)
         }
 
         // Get object's size

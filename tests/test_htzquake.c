@@ -4,6 +4,7 @@
 
 #include "HTZQuake.h"
 #include "Level.h"
+#include "Object/BossCommon.h"
 #include "LevelScroll.h"
 #include "Sprites.h"
 
@@ -110,14 +111,22 @@ static void HTZQuake_TheBossArenaTakesOverPastTheQuakeInActTwo(void) {
     HTZQuake_Events();
     CHECK_EQ(htz_quake, 0);
     CHECK_EQ(dle_routine, 0xA);
-    Camera(0x2B80, 0x400); // (at $2B80 the boss comes)
-    lock_screen = false;
+    Camera(0x2C00, 0x400); // (at $2C00 the left edge follows and the lower limit is $480)
     HTZQuake_Events();
     CHECK_EQ(dle_routine, 0xC);
-    CHECK(lock_screen);
-    Camera(0x2E80, 0x400);
+    CHECK_EQ(limit_btm1, 0x480 - SCREEN_TALLADD);
+    Camera(0x2EDF, 0x400); // (at $2EDF the arena is shut: $2EE0 to $2F5E, Boss_Flag 3)
     HTZQuake_Events();
     CHECK_EQ(dle_routine, 0xE);
+    CHECK_EQ(boss_flag, 3);
+    CHECK_EQ(limit_right2, 0x2F5E + SCREEN_WIDEADD2);
+    Camera(0x2EE0, 0x478); // (the top is held, and $5A frames on the boss comes)
+    for (int i = 0; i < 0x5A; i++)
+        HTZQuake_Events();
+    CHECK_EQ(limit_top2, 0x478 - SCREEN_TALLADD);
+    CHECK_EQ(dle_routine, 0x10);
+    ClearPLC();
+    boss_flag = 0;
 }
 
 static void HTZQuake_LeavingTheStretchResetsTheBackground(void) {

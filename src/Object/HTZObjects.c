@@ -665,5 +665,6 @@ void HTZFireball_BossBallLands(Sst *self) {
     self->mapping_frame = 0;
     scratch->timer = 9;
     scratch->spread = 3;
+    PlaySound(sfx_Flamethrower); // ($B3: the lava lands)
     Obj_HTZFireball(self);
 }

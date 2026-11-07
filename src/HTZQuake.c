@@ -71,6 +71,7 @@ static void SpritesFollow(int view, bool copy) {
 // Each camera is at its own step of the events (the prototype has one camera and one step): the second's is kept here and swapped in for its run, so a camera that has gone past the stretch's end does not
 // start the other's quake at the beginning of the level
 static uint8_t p2_dle_routine;
+static uint8_t htz_boss_counter; // $F73A
 
 void HTZQuake_Reset(void) {
     p2_dle_routine = 0;
@@ -297,27 +298,34 @@ static void RunEvents(void) {
             dle_routine -= 2;
         }
         break;
-    case 0xA: // the boss: at $2B80 the screen stops there, the arena's floor is fixed and the boss (object 52) comes
-        if (camx < 0x2B80)
+    case 0xA: // the boss's arena (DynResize_HTz_Act_2 on): at $2C00 the left edge follows the camera and the lower limit is $480
+        if (camx < 0x2C00)
             break;
         limit_left2 = scrpos_x.f.u;
-        limit_btm1 = 0x4A0 - SCREEN_TALLADD;
+        limit_btm1 = 0x480 - SCREEN_TALLADD;
         dle_routine += 2;
-        {
-            Sst_Spawn(0x52, 0, 0);
-            boss_flag = 3;
-        }
-        lock_screen = true;
+        break;
+    case 0xC: // at $2EDF the arena is shut ($2EE0 to $2F5E), the music fades, Boss_Flag 3 and the boss's list
+        if (camx < 0x2EDF)
+            break;
+        limit_left2 = 0x2EE0 - SCREEN_WIDEADD2;
+        limit_right1 = limit_right2 = 0x2F5E + SCREEN_WIDEADD2;
+        dle_routine += 2;
+        QueueSound1(bgm_Fade);
+        htz_boss_counter = 0;
+        boss_flag = 3;
         AddPLC(PlcId_HTZBoss);
         break;
-    case 0xC: // at $2E80 the right edge of the arena
-        if (camx < 0x2E80)
-            break;
-        limit_right1 = 0x3040 + SCREEN_WIDEADD2;
-        limit_left2 = 0x2E80 - SCREEN_WIDEADD2;
-        dle_routine += 2;
+    case 0xE: // the camera's top is held once it is at Y $478, and $5A frames on the boss comes and its music starts
+        if (scrpos_y.f.u >= (0x478 - SCREEN_TALLADD))
+            limit_top2 = 0x478 - SCREEN_TALLADD;
+        if (++htz_boss_counter >= 0x5A) {
+            Sst_Spawn(0x52, 0, 0);
+            dle_routine += 2;
+            QueueSound1(bgm_Boss);
+        }
         break;
-    case 0xE: // when it is beaten, the results card
+    case 0x10: // when it is beaten, the results card
         if (boss_status)
             GotThroughAct();
         break;
