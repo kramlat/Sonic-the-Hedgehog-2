@@ -1465,6 +1465,7 @@ static signed int HurtTails(Sst *self, int16_t src_x, bool spikes)
 {
     Scratch_Sonic *scratch = (Scratch_Sonic *)self->own.u8;
 
+    // (A stand-in: later this asks which player Tails is for, a Hurt_Player_P2 of his own with his own rings and shield, instead of sharing Sonic's.)
     // The pre-beta's Hurt_Player: the computer's Tails (one player) is only thrown, with no rings lost and the shield kept; with a second human (true_two_player) he is a player like Sonic and
     // loses the shared rings, the shield, or his life (he comes back above Sonic like one who fell out of the level)
     if (true_two_player) {
