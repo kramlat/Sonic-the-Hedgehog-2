@@ -15,6 +15,7 @@
 #include "Object/SuperSonicStars.h"
 #include "Object/ShieldInvincibility.h"
 #include "SstLoad.h"
+#include "SplitScreen.h"
 #include "Object/DustSplash.h"
 #include "Object/Countdown.h"
 #include "Object/Animals.h"
@@ -478,6 +479,43 @@ static void Slicer_RaisesItsBladesAndSendsTwoPincers(void) {
 }
 
 // Sky Fortress's rotating platforms ($C3) are only a picture with a collision type in the pre-beta: tile $46D, $20 wide, type $2A, and it stays where it is
+// The pre-beta's Hurt_Player for Tails: the computer's Tails is only thrown (the rings and the shield stay); in the two player mode he loses the shared rings like Sonic, loses the shield first, and dies with neither
+static void Tails_HurtFollowsThePreBetasHurtPlayer(void) {
+    SstTestClear();
+    Sst src;
+    memset(&src, 0, sizeof src);
+    src.x_pos.f.u = 0x300;
+    Sst *t = TAILS_OBJ;
+    t->x_pos.f.u = 0x200;
+
+    two_player_mode = 0;
+    rings = 5;
+    shield = 1;
+    t->routine = 2;
+    Tails_Hurt(t, &src);
+    CHECK_EQ(t->routine, 4);
+    CHECK_EQ(rings, 5);
+    CHECK_EQ(shield, 1);
+
+    two_player_mode = 1;
+    t->routine = 2;
+    Tails_Hurt(t, &src);
+    CHECK_EQ(t->routine, 4);
+    CHECK_EQ(shield, 0);
+    CHECK_EQ(rings, 5); // (the shield took the blow)
+
+    t->routine = 2;
+    Tails_Hurt(t, &src);
+    CHECK_EQ(t->routine, 4); // (rings: the lost rings object empties the count)
+
+    rings = 0;
+    shield = 0;
+    t->routine = 2;
+    Tails_Hurt(t, &src);
+    CHECK_EQ(t->routine, 6);
+    two_player_mode = 0;
+}
+
 static void SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType(void) {
     SstTestClear();
     scrpos_x.f.u = 0x100;
@@ -1119,6 +1157,7 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(Sol_MakesFourFireballs);
     RUN_TEST(Slicer_RaisesItsBladesAndSendsTwoPincers);
     RUN_TEST(SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType);
+    RUN_TEST(Tails_HurtFollowsThePreBetasHurtPlayer);
     RUN_TEST(MTZBoss_MakesSevenBallsThatOrbitTheShip);
     RUN_TEST(Animals_ZonesHaveTheirPairAndEndAnimalsTheirOwnMovement);
     RUN_TEST(DustSplash_FollowsTheSpinDashAndSplashesAtTheWater);

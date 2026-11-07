@@ -1465,19 +1465,25 @@ static signed int HurtTails(Sst *self, int16_t src_x, bool spikes)
 {
     Scratch_Sonic *scratch = (Scratch_Sonic *)self->own.u8;
 
-    // Lose rings and shield
-    if (!shield) {
-        if (rings) {
-            // Spawn lost rings object
-            Sst *rings = Sst_Allocate();
-            if (rings != NULL) {
-                rings->code = Obj_RingLoss;
-                rings->x_pos.f.u = self->x_pos.f.u;
-                rings->y_pos.f.u = self->y_pos.f.u;
+    // The pre-beta's Hurt_Player: the computer's Tails (one player) is only thrown, with no rings lost and the shield kept; in the two player mode he is a player like Sonic and
+    // loses the shared rings, the shield, or his life (he comes back above Sonic like one who fell out of the level)
+    if (two_player_mode) {
+        if (!shield) {
+            if (rings) {
+                // Spawn lost rings object
+                Sst *rings = Sst_Allocate();
+                if (rings != NULL) {
+                    rings->code = Obj_RingLoss;
+                    rings->x_pos.f.u = self->x_pos.f.u;
+                    rings->y_pos.f.u = self->y_pos.f.u;
+                }
+            } else if (!debug_mode) {
+                KillTails(self);
+                return -1;
             }
         }
+        shield = 0;
     }
-    shield = 0;
 
     // Set Sonic state
     self->routine = 4;
