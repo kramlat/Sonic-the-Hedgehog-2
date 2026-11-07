@@ -185,6 +185,7 @@ void Demo_ServiceRequests(void) {
         cli_start_y = demo_play_request.start_y;
         level_id = (uint16_t)LEVEL_ID(demo_play_request.zone, demo_play_request.act);
         two_player_mode = demo_play_request.split_screen; // (a demo recorded in the split screen plays in it)
+        true_two_player = two_player_mode;
         lives = 3;
         rings = 0;
         level_time.pad = level_time.min = level_time.sec = level_time.frame = 0;
@@ -211,6 +212,7 @@ void Demo_ServiceRequests(void) {
 
     level_id = r->special ? 0 : (uint16_t)LEVEL_ID(r->zone, r->act);
     two_player_mode = !r->special && r->split_screen;
+    true_two_player = two_player_mode;
     last_special = r->special ? (uint8_t)r->special_stage : 0;
     lives = 3;
     rings = 0;

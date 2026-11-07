@@ -241,6 +241,7 @@ static void LevelSelect(void) {
             continue;
 
         two_player_mode = (jpad1_hold1 & JPAD_B) != 0;
+        true_two_player = two_player_mode; // (the level select's B is the versus: a second human plays Tails)
         if (item == LEVSEL_SNDTEST_ROW) {
             if (jpad1_press1 & JPAD_A)
                 continue; // (A only changes the number)
@@ -373,6 +374,7 @@ static void Tit_ChkLevSel(bool level_select_cheat) {
         LevelSelect();
     } else {
         two_player_mode = TitleMenu_TwoPlayers(); // (the menu's choice: Up and Down turn it over, Start takes it)
+        true_two_player = two_player_mode;
         level_id = LEVEL_ID(ZoneId_ARZ, 0);
         PlayLevel(true);
     }
@@ -615,6 +617,7 @@ void GM_Title(void) {
             }
 
             two_player_mode = level_id == LEVEL_ID(ZoneId_EHZ, 0); // (only the Emerald Hill demo is a two player one, in the split screen)
+            true_two_player = two_player_mode; // (its Tails is the recorded pad 2)
 
             // Set game state
             lives = 3;

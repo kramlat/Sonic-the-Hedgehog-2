@@ -488,7 +488,8 @@ static void Tails_HurtFollowsThePreBetasHurtPlayer(void) {
     Sst *t = TAILS_OBJ;
     t->x_pos.f.u = 0x200;
 
-    two_player_mode = 0;
+    two_player_mode = 1; // (the split screen alone leaves the computer's Tails as he was)
+    true_two_player = 0;
     rings = 5;
     shield = 1;
     t->routine = 2;
@@ -497,7 +498,7 @@ static void Tails_HurtFollowsThePreBetasHurtPlayer(void) {
     CHECK_EQ(rings, 5);
     CHECK_EQ(shield, 1);
 
-    two_player_mode = 1;
+    true_two_player = 1;
     t->routine = 2;
     Tails_Hurt(t, &src);
     CHECK_EQ(t->routine, 4);
@@ -514,6 +515,7 @@ static void Tails_HurtFollowsThePreBetasHurtPlayer(void) {
     Tails_Hurt(t, &src);
     CHECK_EQ(t->routine, 6);
     two_player_mode = 0;
+    true_two_player = 0;
 }
 
 static void SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType(void) {

@@ -264,7 +264,7 @@ static void Tails_FlyingAnimation(Sst *self) {
 static void Tails_CheckFlying(Sst *self) {
     if (tails_flying || !(jpad2_press & (JPAD_A | JPAD_B | JPAD_C)))
         return;
-    if (!two_player_mode && control_counter == 0 && cpu_state != CPU_ASSIST && cpu_state != CPU_CARRY)
+    if (!true_two_player && control_counter == 0 && cpu_state != CPU_ASSIST && cpu_state != CPU_CARRY)
         return;
     self->status &= (uint8_t)~(SST_PSTATUS_IN_BALL | SST_PSTATUS_ROLL_JUMP);
     self->y_radius = TAILS_HEIGHT;
@@ -364,7 +364,7 @@ static void Tails_CheckCarry(Sst *self) {
 // Sonic carried by Tails in flight (Tails_CarrySonic)
 static void Tails_CarrySonic(Sst *self) {
     Sst *sonic = player;
-    if (two_player_mode)
+    if (true_two_player)
         return;
     if (!sonic_carried) {
         Tails_CheckCarry(self);
@@ -422,7 +422,7 @@ static void Tails_CarrySonic(Sst *self) {
 
 // Sonic's jump and Up with a Tails that the AI plays make him fly (the guide's optional single player assist: Sonic_CheckGoSuper's lines)
 void Tails_CallToCarry(void) {
-    if (two_player_mode || control_counter != 0)
+    if (true_two_player || control_counter != 0)
         return;
     if (!(jpad1_press1 & (JPAD_A | JPAD_B | JPAD_C)))
         return;
@@ -705,9 +705,9 @@ static void TailsCPU_Carry(Sst *self) {
 }
 
 // Tails_Control and Miles_CPU_Control: a pad 2 that is being used keeps Tails for 600 frames; otherwise the CPU plays him (the pre-beta's, in five states: Init, Spawning, Flying, Normal and Panic; and the guide's two:
-// called by Sonic, and carrying). It does not run in a two-player level, where pad 2 is the second player's.
+// called by Sonic, and carrying). It does not run when a second human has pad 2 (true_two_player; the split screen alone keeps him).
 static void Tails_Control(Sst *self) {
-    if (two_player_mode)
+    if (true_two_player)
         return;
     if (jpad2_hold & 0x7F)
         control_counter = 0x258;
@@ -1465,9 +1465,9 @@ static signed int HurtTails(Sst *self, int16_t src_x, bool spikes)
 {
     Scratch_Sonic *scratch = (Scratch_Sonic *)self->own.u8;
 
-    // The pre-beta's Hurt_Player: the computer's Tails (one player) is only thrown, with no rings lost and the shield kept; in the two player mode he is a player like Sonic and
+    // The pre-beta's Hurt_Player: the computer's Tails (one player) is only thrown, with no rings lost and the shield kept; with a second human (true_two_player) he is a player like Sonic and
     // loses the shared rings, the shield, or his life (he comes back above Sonic like one who fell out of the level)
-    if (two_player_mode) {
+    if (true_two_player) {
         if (!shield) {
             if (rings) {
                 // Spawn lost rings object
