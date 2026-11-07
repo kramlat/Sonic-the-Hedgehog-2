@@ -143,47 +143,106 @@ static void NGHZObjects_SlowSonicMakesNoLeaves(void) {
 
 // --- the alpha's boss and badniks ---
 
-static void NGHZObjects_TheBossArenaLocksTheCameraAndLoadsTheBossOnce(void) {
+// DynResize_NGHz of the pre-beta: X $2800 fixes the left edge and the lower limit and loads the boss's list; X $2A40 shuts the arena, fades the music and makes the boss; then the camera's top is held at $3F8 and,
+// $5A frames on, the boss's music; when it is beaten, the results
+static void NGHZObjects_TheEventsShutTheArenaAndMakeTheBossOnce(void) {
     Reset();
     level_id = LEVEL_ID(ZoneId_ARZ, 1);
     dle_routine = 0;
-    scrpos_x.f.u = 0x28A0 - SCREEN_WIDEADD2 - 1;
+    scrpos_x.f.u = 0x2800 - SCREEN_WIDEADD2 - 1;
     NGHZBoss_Events();
     CHECK_EQ(dle_routine, 0);
-    scrpos_x.f.u = 0x28A0 - SCREEN_WIDEADD2;
+    scrpos_x.f.u = 0x2800 - SCREEN_WIDEADD2;
     NGHZBoss_Events();
     CHECK_EQ(dle_routine, 2);
     CHECK_EQ(boss_flag, 4);
+    CHECK_EQ(limit_left2, 0x2800 - SCREEN_WIDEADD2);
     CHECK_EQ(limit_btm1, 0x400 - SCREEN_TALLADD);
-    CHECK_EQ(Count(0x89, 0), 1);
+    CHECK_EQ(Count(0x89, 0), 0); // (the boss is made at the next step)
     scrpos_x.f.u = 0x2A40 - SCREEN_WIDEADD2;
     NGHZBoss_Events();
     CHECK_EQ(dle_routine, 4);
     CHECK_EQ(limit_right2, 0x2A40 + SCREEN_WIDEADD2);
+    CHECK_EQ(limit_left2, 0x2A40 - SCREEN_WIDEADD2);
+    CHECK_EQ(Count(0x89, 0), 1);
+    scrpos_y.f.u = 0x3F8 - SCREEN_TALLADD;
+    for (int i = 0; i < 0x59; i++)
+        NGHZBoss_Events();
+    CHECK_EQ(limit_top2, 0x3F8 - SCREEN_TALLADD);
+    CHECK_EQ(dle_routine, 4);
+    NGHZBoss_Events(); // (the 90th step)
+    CHECK_EQ(dle_routine, 6);
+    boss_status = 0;
     ClearPLC();
     boss_flag = 0;
     dle_routine = 0;
 }
 
-static void NGHZObjects_TheBossWaitsForSonicInTheArenaThenDescendsWithItsLauncher(void) {
+// The boss waits until Sonic is between $2A60 and $2B60, then starts at ($2AE0,$388) with two launchers (the right one turned round) that rise; the ship goes down to $430, crosses the arena and brings
+// the hammer down at the lowest point of its bob, which throws an arrow (a marker and the pillar behind it) from the wall on the side it has hit
+static void NGHZObjects_TheBossStartsWithTwoLaunchersAndThrowsPillars(void) {
     Reset();
     level_id = LEVEL_ID(ZoneId_ARZ, 1);
+    boss_flag = 4;
     Sst *boss = Spawn(0x89, 0, 0, 0);
-    limit_left2 = 0x2A40 - SCREEN_WIDEADD2;
     player->x_pos.f.u = 0x2A00; // (not yet in)
+    player->y_pos.f.u = 0x400;
     Obj_NGHZBoss(boss);
     CHECK_EQ(boss->routine, 0);
-    player->x_pos.f.u = 0x2AD8;
+    player->x_pos.f.u = 0x2AE0;
     Obj_NGHZBoss(boss);
+    CHECK_EQ(boss->routine, 2);
     CHECK_EQ(boss->child_count, 3);
     CHECK_EQ(boss->collision_flags, 0x0F);
-    CHECK_EQ(boss->x_pos.f.u, 0x2AD8);
+    CHECK_EQ(boss->collision_property, 8);
+    CHECK_EQ(boss->x_pos.f.u, 0x2AE0);
     CHECK_EQ(boss->y_pos.f.u, 0x388);
-    int launchers = 0;
-    for (int i = 1; i < 0x60; i++)
-        launchers += sst[i].code == sst_object_codes[0x89] && sst[i].child_count == 2;
-    CHECK_EQ(launchers, 1);
+    int left = 0, right = 0;
+    for (int i = 1; i < 0x60; i++) {
+        if (sst[i].code != sst_object_codes[0x89] || sst[i].routine != 4)
+            continue;
+        left += sst[i].x_pos.f.u == 0x2A50 && !(sst[i].render_flags & SST_RENDER_X_FLIP);
+        right += sst[i].x_pos.f.u == 0x2B70 && (sst[i].render_flags & SST_RENDER_X_FLIP);
+    }
+    CHECK_EQ(left, 1);
+    CHECK_EQ(right, 1);
+
+    // run it: the ship, its launchers, markers and pillars
+    bool pillar = false, marker = false;
+    int16_t lowest = 0;
+    for (int f = 0; f < 900; f++) {
+        frame_count = (uint16_t)f;
+        for (int i = 1; i < 0x60; i++)
+            if (sst[i].code == sst_object_codes[0x89])
+                Obj_NGHZBoss(&sst[i]);
+        for (int i = 1; i < 0x60; i++) {
+            if (sst[i].code != sst_object_codes[0x89] || sst[i].routine != 4)
+                continue;
+            pillar |= sst[i].routine_secondary == 6;
+            marker |= sst[i].routine_secondary == 8;
+        }
+        if (boss->y_pos.f.u > lowest)
+            lowest = boss->y_pos.f.u;
+    }
+    CHECK(lowest >= 0x430);
+    CHECK(marker);
+    CHECK(pillar);
+    CHECK(boss->x_pos.f.u >= 0x2A40 && boss->x_pos.f.u <= 0x2C00);
+    boss_flag = 0;
 }
+
+// The hammer's box (the touch code of Boss_Flag 4): only while the hammer is down, $50 in front of the ship
+static void NGHZObjects_TheHammerHurtsOnlyWhileItIsDown(void) {
+    Reset();
+    boss_flag = 4;
+    Sst *boss = Spawn(0x89, 0, 0, 0);
+    player->x_pos.f.u = 0x2AE0;
+    Obj_NGHZBoss(boss);
+    int16_t cx, cy, hw, hh;
+    CHECK(!NGHZBoss_HammerBox(boss, &cx, &cy, &hw, &hh)); // (up)
+    boss_flag = 0;
+}
+
 
 static void NGHZObjects_TheWhispFollowsSonicWithinItsSpeedLimit(void) {
     Reset();
@@ -572,8 +631,9 @@ void RegisterNGHZObjectTests(void) {
     RUN_TEST(NGHZObjects_TheLeavesBoxHurtsNothingAndIsKeyedBySubtype);
     RUN_TEST(NGHZObjects_FastSonicInTheBoxMakesFourLeaves);
     RUN_TEST(NGHZObjects_SlowSonicMakesNoLeaves);
-    RUN_TEST(NGHZObjects_TheBossArenaLocksTheCameraAndLoadsTheBossOnce);
-    RUN_TEST(NGHZObjects_TheBossWaitsForSonicInTheArenaThenDescendsWithItsLauncher);
+    RUN_TEST(NGHZObjects_TheEventsShutTheArenaAndMakeTheBossOnce);
+    RUN_TEST(NGHZObjects_TheBossStartsWithTwoLaunchersAndThrowsPillars);
+    RUN_TEST(NGHZObjects_TheHammerHurtsOnlyWhileItIsDown);
     RUN_TEST(NGHZObjects_TheWhispFollowsSonicWithinItsSpeedLimit);
     RUN_TEST(NGHZObjects_TheGrounderBreaksItsWallAndWalksToSonic);
     RUN_TEST(NGHZObjects_TheChopChopSwimsAndSpitsBubblesAndDashesAtSonic);

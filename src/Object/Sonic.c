@@ -8,6 +8,7 @@ void Obj_ObjectHit(Sst *self);
 #include "Object.h"
 #include "Object/BossCommon.h"
 #include "Object/HTZBoss.h"
+#include "Object/NGHZBoss.h"
 #include "Object/Sonic.h"
 #include "Object/Tails.h"
 #include "Object/SuperSonic.h"
@@ -877,6 +878,15 @@ signed int ReactToItem(Sst *self) {
         // Check if object is collidable
         if (hit->code == NULL || !((hit->render_flags & SST_RENDER_ON_SCREEN) && hit->collision_flags))
             continue;
+
+        // The pre-beta's Neo Green Hill boss hurts with its hammer while it is down: a box in front of the ship
+        int16_t hammer_x, hammer_y, hammer_w, hammer_h;
+        if (NGHZBoss_HammerBox(hit, &hammer_x, &hammer_y, &hammer_w, &hammer_h)) {
+            const int16_t hx = x - (hammer_x - hammer_w);
+            const int16_t hy = y - (hammer_y - hammer_h);
+            if (hx >= -width && hx <= hammer_w * 2 && hy >= -height && hy <= hammer_h * 2)
+                return React_ChkHurt(self, hit);
+        }
 
         // The alpha's Hill Top boss has a second hitbox, its open cannon
         int16_t cannon_x, cannon_y, cannon_w;

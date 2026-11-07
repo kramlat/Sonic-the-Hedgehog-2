@@ -12,6 +12,7 @@
 #include "Object/CPZBoss.h"
 #include "Object/SFZObjects.h"
 #include "Object/NGHZBoss.h"
+#include "Object/BossCommon.h"
 #include "Object/CNZObjects.h"
 #include "Object/CNZSlots.h"
 #include "HTZBackground.h"
@@ -224,6 +225,7 @@ void LevelSizeLoad(void) {
     ghz2_tube_exit_timer = 0;
     HTZQuake_Reset();
     HTZBackground_Reset();
+    NGHZBoss_Reset();
     CNZ_ResetBumperGroups();
     SlotMachine_Reset();
 
