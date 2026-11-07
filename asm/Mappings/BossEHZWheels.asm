@@ -1,5 +1,5 @@
 ; ---------------------------------------------------------------------------
-; Map_Obj58a of Nick Arcade (s2.asm), Sonic 2 mappings format
+; The pre-beta's GHz_Boss_Mappings_01 (Obj_0x56), 8 frames, Sonic 2 mappings format
 ; ---------------------------------------------------------------------------
 .int:		dc.w .f0-.int
 		dc.w .f1-.int
@@ -9,7 +9,6 @@
 		dc.w .f5-.int
 		dc.w .f6-.int
 		dc.w .f7-.int
-		dc.w .f8-.int
 .f0:		dc.w 3			
 		dc.w $F00F,    0,    0,$FFD0
 		dc.w $F00F,  $10,    8,$FFF0
@@ -28,7 +27,3 @@
 		dc.w $F00F,  $70,  $38,$FFF0
 .f7:		dc.w 1			
 		dc.w $F00F,$1070,$1038,$FFF0
-.f8:		dc.w 3			
-		dc.w $F00F,$8000,$8000,$FFD0
-		dc.w $F00F,$8010,$8008,$FFF0
-		dc.w $F00F,$8020,$8010,	 $10

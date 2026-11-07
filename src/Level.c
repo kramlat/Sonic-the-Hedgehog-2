@@ -220,6 +220,7 @@ void LoadLevelLayout(void) {
 void LevelSizeLoad(void) {
     // Reset level state
     dle_routine = 0;
+    boss_flag = 0; // (Boss_Flag: no boss yet)
     ghz2_tube_exit_timer = 0;
     HTZQuake_Reset();
     HTZBackground_Reset();
@@ -462,6 +463,7 @@ void DynamicLevelEvents(void) {
             }
             QueueSound1(bgm_Boss);
             lock_screen = true;
+            boss_flag = 2; // (Boss_Flag: which boss is there)
             AddPLC(PlcId_Boss);
             break;
         case 2:

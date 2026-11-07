@@ -856,6 +856,7 @@ static void EHZBoss_TheEventPutsTheAlphasShipInTheArena(void) {
     DynamicLevelEvents();
     CHECK(lock_screen);
     CHECK_EQ(dle_routine, 2);
+    CHECK_EQ(boss_flag, 2); // (Boss_Flag: Emerald Hill's boss is there)
     Sst *ship = NULL;
     for (int i = 1; i < 0x80; i++)
         if (sst[i].code == sst_object_codes[0x56])
@@ -872,6 +873,15 @@ static void EHZBoss_TheEventPutsTheAlphasShipInTheArena(void) {
         if (sst[i].code == sst_object_codes[0x5B])
             parts++;
     CHECK_EQ(parts, 7); // (Eggman's face, the car's body, its three wheels and spike, and the blades, as the pre-beta makes them)
+
+    // the wreck's explosions are in front (art word $8580, priority 0)
+    Sst *boom = &sst[0x60];
+    boom->code = sst_object_codes[0x58];
+    boom->x_pos.f.u = 0x2A00;
+    boom->y_pos.f.u = 0x400;
+    Obj_BossExplosion(boom);
+    CHECK_EQ(boom->priority, 0);
+    CHECK((boom->art_tile & 0x8000) != 0);
 }
 
 // The rotating cylinder of Metropolis (object 06 with bit 7 in its subtype): a character level with its middle is taken onto it and carried round (his height follows a cosine, his flip angle goes on by 4), and let go at its end

@@ -555,9 +555,9 @@ void Obj_BossExplosion(Sst *self) {
     if (self->routine == 0) {
         self->routine += 2;
         self->mappings = Mappings_BossExplosion;
-        self->art_tile = TILE_MAP(0, 0, 0, 0, ArtTile_BossExplosion);
+        self->art_tile = TILE_MAP(1, 0, 0, 0, ArtTile_BossExplosion); // (the pre-beta's $8580: in front, priority 0)
         self->render_flags |= SST_RENDER_LEVEL;
-        self->priority = 1 * 0x80;
+        self->priority = 0;
         self->collision_flags = 0;
         self->width_pixels = 0xC;
         self->anim_frame_timer = 7;
