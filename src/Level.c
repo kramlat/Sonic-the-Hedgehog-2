@@ -18,6 +18,7 @@
 #include "SandShower.h"
 
 void S2_PrimeLevelArt(void); // AnimatedArt.c
+bool TitleCard_ArtClashes(PlcId plc); // TitleCard.c
 
 #include "Constants.h"
 #include "Enigma.h"
@@ -322,6 +323,7 @@ void LevelDataLoad(void) {
     // never collides with PLC_GHZ/PLC_LZ/etc's own art.
     uint8_t *art_end = LevelLoadBlock_Unpack(header->art, level_art_scratch);
     Editor_NoteArt(level_art_scratch, (size_t)(art_end - level_art_scratch));
+    Editor_NoteArtCapacity(sizeof(level_art_scratch));
     VDP_SeekVRAM(0x0000);
     VDP_WriteVRAM(level_art_scratch, (size_t)(art_end - level_art_scratch));
 
@@ -344,9 +346,9 @@ void LevelDataLoad(void) {
     // Load level palette
     PalLoad1(header->pal);
 
-    // Load level art: the second list. Under a title card it waits until the card has gone (TitleCard.c): the card's letters are in tiles the zones' art lists use ($5E8 on: the water zones' bubbles),
-    // which the card keeps while it is on the screen, over the first seconds of the level
-    if (header->plc2 != 0 && !(demo >= 0 && !game_info.no_title_card))
+    // Load level art: the second list, now, as the pre-beta does (the badniks are in it: it streams in over the first seconds of the level). Only a list with art in the card's tiles waits until the card has
+    // gone (TitleCard.c), since the card keeps them while it is on the screen: Neo Green Hill's and Chemical Plant's bubbles at $5E8, and the like
+    if (header->plc2 != 0 && !(demo >= 0 && !game_info.no_title_card && TitleCard_ArtClashes(header->plc2)))
         AddPLC(header->plc2);
 
     // The animated art's first frames, at once (see S2_PrimeLevelArt): Hill Top's mountains are tiles that only its animated art puts in VRAM, and that otherwise runs once the level loop does, after the title
@@ -636,4 +638,53 @@ uint8_t Level_Music(uint16_t level) {
     };
     unsigned zone = LEVEL_ZONE(level);
     return zone < ZoneId_Num ? zone_music[zone] : 0;
+}
+
+// ---- The level editor loads another zone's terrain (Game_EditorImportTerrain): its tiles, blocks, chunks, palette and collision indices, as the zone's level load block has them, in place of the level's own.
+// Nothing of what animates comes with them (the animated art is the level's own code, and the palette cycles are not in the palette). The editor's lists and the video memory follow.
+bool Game_EditorZoneHasTerrain(int zone, int act) {
+    if (zone < 0 || zone >= ZoneId_Num || act < 0 || act >= 4)
+        return false;
+    const LevelLoadBlock *header = &level_load_block[zone][act];
+    return header->art[0] != NULL && header->map16[0] != NULL && header->map128[0] != NULL;
+}
+
+const char *Game_EditorImportTerrain(int zone, int act, unsigned parts) {
+    if (!Game_EditorZoneHasTerrain(zone, act))
+        return "that zone has no terrain";
+    const LevelLoadBlock *header = &level_load_block[zone][act];
+    if (parts & EDITOR_IMPORT_CHUNKS)
+        Editor_NoteChunks((size_t)(LevelLoadBlock_Unpack(header->map128, level_map128) - level_map128));
+    if (parts & EDITOR_IMPORT_BLOCKS)
+        Editor_NoteBlocks((size_t)(LevelLoadBlock_Unpack(header->map16, level_map16) - level_map16));
+    if (parts & EDITOR_IMPORT_TILES) {
+        Editor_SetAnimationOff(true);
+        uint8_t *art_end = LevelLoadBlock_Unpack(header->art, level_art_scratch);
+        Editor_NoteArt(level_art_scratch, (size_t)(art_end - level_art_scratch));
+        Editor_NoteArtCapacity(sizeof(level_art_scratch));
+        VDP_SeekVRAM(0x0000);
+        VDP_WriteVRAM(level_art_scratch, (size_t)(art_end - level_art_scratch));
+    }
+    if (parts & EDITOR_IMPORT_SOLIDS) {
+        const size_t blocks = LevelSolids_LoadKosinski(level_solids[zone]);
+        Editor_NoteSolids(0, blocks);
+        Editor_NoteSolids(1, blocks);
+    }
+    if (parts & EDITOR_IMPORT_PALETTE) { // (lines 1 to 3: line 0 is the players'; the colours become the editor's own, saved as set)
+        PalLoad1(header->pal);
+        for (int line = 1; line < 4; line++)
+            for (int i = 0; i < 16; i++)
+                Editor_SetColour(line, i, dry_palette_dup[line][i]);
+    }
+    return NULL;
+}
+
+bool Game_EditorLoadBlockInfo(int zone, int act, int *plc1, int *plc2, int *pal) {
+    if (!Game_EditorZoneHasTerrain(zone, act))
+        return false;
+    const LevelLoadBlock *header = &level_load_block[zone][act];
+    *plc1 = header->plc1;
+    *plc2 = header->plc2;
+    *pal = header->pal;
+    return true;
 }

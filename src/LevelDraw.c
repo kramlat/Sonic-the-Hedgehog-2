@@ -1,4 +1,5 @@
 // Sonic 2's level drawing: Sonic 1's (a copy of LevelDraw.c) with the background drawing Nick Arcade's zones need (see LoadTilesFromStart and DrawBG_Top).
+#include "EditorLive.h"
 #include "LevelDraw.h"
 #include "BackgroundLayer.h"
 #include "LevelDrawCore.h" // the block drawing: the engine's
@@ -401,6 +402,10 @@ void S2_LoadAnimatedBlocks(void);
 void AnimateLevelGfx(void) {
     // Don't run if game is paused
     if (pause_state)
+        return;
+
+    // The level editor loaded another zone's tiles: this level's animations would write over them
+    if (Editor_AnimationOff())
         return;
 
     // Animate giant ring

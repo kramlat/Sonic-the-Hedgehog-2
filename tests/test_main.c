@@ -12,6 +12,8 @@ void RegisterPaletteTests(void);
 void RegisterVdp8bppTests(void);
 void RegisterTileBankTests(void);
 void RegisterVDPWindowTests(void);
+void RegisterVDPGpuTests(void);
+void RegisterEditorTerrainTests(void);
 void RegisterRingsTests(void);
 void RegisterLevelLoadBlockTests(void);
 void RegisterLevelDataTests(void);
@@ -46,6 +48,8 @@ int main(void) {
     RegisterVdp8bppTests();
     RegisterTileBankTests();
     RegisterVDPWindowTests();
+    RegisterVDPGpuTests();
+    RegisterEditorTerrainTests();
     RegisterRingsTests();
     RegisterLevelLoadBlockTests();
     printf("Level data tests:\n");

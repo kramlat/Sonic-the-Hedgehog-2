@@ -8,6 +8,8 @@
 #include "Backend/VDP.h"
 #include <string.h>
 #include "Constants.h"
+#include "Game.h"
+#include "PLC.h"
 
 // The Simon Wai prototype's level tables (Emerald Hill's, Metropolis's and Hill Top's are the alpha's since it was imported: these are the zones' rows that are still the prototype's, and Hill Top's), as its disassembly has them (s2b.asm: StartLocations, LevelSize, levartptrs): the port's own tables must say the same, zone by zone.
 
@@ -281,7 +283,35 @@ static void LevelData_TheZoneSlotsAreWhereTheyWereMoved(void) {
     }
 }
 
+// A zone's second art list (its badniks are in it) is queued when the level loads, as the pre-beta's Main_Level_Load does, ahead of the explosions and the animals the title card queues as it goes: only a
+// list with art in the card's tiles waits for the card to go (Neo Green Hill's and Chemical Plant's bubbles at $5E8)
+bool TitleCard_ArtClashes(PlcId plc);
+
+static const uint8_t *SecondListQueuedAtLoad(int zone, int act) {
+    const int16_t saved_demo = demo;
+    demo = 0;
+    level_id = LEVEL_ID(zone, act);
+    last_lamp = 0;
+    camera_split = false;
+    ClearPLC();
+    LevelDataLoad();
+    demo = saved_demo;
+    const uint8_t *queued = plc_buffer[0].art;
+    ClearPLC();
+    return queued;
+}
+
+static void LevelData_SecondArtListsLoadWithTheLevelUnlessTheyHitTheCard(void) {
+    CHECK(!TitleCard_ArtClashes(LEVEL_LOAD_BLOCK(LEVEL_ID(ZoneId_OOZ, 1))->plc2));
+    CHECK(SecondListQueuedAtLoad(ZoneId_OOZ, 1) == plcs[LEVEL_LOAD_BLOCK(LEVEL_ID(ZoneId_OOZ, 1))->plc2]->plc[0].art);
+    CHECK(SecondListQueuedAtLoad(ZoneId_MCZ, 0) == plcs[LEVEL_LOAD_BLOCK(LEVEL_ID(ZoneId_MCZ, 0))->plc2]->plc[0].art);
+    CHECK(TitleCard_ArtClashes(LEVEL_LOAD_BLOCK(LEVEL_ID(ZoneId_ARZ, 0))->plc2));
+    CHECK(TitleCard_ArtClashes(LEVEL_LOAD_BLOCK(LEVEL_ID(ZoneId_CPZ, 0))->plc2));
+    CHECK(SecondListQueuedAtLoad(ZoneId_ARZ, 0) == NULL);
+}
+
 void RegisterLevelDataTests(void) {
+    RUN_TEST(LevelData_SecondArtListsLoadWithTheLevelUnlessTheyHitTheCard);
     RUN_TEST(LevelData_TheZoneSlotsAreWhereTheyWereMoved);
     RUN_TEST(LevelLayout_PlanesAreExactAndReadLikeTheFixedBuffer);
     RUN_TEST(LevelData_TheLayoutHeaderSaysHowBigTheLevelIs);

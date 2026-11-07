@@ -282,6 +282,26 @@ static void TitleCard_LoadArt(uint8_t name) {
         VDP_WriteVRAM(alphabet + l[0] * TILE_SIZE, (size_t)l[1] * TILE_SIZE);
 }
 
+// Whether a pattern load cue list writes into the card's tiles: the fixed part from $580 and the name's letters after it (from $5DE), or in the split screen the squeezed pieces too (from $600, as far as
+// $700 is taken to be theirs)
+bool TitleCard_ArtClashes(PlcId plc) {
+    const PLCList *list = plcs[plc];
+    if (list == NULL)
+        return false;
+    unsigned end = TC_ART_LETTERS;
+    for (const uint8_t *l = titlecard_letters[TitleCard_NameFrame(LEVEL_ZONE(level_id))]; *l != 0xFF; l += 2)
+        end += l[1];
+    if (SplitScreen_SideBySide())
+        end = 0x700;
+    for (size_t i = 0; i < list->plcs; i++) {
+        const unsigned first = (unsigned)(list->plc[i].off / TILE_SIZE);
+        const unsigned tiles = ((list->plc[i].art[0] << 8) | list->plc[i].art[1]) & 0x7FFF; // (the Nemesis header's tile count)
+        if (first < end && first + tiles > TC_ART_FIXED)
+            return true;
+    }
+    return false;
+}
+
 // The card in the split screen, side by side: each view is half as wide as the picture and the card is drawn in both (an object that is not in the level is at the same place in each view), so it has
 // to fit and sit in the middle of each. Its art is squeezed to half its width (the pieces of every element are made again from the unscaled ones: a letter is two cells wide, so it becomes one; where two
 // pixels meet the brighter one stays, the white of the letter before its outline) and the elements are put so that the name, and ZONE with the number after it, are centred in the view.
@@ -472,10 +492,11 @@ void Obj_TitleCard(Sst *self) {
         }
         // (gone, or back where it started) the name's end loads the explosions' and the animals' art
         if (self->routine == 4) {
+            const PlcId plc2 = LEVEL_LOAD_BLOCK(level_id)->plc2;
+            if (plc2 != 0 && TitleCard_ArtClashes(plc2))
+                AddPLC(plc2); // (the zone's second list, which LevelDataLoad leaves for here when it has art in the card's tiles: first, as it would be queued already otherwise)
             AddPLC(PlcId_Explode);
             AddPLC(Level_AnimalsPlc()); // (the zone's pair of the alpha's: Emerald Hill's is the pre-beta's too, Squirrel and BlueBird)
-            if (LEVEL_LOAD_BLOCK(level_id)->plc2 != 0)
-                AddPLC(LEVEL_LOAD_BLOCK(level_id)->plc2); // (the zone's second list, which LevelDataLoad leaves for here)
         }
         Sst_Delete(self);
         break;
