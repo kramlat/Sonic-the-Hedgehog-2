@@ -7,5 +7,7 @@
 #define ArtTile_BossExplosion 0x580 // the explosions ($B000)
 #define ArtTile_OOZBoss       0x38C // Oil Ocean's boss (: list $2F)
 #define ArtTile_MTZBoss       0x37C // Metropolis's boss, its balls and the small Robotniks (F80: list $2E)
+#define ArtTile_DEZMetalSonic 0x380 // Death Egg's Metal Sonic (: list $21)
+#define ArtTile_DEZRobotnikWindow 0x378 // ... and Robotnik's window (F00)
 
 #endif //_BOSSART_H

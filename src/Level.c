@@ -11,6 +11,7 @@
 #include "Object/CNZBoss.h"
 #include "Object/OOZBoss.h"
 #include "Object/MTZBoss.h"
+#include "Object/DEZMetalSonic.h"
 #include "Object/CPZBoss.h"
 #include "Object/SFZObjects.h"
 #include "Object/NGHZBoss.h"
@@ -376,14 +377,22 @@ void ColIndexLoad(void) {
     collision_path = 0;
 }
 
-// Death Egg's dynamic level events (DynResize_DEz): once the camera has passed X $140 the way to Metal Sonic's fight begins (its boss, $AF, is made here in the pre-beta, with the explosions' art list $30: both wait for the
-// boss); the step after is the boss's to take (it moves the events on when Metal Sonic is beaten); then the camera's left edge follows the camera, the giant Robotnik's art (list $31) is loaded at X $300, and at X $680 the
+// Death Egg's dynamic level events (DynResize_DEz): once the camera has passed X $140 the way to Metal Sonic's fight begins (its boss, $AF, is made here, with the explosions' art list $30); the step after is the boss's to take (it moves the events on when Metal Sonic is beaten); then the camera's left edge follows the camera, the giant Robotnik's art (list $31) is loaded at X $300, and at X $680 the
 // arena is shut ($680 to $740)
 static void DEZ_Events(void) {
 	switch (dle_routine) {
 	case 0:
-		if (scrpos_x.f.u >= 0x140 - SCREEN_WIDEADD2)
-			dle_routine += 2; // (the boss is made here: not yet)
+		if (scrpos_x.f.u >= 0x140 - SCREEN_WIDEADD2) {
+			dle_routine += 2;
+			Sst *boss = Sst_Allocate(); // (Metal Sonic, at ($348,$A0), and list $30 only if there was a slot for him)
+			if (boss != NULL) {
+				boss->code = sst_object_codes[ObjId_DEZMetalSonic];
+				boss->subtype = 0x48;
+				boss->x_pos.f.u = 0x348;
+				boss->y_pos.f.u = 0xA0;
+				AddPLC(PlcId_DEZBoss);
+			}
+		}
 		break;
 	case 4:
 		limit_left2 = scrpos_x.f.u;

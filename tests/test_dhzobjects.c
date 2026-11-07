@@ -11,6 +11,7 @@
 #include "Object/CNZBoss.h"
 #include "Object/OOZBoss.h"
 #include "Object/MTZBoss.h"
+#include "Object/DEZMetalSonic.h"
 #include "Object/CNZObjects.h"
 #include "Object/BossCommon.h"
 #include "Object/CharControl.h"
@@ -1088,6 +1089,99 @@ static void MTZ_TheEventsShutTheArenaAndMakeTheBossLast(void) {
 }
 
 
+// --- Death Egg's Metal Sonic (the pre-beta's) ---
+
+static int DEZ_Count(void) {
+    int n = 0;
+    for (int j = 0x20; j < SST_COUNT; j++)
+        n += sst[j].code == sst_object_codes[0xAF];
+    return n;
+}
+
+static void DEZ_Step(void) {
+    frame_count++;
+    for (int j = 0x20; j < SST_COUNT; j++)
+        if (sst[j].code == sst_object_codes[0xAF])
+            Obj_DEZMetalSonic(&sst[j]);
+}
+
+// DynResize_DEz: once the camera is at X $140 Metal Sonic is made at ($348,$A0)
+static void DEZ_TheEventsMakeMetalSonicAtTheStart(void) {
+    const uint16_t kept_limits[6] = { limit_left2, limit_right2, limit_top2, limit_btm1, limit_btm2, limit_right1 };
+    Reset(ZoneId_DEZ);
+    dle_routine = 0;
+    level_id = LEVEL_ID(ZoneId_DEZ, 0);
+    scrpos_x.f.u = 0x140 - SCREEN_WIDEADD2 - 1;
+    DynamicLevelEvents();
+    CHECK_EQ(DEZ_Count(), 0);
+    scrpos_x.f.u = 0x140 - SCREEN_WIDEADD2;
+    DynamicLevelEvents();
+    CHECK_EQ(DEZ_Count(), 1);
+    CHECK_EQ(dle_routine, 2);
+    for (int j = 0x20; j < SST_COUNT; j++)
+        if (sst[j].code == sst_object_codes[0xAF]) {
+            CHECK_EQ(sst[j].x_pos.f.u, 0x348);
+            CHECK_EQ(sst[j].y_pos.f.u, 0xA0);
+        }
+    ClearPLC();
+    dle_routine = 0;
+    limit_left2 = kept_limits[0]; limit_right2 = kept_limits[1]; limit_top2 = kept_limits[2]; limit_btm1 = kept_limits[3]; limit_btm2 = kept_limits[4]; limit_right1 = kept_limits[5];
+}
+
+// He makes the flame, the shoulder box and the window; waits for the camera at $224 (and shuts it there); his attacks go in the order of the table and the hits make him flash; the last one blows him up, the parts
+// go and the events move on
+static void DEZ_MetalSonicMakesHisPartsAndDiesAfterEightHits(void) {
+    const uint16_t kept_limits[6] = { limit_left2, limit_right2, limit_top2, limit_btm1, limit_btm2, limit_right1 };
+    Reset(ZoneId_DEZ);
+    level_id = LEVEL_ID(ZoneId_DEZ, 0);
+    dle_routine = 2;
+    Sst *boss = Spawn(0xAF, 0x48, 0x348, 0xA0);
+    DEZ_Step();
+    DEZ_Step();
+    CHECK_EQ(DEZ_Count(), 4);
+    CHECK_EQ(boss->collision_property, 8);
+    CHECK_EQ(boss->routine, 2);
+    scrpos_x.f.u = 0x200;
+    DEZ_Step();
+    CHECK_EQ(boss->routine, 2);                   // (not yet)
+    scrpos_x.f.u = 0x224 - SCREEN_WIDEADD2;
+    DEZ_Step();
+    CHECK_EQ(boss->routine, 4);
+    CHECK_EQ(limit_left2, 0x224 - SCREEN_WIDEADD2);
+    CHECK_EQ(limit_right2, 0x224 + SCREEN_WIDEADD2);
+    // (the floor is the level's: he is set to stand, as if he had landed)
+    boss->routine = 8;
+    boss->collision_flags = 0x1A;
+    boss->routine_secondary = 0;
+    boss->own.u8[0] = 1;
+    DEZ_Step();
+    CHECK_EQ(boss->routine_secondary, 2);          // (the first step of a run of dashes)
+    for (int i = 0; i < 0x30 && boss->x_vel == 0; i++)
+        DEZ_Step();
+    CHECK_EQ(boss->x_vel, -0x800);                 // (the first dash goes left)
+    // eight hits: the flash starts at each, and after the eighth he blows up
+    for (int hit = 0; hit < 8; hit++) {
+        boss->routine = 8;
+        boss->collision_flags = 0;
+        boss->collision_property--;
+        DEZ_Step();
+        CHECK_EQ(boss->routine, hit == 7 ? 0xA : 8);
+        for (int i = 0; i < 0x30 && boss->routine == 8 && boss->collision_flags == 0; i++)
+            DEZ_Step();
+    }
+    CHECK_EQ(boss->routine, 0xA);
+    CHECK_EQ(DEZ_Count(), 2);                      // (the flame and the shoulder box are gone: Metal Sonic and the window are left)
+    for (int i = 0; i < 0xF2 && boss->code != NULL; i++)
+        DEZ_Step();
+    CHECK(boss->code == NULL);
+    CHECK_EQ(dle_routine, 4);
+    CHECK_EQ(limit_right2, 0x1000 + SCREEN_WIDEADD2);
+    ClearPLC();
+    dle_routine = 0;
+    limit_left2 = kept_limits[0]; limit_right2 = kept_limits[1]; limit_top2 = kept_limits[2]; limit_btm1 = kept_limits[3]; limit_btm2 = kept_limits[4]; limit_right1 = kept_limits[5];
+}
+
+
 static void CNZ_TheAutoSpinRollsWhoeverTouchesItIntoABall(void) { // (the alpha's box, which Hidden Palace and Hill Top still have: Casino Night has the pre-beta's line)
     Reset(ZoneId_HPZ);
     Sst *box = Spawn(0x84, 0, 300, 300);
@@ -1599,6 +1693,8 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(MTZ_TheShipPatrolsAndEachHitLetsABallGo);
     RUN_TEST(MTZ_AfterSevenHitsTheShipDivesAndShootsAndTheEighthEndsIt);
     RUN_TEST(MTZ_TheEventsShutTheArenaAndMakeTheBossLast);
+    RUN_TEST(DEZ_TheEventsMakeMetalSonicAtTheStart);
+    RUN_TEST(DEZ_MetalSonicMakesHisPartsAndDiesAfterEightHits);
     RUN_TEST(CNZ_TheAutoSpinRollsWhoeverTouchesItIntoABall);
     RUN_TEST(CNZ_TheBumperKnowsWhichCharacterTouchedIt);
 }

@@ -972,11 +972,18 @@ static const PLCList PLC_DEZ2 = { // Death Egg's secondary list, the pre-beta's 
     6,
     (const PLC[]) {
         { Art_CPZAutomaticDoor,  ART_VRAM(0x6500 >> 5) },
-        { Art_DEZMetalSonic,     ART_VRAM(0x7000 >> 5) },
-        { Art_DEZRobotnikWindow, ART_VRAM(0x6F00 >> 5) },
+        { Art_DEZMetalSonic,     ART_VRAM(ArtTile_DEZMetalSonic) },
+        { Art_DEZRobotnikWindow, ART_VRAM(ArtTile_DEZRobotnikWindow) },
         { Art_DEZRobotnik,       ART_VRAM(0xA300 >> 5) },
         { Art_DEZRobotnikFaces,  ART_VRAM(0xA000 >> 5) },
         { Art_DEZRobotnikBody,   ART_VRAM(0xAC80 >> 5) },
+    }
+};
+
+static const PLCList PLC_DEZBoss = { // the pre-beta's list $30: Metal Sonic's explosions
+    1,
+    (const PLC[]) {
+        { Art_BossExplosion, ART_VRAM(ArtTile_BossExplosion) },
     }
 };
 
@@ -1123,5 +1130,6 @@ const PLCList* plcs[PlcId_Num] = {
     /* PlcId_CPZBoss     */ &PLC_CPZBoss,
     /* PlcId_DEZFinal    */ &PLC_DEZFinal,
     /* PlcId_OOZBoss     */ &PLC_OOZBoss,
+    /* PlcId_DEZBoss     */ &PLC_DEZBoss,
 };
 

@@ -23,6 +23,7 @@
 #include "Object/SFZObjects.h"
 #include "Object/SFZBoss.h"
 #include "Object/DEZRunning.h"
+#include "Object/DEZMetalSonic.h"
 #include "Object/DEZFinalBoss.h"
 #include "Object/SkyBadniks.h"
 #include "Object/EHZBoss.h"
@@ -336,6 +337,7 @@ const SstCode sst_object_codes[0x100] = {
 	[0xAC] = Obj_Balkiry,
 	[0xAD] = Obj_SFZCluckerPlatform,
 	[0xAE] = Obj_Clucker,
+	[0xAF] = Obj_DEZMetalSonic,
 	[0xB2] = Obj_SFZTornado,
 	[0xBA] = Obj_SFZConveyorWheels,
 	[0xBD] = Obj_SFZElevator,
