@@ -9,6 +9,7 @@
 #include "Object/DHZBadniks.h"
 #include "Object/DHZBoss.h"
 #include "Object/CNZBoss.h"
+#include "Object/OOZBoss.h"
 #include "Object/CNZObjects.h"
 #include "Object/BossCommon.h"
 #include "Object/CharControl.h"
@@ -692,6 +693,210 @@ static void CNZ_TheEventsShutTheArenaAndMakeTheBossLast(void) {
 }
 
 
+// --- Oil Ocean's boss (the pre-beta's) ---
+
+// (runs the boss's balls and flames, which the test steps itself: the sprite loop is not running here)
+static int OOZ_RunBalls(int *flames) {
+    int balls = 0;
+    for (int j = 0x20; j < SST_COUNT; j++) {
+        if (sst[j].code == sst_object_codes[0x55] && sst[j].routine == 8) {
+            if (sst[j].routine_secondary == 4)
+                (*flames)++;
+            else if (sst[j].routine_secondary == 2)
+                balls++;
+            Obj_OOZBoss(&sst[j]);
+        }
+    }
+    return balls;
+}
+
+// It dives out of the oil to Y $290, bobs, goes up a little and down again; with no hit it goes on to hover, wearing a tail of eight links, and spits balls of oil: the ones at the lowest height light a row of flames where
+// they pass the middle
+static void OOZ_TheBossDivesThenHoversAndSpitsBallsThatLightFlames(void) {
+    const uint16_t kept_frame = frame_count;
+    memset(&boss_move, 0, sizeof(boss_move));
+    const dword_u kept_seed = random_seed;
+    Reset(ZoneId_OOZ);
+    level_id = LEVEL_ID(ZoneId_OOZ, 1);
+    boss_flag = 8;
+    Sst *boss = Spawn(0x55, 0, 0, 0);
+    Obj_OOZBoss(boss);
+    CHECK_EQ(boss->collision_property, 8);
+    CHECK_EQ(boss->child_count, 0);
+    CHECK_EQ(boss->collision_flags, 0x0F);
+    player->x_pos.f.u = 0x2800;
+    Obj_OOZBoss(boss); // (the dive starts: low in the oil, looking at the character)
+    CHECK_EQ(boss->y_pos.f.u, 0x2D0);
+    CHECK_EQ(boss->child_count, 1);
+    CHECK(boss->render_flags & SST_RENDER_X_FLIP);
+    int16_t min_y = 0x7FFF;
+    bool dived = false;
+    for (int i = 0; i < 700 && boss->routine == 2; i++) {
+        scrpos_x.f.u = 0x2800;
+        scrpos_y.f.u = 0x200;
+        Obj_OOZBoss(boss);
+        if (boss->y_pos.f.u < min_y)
+            min_y = boss->y_pos.f.u;
+        dived = true;
+    }
+    CHECK(dived);
+    CHECK_EQ(boss->routine, 4);                // (not hit: it goes on to hover)
+    CHECK(min_y <= 0x290 && min_y >= 0x28C - 6); // (it came up to about $290, and a little more)
+    CHECK_EQ(boss_move.y.f.u, 0x2D0);          // (down in the oil again)
+    int balls = 0, flames = 0;
+    bool tailed = false;
+    uint16_t cycles = 0;
+    for (int i = 0; i < 12000 && flames == 0; i++) {
+        scrpos_x.f.u = 0x2800;
+        scrpos_y.f.u = 0x200;
+        frame_count++;
+        if (boss->routine == 2)
+            cycles++;
+        Obj_OOZBoss(boss);
+        if (boss->routine == 4 && boss->child_count == 8 && boss->collision_flags == 0x8A)
+            tailed = true;
+        const int now = OOZ_RunBalls(&flames);
+        if (now > balls)
+            balls = now;
+    }
+    CHECK(tailed);
+    CHECK(balls > 0);   // (it spits)
+    CHECK(flames > 0);  // (and the low ones light flames)
+    int row = 0;
+    for (int i = 0; i < 40; i++) {
+        OOZ_RunBalls(&flames);
+        int now = 0;
+        for (int j = 0x20; j < SST_COUNT; j++)
+            now += sst[j].code == sst_object_codes[0x55] && sst[j].routine == 8 && sst[j].routine_secondary == 4;
+        if (now > row)
+            row = now;
+    }
+    CHECK(row >= 3);    // (a row of them: each lights the next outwards)
+    frame_count = kept_frame;
+    random_seed = kept_seed;
+    ClearPLC();
+    boss_flag = 0;
+}
+
+// A hit in the dive sends it on to swing round the arena (a circle of radius $68 about $28C0 or $29C0) before it hovers
+static void OOZ_ABossThatWasHitSwingsRoundTheArena(void) {
+    const uint16_t kept_frame = frame_count;
+    memset(&boss_move, 0, sizeof(boss_move));
+    Reset(ZoneId_OOZ);
+    level_id = LEVEL_ID(ZoneId_OOZ, 1);
+    boss_flag = 8;
+    Sst *boss = Spawn(0x55, 0, 0, 0);
+    player->x_pos.f.u = 0x2800;
+    Obj_OOZBoss(boss);
+    Obj_OOZBoss(boss);
+    for (int i = 0; i < 40; i++) { // (the touch code counts a hit)
+        scrpos_x.f.u = 0x2800;
+        scrpos_y.f.u = 0x200;
+        Obj_OOZBoss(boss);
+    }
+    boss->collision_flags = 0;
+    boss->collision_property--;
+    int16_t min_x = 0x7FFF, max_x = 0;
+    bool orbited = false;
+    for (int i = 0; i < 1500 && boss->routine != 4; i++) {
+        scrpos_x.f.u = 0x2800;
+        scrpos_y.f.u = 0x200;
+        frame_count++;
+        Obj_OOZBoss(boss);
+        if (boss->routine == 6 && boss->child_count == 8) {
+            orbited = true;
+            if (boss->x_pos.f.u < min_x)
+                min_x = boss->x_pos.f.u;
+            if (boss->x_pos.f.u > max_x)
+                max_x = boss->x_pos.f.u;
+        }
+    }
+    CHECK(orbited);
+    CHECK_EQ(boss->routine, 4);                 // (and then it hovers)
+    CHECK_EQ(boss->collision_property, 7);
+    CHECK(min_x < 0x28C0 && max_x > 0x28C0 && max_x - min_x >= 0x60); // (round the point $28C0: the character is to the left)
+    frame_count = kept_frame;
+    ClearPLC();
+    boss_flag = 0;
+}
+
+// Beaten in the dive it blows up for $B3 frames, then sinks as the arena's right edge opens to $2D00, and is gone with the act over
+static void OOZ_TheBossBlowsUpAndSinksWhenBeaten(void) {
+    const uint16_t kept_frame = frame_count;
+    memset(&boss_move, 0, sizeof(boss_move));
+    const uint16_t kept_limits[2] = { limit_right2, limit_right1 };
+    Reset(ZoneId_OOZ);
+    level_id = LEVEL_ID(ZoneId_OOZ, 1);
+    boss_flag = 8;
+    boss_status = 0;
+    Sst *boss = Spawn(0x55, 0, 0, 0);
+    player->x_pos.f.u = 0x2800;
+    Obj_OOZBoss(boss);
+    Obj_OOZBoss(boss);
+    for (int i = 0; i < 5; i++)
+        Obj_OOZBoss(boss);
+    boss->collision_property = 0; // (the last hit)
+    boss->collision_flags = 0;
+    limit_right2 = 0x28C0 + SCREEN_WIDEADD2;
+    int frames = 0;
+    for (; frames < 3000 && boss->code != NULL; frames++) {
+        scrpos_x.f.u = 0x2800;
+        scrpos_y.f.u = 0x200;
+        frame_count++;
+        Obj_OOZBoss(boss);
+    }
+    CHECK(boss->code == NULL);
+    CHECK_EQ(boss_status, 1);
+    CHECK_EQ(limit_right2, 0x2D00 + SCREEN_WIDEADD2);
+    CHECK(frames > 0xB3);
+    boss_status = 0;
+    limit_right2 = kept_limits[0];
+    limit_right1 = kept_limits[1];
+    frame_count = kept_frame;
+    ClearPLC();
+    boss_flag = 0;
+}
+
+// DynResize_OOz (act 2) of the pre-beta: X $2668 fixes the left edge and the lower limit and raises the oil to $2D8; X $2880 shuts the arena between $2880 and $28C0, Boss_Flag 8; the top is held at $1D8 and, $5A
+// frames on, the boss is made
+static void OOZ_TheEventsShutTheArenaAndMakeTheBossLast(void) {
+    const uint16_t kept_limits[6] = { limit_left2, limit_right2, limit_top2, limit_btm1, limit_btm2, limit_right1 };
+    Reset(ZoneId_OOZ);
+    dle_routine = 0;
+    level_id = LEVEL_ID(ZoneId_OOZ, 1);
+    Sst *oil = Spawn(0x07, 0, 0x2600, 0x700);
+    scrpos_x.f.u = 0x2668 - SCREEN_WIDEADD2 - 1;
+    OOZBoss_Events();
+    CHECK_EQ(dle_routine, 0);
+    scrpos_x.f.u = 0x2668 - SCREEN_WIDEADD2;
+    OOZBoss_Events();
+    CHECK_EQ(dle_routine, 2);
+    CHECK_EQ(limit_btm1, 0x01E0 - SCREEN_TALLADD);
+    CHECK_EQ(limit_left2, 0x2668 - SCREEN_WIDEADD2);
+    CHECK_EQ(oil->y_pos.f.u, 0x2D8);
+    CHECK_EQ(boss_flag, 0);
+    scrpos_x.f.u = 0x2880 - SCREEN_WIDEADD2;
+    OOZBoss_Events();
+    CHECK_EQ(dle_routine, 4);
+    CHECK_EQ(boss_flag, 8);
+    CHECK_EQ(limit_left2, 0x2880 - SCREEN_WIDEADD2);
+    CHECK_EQ(limit_right2, 0x28C0 + SCREEN_WIDEADD2);
+    { int made = 0; for (int j = 1; j < 0x60; j++) made += sst[j].code == sst_object_codes[0x55]; CHECK_EQ(made, 0); }
+    scrpos_y.f.u = 0x1D8 - SCREEN_TALLADD;
+    for (int i = 0; i < 0x59; i++)
+        OOZBoss_Events();
+    CHECK_EQ(limit_top2, 0x1D8 - SCREEN_TALLADD);
+    CHECK_EQ(dle_routine, 4);
+    OOZBoss_Events();
+    CHECK_EQ(dle_routine, 6);
+    { int made = 0; for (int j = 1; j < 0x60; j++) made += sst[j].code == sst_object_codes[0x55]; CHECK_EQ(made, 1); }
+    ClearPLC();
+    boss_flag = 0;
+    dle_routine = 0;
+    limit_left2 = kept_limits[0]; limit_right2 = kept_limits[1]; limit_top2 = kept_limits[2]; limit_btm1 = kept_limits[3]; limit_btm2 = kept_limits[4]; limit_right1 = kept_limits[5];
+}
+
+
 static void CNZ_TheAutoSpinRollsWhoeverTouchesItIntoABall(void) { // (the alpha's box, which Hidden Palace and Hill Top still have: Casino Night has the pre-beta's line)
     Reset(ZoneId_HPZ);
     Sst *box = Spawn(0x84, 0, 300, 300);
@@ -1196,6 +1401,10 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(CNZ_TheRoundBumperThrowsWhoeverTouchesIt);
     RUN_TEST(CNZ_TheBossGoesToAndFroAndLetsTheBallFall);
     RUN_TEST(CNZ_TheEventsShutTheArenaAndMakeTheBossLast);
+    RUN_TEST(OOZ_TheBossDivesThenHoversAndSpitsBallsThatLightFlames);
+    RUN_TEST(OOZ_ABossThatWasHitSwingsRoundTheArena);
+    RUN_TEST(OOZ_TheBossBlowsUpAndSinksWhenBeaten);
+    RUN_TEST(OOZ_TheEventsShutTheArenaAndMakeTheBossLast);
     RUN_TEST(CNZ_TheAutoSpinRollsWhoeverTouchesItIntoABall);
     RUN_TEST(CNZ_TheBumperKnowsWhichCharacterTouchedIt);
 }

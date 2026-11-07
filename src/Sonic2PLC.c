@@ -53,6 +53,7 @@
 #include "Resource/Art/SFZBossSwitch.h"
 #include "Resource/Art/SFZPlatform.h"
 #include "Resource/Art/CNZBoss.h"
+#include "Resource/Art/OOZBoss.h"
 #include "Resource/Art/NGHZBoss.h"
 #include "Resource/Art/NGHZAutoDoor.h"
 #include "Resource/Art/ChopChop.h"
@@ -1009,6 +1010,14 @@ static const PLCList PLC_CPZBoss = { // the pre-beta's list $28: Chemical Plant'
     }
 };
 
+static const PLCList PLC_OOZBoss = { // the pre-beta's list $2F: Oil Ocean's boss at $7180 and the explosions
+    2,
+    (const PLC[]) {
+        { Art_OOZBoss,       ART_VRAM(0x7180 >> 5) },
+        { Art_BossExplosion, ART_VRAM(0xB000 >> 5) },
+    }
+};
+
 static const PLCList PLC_CNZBoss = { // the pre-beta's list $2D: Casino Night's boss: the ship's art (Robotnik) at $A000, the boss at $80E0 and the explosions
     3,
     (const PLC[]) {
@@ -1112,5 +1121,6 @@ const PLCList* plcs[PlcId_Num] = {
     /* PlcId_SCZ2        */ &PLC_SCZ2,
     /* PlcId_CPZBoss     */ &PLC_CPZBoss,
     /* PlcId_DEZFinal    */ &PLC_DEZFinal,
+    /* PlcId_OOZBoss     */ &PLC_OOZBoss,
 };
 

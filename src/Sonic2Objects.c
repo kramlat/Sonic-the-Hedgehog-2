@@ -1,6 +1,7 @@
 #include "SstLoad.h"
 #include "Object/Bridge.h"
 #include "Object/CNZBoss.h"
+#include "Object/OOZBoss.h"
 #include "Object/CNZObjects.h"
 #include "Object/CNZFlippers.h"
 #include "Object/CNZSlots.h"
@@ -52,6 +53,7 @@ void Obj_BossExplosion(Sst *self);
 void Obj_Bridge(Sst *self);
 void Obj_Buzzer(Sst *self);
 void Obj_CNZBoss(Sst *self);
+void Obj_OOZBoss(Sst *self);
 void Obj_CNZBumper(Sst *self);
 void Obj_CPZBarrier(Sst *self);
 void Obj_CPZBlock(Sst *self);
@@ -252,7 +254,7 @@ const SstCode sst_object_codes[0x100] = {
 	[0x52] = Obj_HTZBoss,
 	[0x53] = Obj_MTZBossBall,
 	[0x54] = Obj_MTZBoss,
-	[0x55] = Obj_MTZBoss,
+	[0x55] = Obj_OOZBoss,
 	[0x56] = Obj_EHZBoss,
 	[0x57] = Obj_DHZBoss,
 	[0x58] = Obj_BossExplosion,
