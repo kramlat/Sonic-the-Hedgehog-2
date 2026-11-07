@@ -54,6 +54,7 @@
 #include "Resource/Art/SFZPlatform.h"
 #include "Resource/Art/CNZBoss.h"
 #include "Resource/Art/OOZBoss.h"
+#include "Object/BossArt.h"
 #include "Resource/Art/NGHZBoss.h"
 #include "Resource/Art/NGHZAutoDoor.h"
 #include "Resource/Art/ChopChop.h"
@@ -903,13 +904,13 @@ static const PLCList PLC_Flicky3B = { // Penguin and BlueBird
     }
 };
 
-static const PLCList PLC_MTZBoss = { // the alpha's list $2E (the boss is unreachable there)
+static const PLCList PLC_MTZBoss = { // the pre-beta's list $2E: Metropolis's boss: the ship, the balls and the small Robotniks, the ship's boost and the explosions
     4,
     (const PLC[]) {
-        { Art_BossShip,      ART_VRAM(0x7180 >> 5) },
-        { Art_MTZBossBalls,  ART_VRAM(0x7D80 >> 5) },
-        { Art_ShipBoost,     ART_VRAM(0xA000 >> 5) },
-        { Art_BossExplosion, ART_VRAM(0xB000 >> 5) },
+        { Art_BossShip,      ART_VRAM(ArtTile_BossShip) },
+        { Art_MTZBossBalls,  ART_VRAM(ArtTile_MTZBoss) },
+        { Art_ShipBoost,     ART_VRAM(ArtTile_ShipBoost) },
+        { Art_BossExplosion, ART_VRAM(ArtTile_BossExplosion) },
     }
 };
 
@@ -1013,8 +1014,8 @@ static const PLCList PLC_CPZBoss = { // the pre-beta's list $28: Chemical Plant'
 static const PLCList PLC_OOZBoss = { // the pre-beta's list $2F: Oil Ocean's boss at $7180 and the explosions
     2,
     (const PLC[]) {
-        { Art_OOZBoss,       ART_VRAM(0x7180 >> 5) },
-        { Art_BossExplosion, ART_VRAM(0xB000 >> 5) },
+        { Art_OOZBoss,       ART_VRAM(ArtTile_OOZBoss) },
+        { Art_BossExplosion, ART_VRAM(ArtTile_BossExplosion) },
     }
 };
 

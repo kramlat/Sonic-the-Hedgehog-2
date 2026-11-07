@@ -10,6 +10,7 @@
 #include "Object/DHZBoss.h"
 #include "Object/CNZBoss.h"
 #include "Object/OOZBoss.h"
+#include "Object/MTZBoss.h"
 #include "Object/CPZBoss.h"
 #include "Object/SFZObjects.h"
 #include "Object/NGHZBoss.h"
@@ -231,6 +232,7 @@ void LevelSizeLoad(void) {
     NGHZBoss_Reset();
     CNZBoss_Reset();
     OOZBoss_Reset();
+    MTZBoss_Reset();
     DHZBoss_Reset();
     CNZ_ResetBumperGroups();
     SlotMachine_Reset();
@@ -511,6 +513,10 @@ void DynamicLevelEvents(void) {
         SlotMachine_Process(); // (the pre-beta's DynResize_CNz starts with the reels)
         if (LEVEL_ACT(level_id) == 1)
             CNZBoss_Events(); // (the alpha's: Casino Night's boss at the end of act 2; act 1 has none)
+        break;
+    case ZoneId_MTZ:
+        if (LEVEL_ACT(level_id) == 2)
+            MTZBoss_Events(); // (the pre-beta's DynResize_Mz3: Metropolis's boss at the end of act 3)
         break;
     case ZoneId_OOZ:
         if (LEVEL_ACT(level_id) == 1)

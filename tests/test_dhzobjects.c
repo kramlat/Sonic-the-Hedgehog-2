@@ -10,6 +10,7 @@
 #include "Object/DHZBoss.h"
 #include "Object/CNZBoss.h"
 #include "Object/OOZBoss.h"
+#include "Object/MTZBoss.h"
 #include "Object/CNZObjects.h"
 #include "Object/BossCommon.h"
 #include "Object/CharControl.h"
@@ -897,6 +898,196 @@ static void OOZ_TheEventsShutTheArenaAndMakeTheBossLast(void) {
 }
 
 
+// --- Metropolis's boss (the pre-beta's) ---
+
+// (the sprite loop does not run here: the test steps the boss's objects in slot order)
+static void MTZ_Step(void) {
+    scrpos_x.f.u = 0x2A00;
+    scrpos_y.f.u = 0x380;
+    frame_count++;
+    for (int j = 0x20; j < SST_COUNT; j++) {
+        if (sst[j].code == sst_object_codes[0x54])
+            Obj_MTZBoss(&sst[j]);
+        else if (sst[j].code == sst_object_codes[0x53])
+            Obj_MTZBossBall(&sst[j]);
+    }
+}
+
+static int MTZ_Count(uint8_t id, int routine) {
+    int n = 0;
+    for (int j = 0x20; j < SST_COUNT; j++)
+        n += sst[j].code == sst_object_codes[id] && (routine < 0 || sst[j].routine == routine);
+    return n;
+}
+
+static Sst *MTZ_Ship(void) {
+    for (int j = 0x20; j < SST_COUNT; j++)
+        if (sst[j].code == sst_object_codes[0x54] && sst[j].routine == 2)
+            return &sst[j];
+    return NULL;
+}
+
+// A hit as the touch code counts it (the flash must be over)
+static bool MTZ_Hit(Sst *ship) {
+    if (ship->collision_flags == 0)
+        return false;
+    ship->collision_flags = 0;
+    ship->collision_property--;
+    return true;
+}
+
+// It starts at ($2B50,$380), makes the part that follows it and the seven balls, goes down to $4A0 and patrols between $2AD0 and $2BD0; the balls spread out; each hit lets one go, a small Robotnik walks out of it,
+// and rolled into it pops
+static void MTZ_TheShipPatrolsAndEachHitLetsABallGo(void) {
+    const uint16_t kept_frame = frame_count;
+    memset(&boss_move, 0, sizeof(boss_move));
+    Reset(ZoneId_MTZ);
+    level_id = LEVEL_ID(ZoneId_MTZ, 2);
+    boss_flag = 7;
+    Sst *ship = Spawn(0x54, 0, 0, 0);
+    MTZ_Step();
+    CHECK_EQ(ship->x_pos.f.u, 0x2B50);
+    CHECK_EQ(ship->y_pos.f.u, 0x380);
+    CHECK_EQ(ship->child_count, 2);
+    CHECK_EQ(ship->collision_property, 8);
+    CHECK_EQ(MTZ_Count(0x54, 6), 1);              // (the part that follows it)
+    MTZ_Step();                                   // (the maker makes the balls)
+    CHECK_EQ(MTZ_Count(0x53, 2), 7);
+    player->x_pos.f.u = 0x2A00;
+    int16_t min_x = 0x7FFF, max_x = 0;
+    for (int i = 0; i < 1500; i++) {
+        MTZ_Step();
+        if (ship->own.u8[1] == 2) {
+            if (ship->x_pos.f.u < min_x) min_x = ship->x_pos.f.u;
+            if (ship->x_pos.f.u > max_x) max_x = ship->x_pos.f.u;
+        }
+        if (ship->own.u8[1] >= 6)
+            break;
+    }
+    CHECK(min_x <= 0x2AD0 + 4 && max_x >= 0x2BD0 - 4);  // (to and fro)
+    for (int i = 0; i < 600 && ship->own.u8[1] != 8; i++)
+        MTZ_Step();
+    CHECK_EQ(ship->own.u8[1], 8);                 // (the balls are out; they come in again)
+    for (int i = 0; i < 400 && ship->own.u8[1] != 0; i++)
+        MTZ_Step();
+    CHECK_EQ(ship->own.u8[1], 0);
+    // the hit
+    for (int i = 0; i < 600 && ship->own.u8[1] != 2; i++)
+        MTZ_Step();
+    CHECK(MTZ_Hit(ship));
+    MTZ_Step();
+    MTZ_Step();
+    CHECK_EQ(MTZ_Count(0x53, 4) + MTZ_Count(0x53, 6), 1); // (one ball is let go: it falls to the floor at once if it was low)
+    CHECK_EQ(ship->own.u8[1], 0xA);
+    Sst *walker = NULL;
+    for (int i = 0; i < 400 && walker == NULL; i++) {
+        MTZ_Step();
+        for (int j = 0x20; j < SST_COUNT; j++)
+            if (sst[j].code == sst_object_codes[0x53] && sst[j].routine == 6)
+                walker = &sst[j];
+    }
+    CHECK(walker != NULL);                        // (it fell to the floor: a small Robotnik)
+    if (walker != NULL) {
+        CHECK_EQ(walker->y_pos.f.u, 0x4AC);
+        for (int i = 0; i < 120; i++)
+            MTZ_Step();
+        CHECK_EQ(walker->collision_flags, 0xDA);  // (it hurts after its wait)
+        walker->collision_property = 0xFE;        // (rolled into)
+        for (int i = 0; i < 20 && walker->code != NULL; i++)
+            MTZ_Step();
+        CHECK(walker->code == NULL || walker->code != sst_object_codes[0x53]);
+        CHECK_EQ(ship->own.u8[6], 0);         // (no balls out any more)
+    }
+    frame_count = kept_frame;
+    ClearPLC();
+    boss_flag = 0;
+    memset(&boss_move, 0, sizeof(boss_move));
+}
+
+// After the seventh hit it stops guarding itself and dives, shooting; the eighth blows it up, and it leaves as the arena opens
+static void MTZ_AfterSevenHitsTheShipDivesAndShootsAndTheEighthEndsIt(void) {
+    const uint16_t kept_frame = frame_count;
+    const uint16_t kept_right = limit_right2, kept_right1 = limit_right1;
+    memset(&boss_move, 0, sizeof(boss_move));
+    Reset(ZoneId_MTZ);
+    level_id = LEVEL_ID(ZoneId_MTZ, 2);
+    boss_flag = 7;
+    boss_status = 0;
+    Sst *ship = Spawn(0x54, 0, 0, 0);
+    player->x_pos.f.u = 0x2A00;
+    bool shot = false, dived = false;
+    int hits = 0;
+    for (int i = 0; i < 40000 && ship->code != NULL; i++) {
+        MTZ_Step();
+        if (ship->code == NULL)
+            break;
+        for (int j = 0x20; j < SST_COUNT; j++) // (the small Robotnik is rolled into at once)
+            if (sst[j].code == sst_object_codes[0x53] && sst[j].routine == 6 && sst[j].collision_flags == 0xDA)
+                sst[j].collision_property = 0xFE;
+        if (ship->own.u8[1] == 0xE) {
+            dived = true;
+            if (MTZ_Count(0x54, 4) > 0)
+                shot = true;
+        }
+        if (hits < 7 && ship->own.u8[1] == 2 && ship->collision_flags != 0 && ship->own.u8[1] == 2) {
+            MTZ_Hit(ship);
+            hits++;
+        } else if (hits == 7 && dived && shot && ship->collision_flags != 0) {
+            ship->collision_property = 0;      // (the last)
+            ship->collision_flags = 0;
+            hits++;
+            limit_right2 = 0x2AB0 - 0x80 + SCREEN_WIDEADD2;
+        }
+    }
+    CHECK_EQ(hits, 8);
+    CHECK(dived);
+    CHECK(shot);
+    CHECK(ship->code == NULL);
+    CHECK_EQ(boss_status, 1);
+    boss_status = 0;
+    limit_right2 = kept_right;
+    limit_right1 = kept_right1;
+    frame_count = kept_frame;
+    ClearPLC();
+    boss_flag = 0;
+    memset(&boss_move, 0, sizeof(boss_move));
+}
+
+// DynResize_Mz3: X $2980 fixes the left edge and the lower limit; X $2A80 shuts the arena at $2AB0, Boss_Flag 7; the top is held at $400 and $5A frames on the boss is made
+static void MTZ_TheEventsShutTheArenaAndMakeTheBossLast(void) {
+    const uint16_t kept_limits[6] = { limit_left2, limit_right2, limit_top2, limit_btm1, limit_btm2, limit_right1 };
+    Reset(ZoneId_MTZ);
+    dle_routine = 0;
+    level_id = LEVEL_ID(ZoneId_MTZ, 2);
+    scrpos_x.f.u = 0x2980 - SCREEN_WIDEADD2 - 1;
+    MTZBoss_Events();
+    CHECK_EQ(dle_routine, 0);
+    scrpos_x.f.u = 0x2980 - SCREEN_WIDEADD2;
+    MTZBoss_Events();
+    CHECK_EQ(dle_routine, 2);
+    CHECK_EQ(limit_btm1, 0x0400 - SCREEN_TALLADD);
+    scrpos_x.f.u = 0x2A80 - SCREEN_WIDEADD2;
+    MTZBoss_Events();
+    CHECK_EQ(dle_routine, 4);
+    CHECK_EQ(boss_flag, 7);
+    CHECK_EQ(limit_left2, 0x2AB0 - SCREEN_WIDEADD2);
+    CHECK_EQ(limit_right2, 0x2AB0 + SCREEN_WIDEADD2);
+    CHECK_EQ(MTZ_Count(0x54, -1), 0);
+    scrpos_y.f.u = 0x400 - SCREEN_TALLADD;
+    for (int i = 0; i < 0x59; i++)
+        MTZBoss_Events();
+    CHECK_EQ(limit_top2, 0x400 - SCREEN_TALLADD);
+    CHECK_EQ(dle_routine, 4);
+    MTZBoss_Events();
+    CHECK_EQ(dle_routine, 6);
+    CHECK_EQ(MTZ_Count(0x54, -1), 1);
+    ClearPLC();
+    boss_flag = 0;
+    dle_routine = 0;
+    limit_left2 = kept_limits[0]; limit_right2 = kept_limits[1]; limit_top2 = kept_limits[2]; limit_btm1 = kept_limits[3]; limit_btm2 = kept_limits[4]; limit_right1 = kept_limits[5];
+}
+
+
 static void CNZ_TheAutoSpinRollsWhoeverTouchesItIntoABall(void) { // (the alpha's box, which Hidden Palace and Hill Top still have: Casino Night has the pre-beta's line)
     Reset(ZoneId_HPZ);
     Sst *box = Spawn(0x84, 0, 300, 300);
@@ -1405,6 +1596,9 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(OOZ_ABossThatWasHitSwingsRoundTheArena);
     RUN_TEST(OOZ_TheBossBlowsUpAndSinksWhenBeaten);
     RUN_TEST(OOZ_TheEventsShutTheArenaAndMakeTheBossLast);
+    RUN_TEST(MTZ_TheShipPatrolsAndEachHitLetsABallGo);
+    RUN_TEST(MTZ_AfterSevenHitsTheShipDivesAndShootsAndTheEighthEndsIt);
+    RUN_TEST(MTZ_TheEventsShutTheArenaAndMakeTheBossLast);
     RUN_TEST(CNZ_TheAutoSpinRollsWhoeverTouchesItIntoABall);
     RUN_TEST(CNZ_TheBumperKnowsWhichCharacterTouchedIt);
 }

@@ -819,30 +819,6 @@ static void SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType(void) {
     CHECK_EQ(p->y_pos.f.u, 0x200);
 }
 
-// The alpha's unfinished Metropolis boss: its ship makes the object of the balls, which makes seven of them (the object itself the first) that orbit the ship; a hit lets them go
-static void MTZBoss_MakesSevenBallsThatOrbitTheShip(void) {
-    SstTestClear();
-    scrpos_x.f.u = 0x1D00;
-    scrpos_y.f.u = 0x100;
-    Sst *ship = &sst[0x20];
-    ship->code = sst_object_codes[ObjId_MTZBoss];
-    Obj_MTZBoss(ship);
-    CHECK_EQ(ship->x_pos.f.u, 0x1EA0 - 2);
-    CHECK_EQ(ship->collision_flags, 0xF);
-    Sst *first = NULL;
-    for (int i = 1; i < 0x40 && first == NULL; i++)
-        if (sst[i].code == sst_object_codes[ObjId_MTZBossBall])
-            first = &sst[i];
-    CHECK(first != NULL);
-    if (first != NULL)
-        Obj_MTZBossBall(first); // (it makes the seven)
-    int balls = 0;
-    for (int i = 1; i < 0x40; i++)
-        if (sst[i].code == sst_object_codes[ObjId_MTZBossBall] && sst[i].routine == 2)
-            balls++;
-    CHECK_EQ(balls, 7);
-}
-
 
 // The pre-beta's Emerald Hill boss (the alpha's before it), from the level's event to its parts: in act 2, as the camera reaches $26E0, the event puts the ship (object 56, subtype $81) in the arena, locks the screen and starts the boss's music; the ship makes
 // its face and the car's parts (objects 5B), and the explosions of its wreck are object 58
@@ -1463,7 +1439,6 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(SFZBoss_BodyMakesItsPartsAndTheBouncerStaysInItsBox);
     RUN_TEST(ObjectHit_FollowsThePreBetasTimingAndArt);
     RUN_TEST(Sonic_DebugCheatDiesButBEntersPlacementModeFromHurtAndDead);
-    RUN_TEST(MTZBoss_MakesSevenBallsThatOrbitTheShip);
     RUN_TEST(Animals_ZonesHaveTheirPairAndEndAnimalsTheirOwnMovement);
     RUN_TEST(DustSplash_FollowsTheSpinDashAndSplashesAtTheWater);
     RUN_TEST(Sonic_SuperSonicHasHisOwnAnimations);

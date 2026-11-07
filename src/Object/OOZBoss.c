@@ -19,7 +19,7 @@
 #include "Resource/Animation/OOZBoss.h"
 #include "Resource/Mappings/OOZBoss.h"
 
-#define ArtTile_OOZBoss 0x38C // ($7180: list $2F)
+#include "Object/BossArt.h"
 
 // the routines of the object
 enum { Boss_Start = 0, Boss_Dive = 2, Boss_Oil = 4, Boss_Orbit = 6, Boss_Ball = 8 };
