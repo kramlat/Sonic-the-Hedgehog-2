@@ -73,8 +73,8 @@ void Obj_Monitor(Sst *self) {
         self->priority = 3 * 0x80;
         self->width_pixels = 15;
 
-        // Check if monitor was destroyed
-        (*SstLoad_State(self)) &= 0x7F;
+        // Check if monitor was destroyed (bit 0 of its state). It must not clear bit 7, the loader's "this one is out there": the S2 original's `bclr #7` there made the loader place the monitor again every time the camera
+        // entered another row, and Oil Ocean's shafts stacked up to a dozen of them on one entry, each worth a break (and the item)
         if ((*SstLoad_State(self)) & 1) {
             // Destroyed
             self->routine = 8;
@@ -171,6 +171,14 @@ void Obj_Monitor(Sst *self) {
         // Increment routine
         self->routine += 2;
         self->collision_flags = 0x00;
+
+        // Whoever stands on it falls (the pre-beta leaves him flagged as standing on a monitor that is gone, and he walks on air)
+        if (self->status & 0x08) {
+            self->status &= (uint8_t)~0x08;
+            player->status &= (uint8_t)~SST_PSTATUS_OBJECT_STAND;
+            player->status |= SST_PSTATUS_IN_AIR;
+        }
+        self->routine_secondary = 0;
 
         // Create item object
         Sst *item = Sst_Allocate();

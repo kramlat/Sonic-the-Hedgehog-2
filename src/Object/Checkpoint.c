@@ -26,7 +26,7 @@ void Obj_Checkpoint(Sst *self) {
             self->render_flags = 4;
             self->width_pixels = 8;
             self->priority = 5 * 0x80;
-            (*SstLoad_State(self)) &= 0x7F;
+            // (not clearing bit 7, the loader's "out there": the original's `bclr #7` here made the loader place another post every time the camera entered a new row)
             bool already_hit = ((*SstLoad_State(self)) & 1);
             bool newer_checkpoint = ((last_lamp & 0x7F) >= (self->subtype & 0x7F));
 

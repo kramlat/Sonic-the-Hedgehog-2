@@ -24,6 +24,10 @@
 
 void Obj_CollapsingPlatform(Sst *obj);
 void Obj_OOZBreakBoost(Sst *self);
+void Obj_Monitor(Sst *self);
+signed int ReactToItem(Sst *self);
+void Obj_MonitorItem(Sst *self);
+void Obj_Explosion(Sst *self);
 void Obj_OOZFan(Sst *self);
 void Obj_Octus(Sst *self);
 void Obj_Aquis(Sst *self);
@@ -964,6 +968,106 @@ static void OOZ_TheAquisPatrolsLeapsAtSonicAndSpitsAHarmlessShot(void) {
     wtr_pos1 = saved_water;
 }
 
+// --- the monitors, through the object loader ---
+
+static int LiveMonitors(void) {
+    int n = 0;
+    for (int i = 0x20; i < 0x80; i++)
+        n += sst[i].code == sst_object_codes[0x26];
+    return n;
+}
+
+static void Monitors_AreLoadedOnceHoweverTheCameraGoesBackAndForth(void) {
+    Reset(ZoneId_EHZ);
+    sst_load_everything_in_range = false;
+    // one monitor at x $400 (bit 15 of the Y word: loaded whatever the camera's Y), a super rings one
+    static const uint8_t layout[] = { 0x04, 0x00, 0x83, 0x00, 0x26, 0x04, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00 };
+    static const SstObjectIndex index_ = {sst_object_codes, 0x100};
+    SstLoadCamera camera = {0, 0x200, false, 0xFFF};
+    SstLoad_Init(&index_, layout, false, &camera);
+    CHECK_EQ(LiveMonitors(), 0);
+    int max_alive = 0;
+    // forward past its load edge, on, back over it, and forward again, running the monitor each frame
+    static const int path[] = { 0x100, 0x200, 0x300, 0x380, 0x400, 0x380, 0x300, 0x200, 0x100, 0x180, 0x200, 0x300, 0x380, 0x400, 0x500 };
+    for (size_t k = 0; k < sizeof(path) / sizeof(path[0]); k++) {
+        camera.x = (int16_t)path[k];
+        scrpos_x.f.u = camera.x;
+        SstLoad_Update(&camera);
+        for (int i = 0x20; i < 0x80; i++)
+            if (sst[i].code == sst_object_codes[0x26])
+                sst[i].code(&sst[i]);
+        if (LiveMonitors() > max_alive)
+            max_alive = LiveMonitors();
+    }
+    CHECK(max_alive >= 1);
+    CHECK_EQ(max_alive, 1); // (never a second one on top of it)
+
+    // ... and up and down: every 128-pixel row the camera enters makes the loader look at the entries again (Oil Ocean's shafts and cannons)
+    camera.x = 0x300;
+    scrpos_x.f.u = camera.x;
+    for (int k = 0; k < 24; k++) {
+        camera.y = (int16_t)(0x200 + ((k & 1) ? 0x100 : 0) + (k / 2) * 0x80);
+        scrpos_y.f.u = camera.y;
+        SstLoad_Update(&camera);
+        for (int i = 0x20; i < 0x80; i++)
+            if (sst[i].code == sst_object_codes[0x26])
+                sst[i].code(&sst[i]);
+        if (LiveMonitors() > max_alive)
+            max_alive = LiveMonitors();
+    }
+    CHECK_EQ(max_alive, 1);
+    sst_load_everything_in_range = true;
+}
+
+static int LiveCode(void (*code)(Sst *)) {
+    int n = 0;
+    for (int i = 0x20; i < 0x80; i++)
+        n += sst[i].code == code;
+    return n;
+}
+
+static void Monitors_BreakOnceHoweverLongSonicStaysInThem(void) {
+    Reset(ZoneId_EHZ);
+    Sst *mon = Spawn(0x26, 4, 400, 400);
+    Obj_Monitor(mon);
+    player->x_pos.f.u = 400;
+    player->y_pos.f.u = 400 - 10;
+    player->anim = SonAnimId_Roll;
+    player->y_vel = 0x200;
+    player->status |= SST_PSTATUS_IN_AIR | SST_PSTATUS_IN_BALL;
+    player->y_radius = 14;
+    mon->render_flags |= SST_RENDER_ON_SCREEN;
+    int items = 0;
+    for (int f = 0; f < 12; f++) {
+        ReactToItem(player);
+        if (f == 0)
+            ReactToItem(player); // (Tails reacting in the same frame, before the monitor has been run: the same call for a second character)
+        Obj_Monitor(mon);
+        mon->render_flags |= SST_RENDER_ON_SCREEN;
+        for (int i = 0x20; i < 0x80; i++)
+            if (sst[i].code == Obj_MonitorItem && sst[i].routine == 0)
+                items++;
+        for (int i = 0x20; i < 0x80; i++)
+            if (sst[i].code == Obj_MonitorItem)
+                Obj_MonitorItem(&sst[i]);
+    }
+    CHECK_EQ(items, 1);
+}
+
+static void Monitors_LetGoOfWhoStandsOnThemWhenTheyBreak(void) {
+    Reset(ZoneId_EHZ);
+    Sst *mon = Spawn(0x26, 4, 400, 400);
+    Obj_Monitor(mon);
+    StandOn(400, 400 - 15);
+    mon->status |= 0x08;
+    mon->routine_secondary = 2;
+    mon->routine = 4; // (the other character broke it)
+    Obj_Monitor(mon);
+    CHECK(!(player->status & SST_PSTATUS_OBJECT_STAND));
+    CHECK((player->status & SST_PSTATUS_IN_AIR) != 0);
+    CHECK_EQ(mon->status & 0x18, 0);
+}
+
 void RegisterDHZObjectTests(void) {
     RUN_TEST(DHZ_TheCradleSwingsOutOnOneSideOnlyAndTheMiddleHangsStill);
     RUN_TEST(DHZ_TheCollapsingPlatformBreaksIntoSixPiecesOnceStoodOn);
@@ -1001,6 +1105,9 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(OOZ_AVerticalFanPushesACharacterSidewaysWhileItBlows);
     RUN_TEST(OOZ_AHorizontalFanLiftsAndTumblesACharacter);
     RUN_TEST(OOZ_TheFanSpinsUpForAWhileThenBlows);
+    RUN_TEST(Monitors_AreLoadedOnceHoweverTheCameraGoesBackAndForth);
+    RUN_TEST(Monitors_BreakOnceHoweverLongSonicStaysInThem);
+    RUN_TEST(Monitors_LetGoOfWhoStandsOnThemWhenTheyBreak);
     RUN_TEST(DHZ_TheBossRisesDropsRocksAndMovesToWhereSonicIs);
     RUN_TEST(DHZ_TheBossArenaLocksTheCameraAndLoadsTheBossOnce);
     RUN_TEST(CNZ_TheRoundBumperThrowsWhoeverTouchesIt);

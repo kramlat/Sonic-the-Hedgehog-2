@@ -408,12 +408,24 @@ static int16_t Sonic_Angle(Sst *self, int16_t dist0, int16_t dist1) {
         res_dist = dist0;
     }
 
-    // Use adjusted angle if hit angle is odd (special angle, run on all sides)
-    if (res_angle & 1)
+    // Use adjusted angle if hit angle is odd (special angle, run on all sides), and (Sonic 2) if it turns him by 45 degrees or more in one go
+    uint8_t turn = res_angle - self->angle;
+    if (turn & 0x80)
+        turn = -turn;
+    if ((res_angle & 1) || turn >= 0x20)
         self->angle = (self->angle + 0x20) & 0xC0;
     else
         self->angle = res_angle;
     return res_dist;
+}
+
+// How far the surface may fall away under him before he leaves it: Sonic 2 lets it grow with his speed (the high byte of it, plus 4, at most 14)
+static int16_t Sonic_SurfaceReach(int16_t vel) {
+    uint8_t reach = (uint8_t)(vel >> 8);
+    if (reach & 0x80)
+        reach = -reach;
+    reach += 4;
+    return (reach < 14) ? reach : 14;
 }
 
 static void Sonic_AnglePos(Sst *self) {
@@ -452,7 +464,7 @@ static void Sonic_AnglePos(Sst *self) {
                 if (dist >= -14)
                     self->y_pos.f.u += dist;
             } else {
-                if (dist <= 14 || scratch->x38.floor_clip) {
+                if (dist <= Sonic_SurfaceReach(self->x_vel) || scratch->x38.floor_clip) {
                     self->y_pos.f.u += dist;
                 } else {
                     self->status |= SST_PSTATUS_IN_AIR;
@@ -470,7 +482,7 @@ static void Sonic_AnglePos(Sst *self) {
                 if (dist >= -14)
                     self->x_pos.f.u -= dist;
             } else {
-                if (dist <= 14 || scratch->x38.floor_clip) {
+                if (dist <= Sonic_SurfaceReach(self->y_vel) || scratch->x38.floor_clip) {
                     self->x_pos.f.u -= dist;
                 } else {
                     self->status |= SST_PSTATUS_IN_AIR;
@@ -481,14 +493,14 @@ static void Sonic_AnglePos(Sst *self) {
         }
         break;
     case 0x80:
-        dist0 = FindFloor(self, self->x_pos.f.u - self->x_radius, (self->y_pos.f.u - self->y_radius) ^ 0xF, META_SOLID_TOP, META_Y_FLIP, -0x10, &angle_buffer0);
-        dist1 = FindFloor(self, self->x_pos.f.u + self->x_radius, (self->y_pos.f.u - self->y_radius) ^ 0xF, META_SOLID_TOP, META_Y_FLIP, -0x10, &angle_buffer1);
+        dist0 = FindFloor(self, self->x_pos.f.u + self->x_radius, (self->y_pos.f.u - self->y_radius) ^ 0xF, META_SOLID_TOP, META_Y_FLIP, -0x10, &angle_buffer0);
+        dist1 = FindFloor(self, self->x_pos.f.u - self->x_radius, (self->y_pos.f.u - self->y_radius) ^ 0xF, META_SOLID_TOP, META_Y_FLIP, -0x10, &angle_buffer1);
         if ((dist = Sonic_Angle(self, dist0, dist1)) != 0) {
             if (dist < 0) {
                 if (dist >= -14)
                     self->y_pos.f.u -= dist;
             } else {
-                if (dist <= 14 || scratch->x38.floor_clip) {
+                if (dist <= Sonic_SurfaceReach(self->x_vel) || scratch->x38.floor_clip) {
                     self->y_pos.f.u -= dist;
                 } else {
                     self->status |= SST_PSTATUS_IN_AIR;
@@ -499,16 +511,16 @@ static void Sonic_AnglePos(Sst *self) {
         }
         break;
     case 0xC0:
-        dist0 = FindWall(self, self->x_pos.f.u + self->y_radius, self->y_pos.f.u + self->x_radius, META_SOLID_TOP, 0, 0x10, &angle_buffer0);
-        dist1 = FindWall(self, self->x_pos.f.u + self->y_radius, self->y_pos.f.u - self->x_radius, META_SOLID_TOP, 0, 0x10, &angle_buffer1);
+        dist0 = FindWall(self, self->x_pos.f.u + self->y_radius, self->y_pos.f.u - self->x_radius, META_SOLID_TOP, 0, 0x10, &angle_buffer0);
+        dist1 = FindWall(self, self->x_pos.f.u + self->y_radius, self->y_pos.f.u + self->x_radius, META_SOLID_TOP, 0, 0x10, &angle_buffer1);
         if ((dist = Sonic_Angle(self, dist0, dist1)) != 0) {
             if (dist < 0) {
                 if (dist >= -14)
                     self->x_pos.f.u += dist;
             } else {
-                if (dist <= 14 || scratch->x38.floor_clip) {
+                if (dist <= Sonic_SurfaceReach(self->y_vel) || scratch->x38.floor_clip) {
                     self->x_pos.f.u += dist;
-                } else if (!scratch->x38.floor_clip) {
+                } else {
                     self->status |= SST_PSTATUS_IN_AIR;
                     self->status &= (uint8_t)~SST_PSTATUS_PUSHING;
                     self->prev_anim = 1;
@@ -644,6 +656,7 @@ static void Sonic_Floor(Sst *self) {
             self->x_pos.f.u += dist0;
             self->x_vel = 0;
             self->ground_vel = self->y_vel;
+            break; // (as against the left wall: no ceiling or floor test after it)
         }
 
         // Collide with ceiling
@@ -829,8 +842,8 @@ static signed int React_Monitor(Sst *self, Sst *hit) {
             if (!hit->routine_secondary)
                 hit->routine_secondary += 4;
         }
-    } else if (self->anim == SonAnimId_Roll) {
-        // Break monitor
+    } else if (self->anim == SonAnimId_Roll && hit->routine == 2) {
+        // Break monitor (once: a monitor that is breaking already is not broken again by the other character)
         self->y_vel = -self->y_vel;
         hit->routine += 2;
     }
