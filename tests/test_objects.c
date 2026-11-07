@@ -11,6 +11,7 @@
 #include "Object/DebugMarkers.h"
 #include "Object/Tails.h"
 #include "Object/ObjectHit.h"
+#include "Object/SFZBoss.h"
 #include "Object/CharControl.h"
 #include "Object/Sonic.h"
 #include "Object/SuperSonic.h"
@@ -580,6 +581,72 @@ static void ObjectHit_FollowsThePreBetasTimingAndArt(void) {
     Obj_EnemyPoints(pts);
     CHECK_EQ((pts->art_tile >> 13) & 3, 0); // (palette line 0)
     CHECK_EQ(pts->y_vel, -0x300 + 0x18); // (moved, then gravity)
+}
+
+// The pre-beta's Sky Fortress boss ($C5, which no layout or event makes): the body locks the camera's lower limit, waits for Sonic to stand within $20 of it and makes two platforms and a mover; then it animates, makes
+// the bouncing part and the one that follows it, and loops its animations
+static void SFZBoss_BodyMakesItsPartsAndTheBouncerStaysInItsBox(void) {
+    SstTestClear();
+    scrpos_x.f.u = 0x100;
+    scrpos_y.f.u = 0x100;
+    player->code = sst_object_codes[ObjId_Sonic];
+    player->x_pos.f.u = 0x300;
+    player->y_pos.f.u = 0x300;
+    Sst *body = &sst[0x20];
+    body->code = Obj_SFZBoss;
+    body->subtype = 0x8A;
+    body->x_pos.f.u = 0x300;
+    body->y_pos.f.u = 0x200;
+    int parts = 0, bouncers = 0;
+    bool in_box = true;
+    for (int f = 0; f < 700; f++) {
+        for (int i = 0x20; i < 0x80; i++)
+            if (sst[i].code == Obj_SFZBoss)
+                Obj_SFZBoss(&sst[i]);
+        if (f == 1)
+            CHECK_EQ(limit_btm2, 0x442 - SCREEN_TALLADD);
+        parts = bouncers = 0;
+        for (int i = 0x20; i < 0x80; i++) {
+            if (sst[i].code != Obj_SFZBoss)
+                continue;
+            parts++;
+            if (sst[i].subtype == 0x90 && sst[i].routine_secondary >= 6) {
+                bouncers++;
+                const int x = sst[i].x_pos.f.u, y = sst[i].y_pos.f.u;
+                in_box &= x >= 0x300 - 0x70 - 2 && x <= 0x300 + 0x70 + 2 && y >= 0x200 + 0x0C - 2 && y <= 0x200 + 0x0C + 0x84 + 2;
+            }
+        }
+    }
+    CHECK_EQ(parts, 6); // (the body, two platforms, the mover, the bouncer and the part that follows it)
+    CHECK_EQ(bouncers, 1);
+    CHECK(in_box);
+}
+
+// Sky Fortress' events (DynResize_SFz): the background starts as the camera; once Start is held on pad 2 the events move on, and when the camera is above $380 they go on to their last step
+void SFZ_Events(void);
+static void SFZEvents_StartAsTheCameraAndMoveOnWithPadTwosStart(void) {
+    scrpos_x.v = 0x500 << 16;
+    scrpos_y.v = 0x600 << 16;
+    bg_scrpos_x.v = 0;
+    bg_scrpos_y.v = 0;
+    dle_routine = 0;
+    jpad2_hold = 0;
+    SFZ_Events();
+    CHECK_EQ(bg_scrpos_x.f.u, 0x500);
+    CHECK_EQ(bg_scrpos_y.f.u, 0x600);
+    CHECK_EQ(dle_routine, 2);
+    SFZ_Events();
+    CHECK_EQ(dle_routine, 2); // (waiting for pad 2's Start)
+    jpad2_hold = 0x80;
+    SFZ_Events();
+    CHECK_EQ(dle_routine, 4);
+    SFZ_Events();
+    CHECK_EQ(dle_routine, 4); // (the camera is below $380 still)
+    scrpos_y.v = 0x100 << 16;
+    SFZ_Events();
+    CHECK_EQ(dle_routine, 6);
+    jpad2_hold = 0;
+    dle_routine = 0;
 }
 
 // The pre-beta's Hurt_Player for Tails: the computer's Tails is only thrown (the rings and the shield stay); in the two player mode he loses the shared rings like Sonic, loses the shield first, and dies with neither
@@ -1265,6 +1332,8 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(Slicer_RaisesItsBladesAndSendsTwoPincers);
     RUN_TEST(SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType);
     RUN_TEST(Tails_HurtFollowsThePreBetasHurtPlayer);
+    RUN_TEST(SFZEvents_StartAsTheCameraAndMoveOnWithPadTwosStart);
+    RUN_TEST(SFZBoss_BodyMakesItsPartsAndTheBouncerStaysInItsBox);
     RUN_TEST(ObjectHit_FollowsThePreBetasTimingAndArt);
     RUN_TEST(Sonic_DebugCheatDiesButBEntersPlacementModeFromHurtAndDead);
     RUN_TEST(MTZBoss_MakesSevenBallsThatOrbitTheShip);

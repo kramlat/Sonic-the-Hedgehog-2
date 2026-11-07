@@ -772,13 +772,74 @@ void ScrollVertical(void) {
 	LevelPlane_CameraMovedY(&fg_plane, old_y);
 }
 
+// Sky Fortress' dynamic level events (DynResize_SFz): they only steer the background, which trails the camera. Camera_X_x2 and Camera_Y_x4 (the background's place, here bg_scrpos_x and bg_scrpos_y) start as the camera;
+// each frame the background moves by how far it is from the camera less a drifting offset (Offset_0x00BF9A, at most $10 pixels), and the offsets are $EEE2 and $EEE4 (sfz_offset_x and sfz_offset_y): once
+// Start is held on pad 2 the horizontal one grows by 2 a frame to $800 while the camera is below $380, and when the camera is above it the horizontal one falls by 1 to -$200 and the vertical one grows by 1 to $380.
+// What the background scroll takes is the pre-beta's Horizontal_Scrolling_Sub and Vertical_Scrolling_Sub: the high byte of each is that difference and the low byte is the camera's own move's (a quirk: it moves
+// the background by a fraction more)
+static int16_t sfz_offset_x, sfz_offset_y;
+static int16_t sfz_sub_x, sfz_sub_y;
+
+static int16_t SFZ_Chase(int16_t difference) {
+	if (difference < 0 && difference < -0x10)
+		return -0x10;
+	if (difference >= 0x10)
+		return 0x10;
+	return difference;
+}
+
+static void SFZ_SetSubs(void) {
+	sfz_sub_x = scrshift_x;
+	sfz_sub_y = scrshift_y;
+	const int16_t dx = SFZ_Chase((int16_t)(scrpos_x.f.u - bg_scrpos_x.f.u - sfz_offset_x));
+	const int16_t dy = SFZ_Chase((int16_t)(scrpos_y.f.u - bg_scrpos_y.f.u - sfz_offset_y));
+	sfz_sub_x = (int16_t)(((uint16_t)(dx & 0xFF) << 8) | ((uint16_t)sfz_sub_x & 0xFF));
+	sfz_sub_y = (int16_t)(((uint16_t)(dy & 0xFF) << 8) | ((uint16_t)sfz_sub_y & 0xFF));
+}
+
+void SFZ_Events(void)
+{
+	switch (dle_routine) {
+	case 0:
+		bg_scrpos_x.v = scrpos_x.v;
+		bg_scrpos_y.v = scrpos_y.v;
+		sfz_sub_x = sfz_sub_y = 0;
+		sfz_offset_x = sfz_offset_y = 0;
+		dle_routine += 2;
+		break;
+	case 2:
+		if (jpad2_hold & 0x80)
+			dle_routine += 2;
+		SFZ_SetSubs();
+		break;
+	case 4:
+		if ((uint16_t)scrpos_y.f.u <= (uint16_t)(0x380 - SCREEN_TALLADD)) {
+			dle_routine += 2;
+			goto offsets_fall;
+		}
+		if (sfz_offset_x != 0x800)
+			sfz_offset_x += 2;
+		SFZ_SetSubs();
+		break;
+	case 6:
+	offsets_fall:
+		if (sfz_offset_x != -0x200) {
+			sfz_offset_x -= 1;
+			if (sfz_offset_y != 0x380)
+				sfz_offset_y += 1;
+		}
+		SFZ_SetSubs();
+		break;
+	}
+}
+
 // Sky Fortress (Bg_Scroll_SFz): the background goes with the camera, a pixel for a pixel (Scroll_Block_2 and 3 with the whole of each move), and in 38 bands of $20 to $C0 lines (2560 in all, the plane's $800 and the
 // wrap's overlap) picks one of five x: the first two are the background's own, the three others drift by themselves at half, a quarter and an eighth of a pixel a frame (they are not the camera's at all: the sky's
 // clouds)
 static void Deform_SFZ(void)
 {
-	bg_scrpos_x.v += (int32_t)scrshift_x << 8;
-	bg_scrpos_y.v += (int32_t)scrshift_y << 8;
+	bg_scrpos_x.v += (int32_t)sfz_sub_x << 8; // (Scroll_Block_2 and 3 with the events' Horizontal_Scrolling_Sub and Vertical_Scrolling_Sub)
+	bg_scrpos_y.v += (int32_t)sfz_sub_y << 8;
 	vid_bg_scrpos_y_dup = bg_scrpos_y.f.u;
 	int32_t *drift = (int32_t *)bgscroll_buffer; // (cleared where the level starts)
 	drift[0] += 0x8000;

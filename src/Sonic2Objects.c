@@ -20,6 +20,7 @@
 #include "Object/EHZBadniks.h"
 #include "Object/CPZBoss.h"
 #include "Object/SFZObjects.h"
+#include "Object/SFZBoss.h"
 #include "Object/SkyBadniks.h"
 #include "Object/EHZBoss.h"
 #include "Object/EHZWaterfall.h"
@@ -350,6 +351,7 @@ const SstCode sst_object_codes[0x100] = {
 	[0xC2] = Obj_SFZBossSwitch,
 	[0xC3] = Obj_SFZRotatingPlatforms,
 	[0xC4] = Obj_SFZTornadoSmoke,
+	[0xC5] = Obj_SFZBoss,
 	[0xD9] = Obj_SFZHang,
 	[ObjId_FalseFloor] = Obj_NGHZRotator,
 	[ObjId_SwingingPlatform] = Obj_SwingDispatch,

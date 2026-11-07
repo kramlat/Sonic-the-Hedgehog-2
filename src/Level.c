@@ -369,6 +369,8 @@ void ColIndexLoad(void) {
 // (the Marble and Spring Yard code Sonic 1 puts in those slots is "leftover from Sonic 1" there and never runs), and the zones with a boss end in an arena whose boss Nick Arcade has
 // but this port has not ported yet (the boss objects are empty, so the camera locks there and nothing else happens). The camera limits are named as in Sonic 1: limit_btm1 is
 // Camera_Max_Y_pos_target, limit_btm2 Camera_Max_Y_pos, limit_top2 Camera_Min_Y_pos, limit_left2 Camera_Min_X_pos.
+void SFZ_Events(void); // (LevelScroll.c)
+
 void DynamicLevelEvents(void) {
     // (The events follow the first camera and set limits for the whole level, which a split screen has two views of: its levels are the versus ones, without a boss, so the arena of Emerald Hill's act 2 is left out)
     if (camera_split && LEVEL_ZONE(level_id) == ZoneId_EHZ)
@@ -406,6 +408,9 @@ void DynamicLevelEvents(void) {
             }
             break;
         }
+        break;
+    case ZoneId_SFZ:
+        SFZ_Events(); // (the pre-beta's DynResize_SFz: it steers the background; the zone has no boss in its events)
         break;
     case ZoneId_SSZ:
         SandShower_LevelMisc(); // (the quicksand of its blocks)
