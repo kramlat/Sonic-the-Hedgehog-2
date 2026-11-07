@@ -146,6 +146,7 @@ static void NGHZObjects_SlowSonicMakesNoLeaves(void) {
 // DynResize_NGHz of the pre-beta: X $2800 fixes the left edge and the lower limit and loads the boss's list; X $2A40 shuts the arena, fades the music and makes the boss; then the camera's top is held at $3F8 and,
 // $5A frames on, the boss's music; when it is beaten, the results
 static void NGHZObjects_TheEventsShutTheArenaAndMakeTheBossOnce(void) {
+    const uint16_t kept_limits[6] = { limit_left2, limit_right2, limit_top2, limit_btm1, limit_btm2, limit_right1 }; // (restored at the end: the zones' background checks read them)
     Reset();
     level_id = LEVEL_ID(ZoneId_ARZ, 1);
     dle_routine = 0;
@@ -176,6 +177,7 @@ static void NGHZObjects_TheEventsShutTheArenaAndMakeTheBossOnce(void) {
     ClearPLC();
     boss_flag = 0;
     dle_routine = 0;
+    limit_left2 = kept_limits[0]; limit_right2 = kept_limits[1]; limit_top2 = kept_limits[2]; limit_btm1 = kept_limits[3]; limit_btm2 = kept_limits[4]; limit_right1 = kept_limits[5];
 }
 
 // The boss waits until Sonic is between $2A60 and $2B60, then starts at ($2AE0,$388) with two launchers (the right one turned round) that rise; the ship goes down to $430, crosses the arena and brings

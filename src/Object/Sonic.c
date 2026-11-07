@@ -10,6 +10,7 @@ void Obj_ObjectHit(Sst *self);
 #include "Object/HTZBoss.h"
 #include "Object/NGHZBoss.h"
 #include "Object/CNZBoss.h"
+#include "Object/DHZBoss.h"
 #include "Object/Sonic.h"
 #include "Object/Tails.h"
 #include "Object/SuperSonic.h"
@@ -889,6 +890,22 @@ signed int ReactToItem(Sst *self) {
             const int16_t hy = y - (hammer_y - hammer_h);
             if (hx >= -width && hx <= hammer_w * 2 && hy >= -height && hy <= hammer_h * 2)
                 return React_ChkHurt(self, hit);
+        }
+        {   // (the pre-beta's Dust Hill boss hurts with its drills: boxes in front of the ship or on top, and it notes when a character has just been hurt)
+            bool hurt_by_drill = false;
+            signed int drill_result = 0;
+            for (int box = 0; DHZBoss_Box(hit, box, &hammer_x, &hammer_y, &hammer_w, &hammer_h); box++) {
+                const int16_t hx = x - (hammer_x - hammer_w);
+                const int16_t hy = y - (hammer_y - hammer_h);
+                if (hx >= -width && hx <= hammer_w * 2 && hy >= -height && hy <= hammer_h * 2) {
+                    drill_result = React_ChkHurt(self, hit);
+                    hurt_by_drill = true;
+                    break;
+                }
+            }
+            DHZBoss_AfterTouch(hit, scratch->flash_time);
+            if (hurt_by_drill)
+                return drill_result;
         }
 
         // The alpha's Hill Top boss has a second hitbox, its open cannon

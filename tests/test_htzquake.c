@@ -103,6 +103,7 @@ static void HTZQuake_TheGroundMovesOnlyBetweenTheAlphasTwoPlaces(void) {
 }
 
 static void HTZQuake_TheBossArenaTakesOverPastTheQuakeInActTwo(void) {
+    const uint16_t kept_limits[6] = { limit_left2, limit_right2, limit_top2, limit_btm1, limit_btm2, limit_right1 }; // (restored at the end: the zones' background checks read them)
     Start(1);
     Camera(0x14C0, 0x200);
     HTZQuake_Events();
@@ -127,6 +128,7 @@ static void HTZQuake_TheBossArenaTakesOverPastTheQuakeInActTwo(void) {
     CHECK_EQ(dle_routine, 0x10);
     ClearPLC();
     boss_flag = 0;
+    limit_left2 = kept_limits[0]; limit_right2 = kept_limits[1]; limit_top2 = kept_limits[2]; limit_btm1 = kept_limits[3]; limit_btm2 = kept_limits[4]; limit_right1 = kept_limits[5];
 }
 
 static void HTZQuake_LeavingTheStretchResetsTheBackground(void) {

@@ -49,6 +49,7 @@ void LevelScroll_RegisterZones(void);
 void LoadTilesAsYouMove(void);
 
 static uint64_t ZoneBackgroundHash(int zone, int act, int start_x) {
+    dhz_shake = 1; // (the goldens of Dust Hill and Neo Green Hill were recorded with the digging boss's shake on, which an earlier test used to leave behind: it is set here, so that no test leaves it)
     uint64_t hash = 0xcbf29ce484222325ull;
     level_id = LEVEL_ID(zone, act);
     last_lamp = 0;
@@ -103,6 +104,7 @@ static uint64_t ZoneBackgroundHash(int zone, int act, int start_x) {
             }
         }
     }
+    dhz_shake = 0;
     return hash;
 }
 

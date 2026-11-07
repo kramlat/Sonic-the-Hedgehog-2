@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "Level.h"
+#include "HTZQuake.h"
 #include "SstLoad.h"
 #include "Object.h"
 #include "Object/DHZBadniks.h"
@@ -89,7 +90,7 @@ static void DHZ_TheCollapsingPlatformBreaksIntoSixPiecesOnceStoodOn(void) {
     Obj_CollapsingPlatform(obj);
     CHECK_EQ(obj->width_pixels, 0x20);
     CHECK_EQ(obj->art_tile & 0x7FF, 0x3F4);
-    for (int i = 0; i < 20; i++) { // (nobody on it: it stays)
+    for (int i = 0; i < 2400; i++) { // (nobody on it: it stays)
         Obj_CollapsingPlatform(obj);
         CHECK_EQ(obj->routine, 2);
     }
@@ -492,52 +493,102 @@ static void DHZ_TheFlasherDriftsFlashesAndGlowsDangerously(void) {
     CHECK_EQ(obj->collision_flags, 0x06);
 }
 
-static void DHZ_TheBossRisesDropsRocksAndMovesToWhereSonicIs(void) {
+// The pre-beta's Dust Hill boss: it starts at ($21A0,$560) already going down (rocks come loose above Y $620), digs on to $660, charges along the floor at the side Sonic is on (the drill out, and its box in front
+// hurts) to the wall, and comes up to $560 on the other side
+static void DHZ_TheBossDigsDropsRocksAndChargesAlongTheFloor(void) {
+    const uint16_t kept_frame = frame_count; // (restored: the zones' background checks run off it)
+    const uint32_t kept_seed = random_seed.v; // (restored as well)
+    const uint16_t kept_limits[6] = { limit_left2, limit_right2, limit_top2, limit_btm1, limit_btm2, limit_right1 }; // (restored at the end: the zones' background checks read them)
     Reset(ZoneId_MCZ);
     level_id = LEVEL_ID(ZoneId_MCZ, 1);
+    boss_flag = 5;
     Sst *boss = Spawn(0x57, 0, 0, 0);
     boss->x_pos.f.u = 0;
     Obj_DHZBoss(boss);
     CHECK_EQ(boss->child_count, 4);
     CHECK((boss->render_flags & SST_RENDER_MULTI_DRAW));
     CHECK_EQ(boss->x_pos.f.u, 0x21A0);
-    CHECK_EQ(boss->y_pos.f.u, 0x678);
+    CHECK_EQ(boss->y_pos.f.u, 0x560);
+    CHECK_EQ(boss->collision_property, 8);
     player->x_pos.f.u = 0x2180;
-    for (int i = 0; i < 0x28 + 0x200 && boss->y_pos.f.u > 0x560 + 4; i++) {
+    int rocks = 0, dangerous = 0;
+    int16_t lowest = 0, left = 0x7FFF, right = 0;
+    bool box = false;
+    for (int i = 0; i < 2400; i++) {
         scrpos_x.f.u = 0x20F0;
         scrpos_y.f.u = 0x5C0;
         frame_count++;
         Obj_DHZBoss(boss);
+        if (boss->y_pos.f.u > lowest)
+            lowest = boss->y_pos.f.u;
+        if (boss->y_pos.f.u >= 0x660) {
+            if (boss->x_pos.f.u < left)
+                left = boss->x_pos.f.u;
+            if (boss->x_pos.f.u > right)
+                right = boss->x_pos.f.u;
+        }
+        int16_t cx, cy, hw, hh;
+        for (int b = 0; DHZBoss_Box(boss, b, &cx, &cy, &hw, &hh); b++)
+            box |= hh == 4 && cy == boss->y_pos.f.u + 4;
+        int now = 0;
+        for (int j = 0x21; j < 0x60; j++) {
+            if (sst[j].code != sst_object_codes[0x57] || sst[j].routine != 4)
+                continue;
+            now++;
+            dangerous += sst[j].collision_flags == 0xAD;
+            Obj_DHZBoss(&sst[j]);
+        }
+        rocks += now;
     }
-    CHECK(boss->y_pos.f.u <= 0x564);
-    int rocks = 0;
-    for (int i = 0x21; i < 0x60; i++)
-        rocks += sst[i].code == sst_object_codes[0x57];
-    CHECK(rocks > 0); // (they come loose while it digs)
+    CHECK(rocks > 0);       // (they come loose while it digs)
+    CHECK(dangerous > 0);   // (and some hurt)
+    CHECK(box);             // (the drill out)
+    CHECK_EQ(lowest, 0x660);
+    CHECK(left <= 0x2120 + 8 && right >= 0x2200 - 8); // (it charges to either wall)
+    ClearPLC();
+    boss_flag = 0;
+    dhz_shake = 0; // (the screen shake is a global the zones' background checks read)
+    frame_count = kept_frame;
+    random_seed.v = kept_seed;
+    Sst_Reset();
+    limit_left2 = kept_limits[0]; limit_right2 = kept_limits[1]; limit_top2 = kept_limits[2]; limit_btm1 = kept_limits[3]; limit_btm2 = kept_limits[4]; limit_right1 = kept_limits[5];
 }
 
-static void DHZ_TheBossArenaLocksTheCameraAndLoadsTheBossOnce(void) {
+// DynResize_DHz (act 2) of the pre-beta: X $2080 fixes the left edge and the lower limit ($5D0); X $20F0 shuts the arena, Boss_Flag 5; then the top is held at $5C8 and, $5A frames on, the boss is made
+static void DHZ_TheEventsShutTheArenaAndMakeTheBossLast(void) {
+    const uint16_t kept_limits[6] = { limit_left2, limit_right2, limit_top2, limit_btm1, limit_btm2, limit_right1 }; // (restored at the end: the zones' background checks read them)
     Reset(ZoneId_MCZ);
     level_id = LEVEL_ID(ZoneId_MCZ, 1);
     dle_routine = 0;
-    scrpos_x.f.u = 0x1C00 - SCREEN_WIDEADD2 - 1;
-    scrpos_y.f.u = 0x600;
+    scrpos_x.f.u = 0x2080 - SCREEN_WIDEADD2 - 1;
     DHZBoss_Events();
-    CHECK_EQ(dle_routine, 0); // (too far left)
-    scrpos_x.f.u = 0x1C00 - SCREEN_WIDEADD2;
+    CHECK_EQ(dle_routine, 0);
+    scrpos_x.f.u = 0x2080 - SCREEN_WIDEADD2;
     DHZBoss_Events();
     CHECK_EQ(dle_routine, 2);
-    CHECK_EQ(boss_flag, 5);
-    CHECK_EQ(limit_btm1, 0x600 - SCREEN_TALLADD);
+    CHECK_EQ(limit_btm1, 0x5D0 - SCREEN_TALLADD);
+    CHECK_EQ(boss_flag, 0);
     scrpos_x.f.u = 0x20F0 - SCREEN_WIDEADD2;
     DHZBoss_Events();
     CHECK_EQ(dle_routine, 4);
+    CHECK_EQ(boss_flag, 5);
     CHECK_EQ(limit_left2, 0x20F0 - SCREEN_WIDEADD2);
-    CHECK_EQ(limit_btm1, 0x5FF - SCREEN_TALLADD);
-    ClearPLC(); // (the boss's art is queued)
+    CHECK_EQ(limit_right2, 0x20F0 + SCREEN_WIDEADD2);
+    { int made = 0; for (int j = 1; j < 0x60; j++) made += sst[j].code == sst_object_codes[0x57]; CHECK_EQ(made, 0); }
+    scrpos_y.f.u = 0x5C8 - SCREEN_TALLADD;
+    for (int i = 0; i < 0x59; i++)
+        DHZBoss_Events();
+    CHECK_EQ(limit_top2, 0x5C8 - SCREEN_TALLADD);
+    CHECK_EQ(dle_routine, 4);
+    DHZBoss_Events();
+    CHECK_EQ(dle_routine, 6);
+    { int made = 0; for (int j = 1; j < 0x60; j++) made += sst[j].code == sst_object_codes[0x57]; CHECK_EQ(made, 1); }
+    ClearPLC();
     boss_flag = 0;
     dle_routine = 0;
+    limit_left2 = kept_limits[0]; limit_right2 = kept_limits[1]; limit_top2 = kept_limits[2]; limit_btm1 = kept_limits[3]; limit_btm2 = kept_limits[4]; limit_right1 = kept_limits[5];
 }
+
 
 // --- Casino Night (the alpha's) ---
 
@@ -607,6 +658,7 @@ static void CNZ_TheBossGoesToAndFroAndLetsTheBallFall(void) {
 
 // DynResize_CNz (act 2) of the pre-beta: X $27C0 fixes the left edge and the lower limit; X $2890 shuts the arena between $2860 and $28E0, Boss_Flag 6; then the top is held at $4E0 and, $5A frames on, the boss is made
 static void CNZ_TheEventsShutTheArenaAndMakeTheBossLast(void) {
+    const uint16_t kept_limits[6] = { limit_left2, limit_right2, limit_top2, limit_btm1, limit_btm2, limit_right1 }; // (restored at the end: the zones' background checks read them)
     Reset(ZoneId_CNZ);
     dle_routine = 0;
     level_id = LEVEL_ID(ZoneId_CNZ, 1);
@@ -636,6 +688,7 @@ static void CNZ_TheEventsShutTheArenaAndMakeTheBossLast(void) {
     ClearPLC();
     boss_flag = 0;
     dle_routine = 0;
+    limit_left2 = kept_limits[0]; limit_right2 = kept_limits[1]; limit_top2 = kept_limits[2]; limit_btm1 = kept_limits[3]; limit_btm2 = kept_limits[4]; limit_right1 = kept_limits[5];
 }
 
 
@@ -1138,8 +1191,8 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(Monitors_AreLoadedOnceHoweverTheCameraGoesBackAndForth);
     RUN_TEST(Monitors_BreakOnceHoweverLongSonicStaysInThem);
     RUN_TEST(Monitors_LetGoOfWhoStandsOnThemWhenTheyBreak);
-    RUN_TEST(DHZ_TheBossRisesDropsRocksAndMovesToWhereSonicIs);
-    RUN_TEST(DHZ_TheBossArenaLocksTheCameraAndLoadsTheBossOnce);
+    RUN_TEST(DHZ_TheBossDigsDropsRocksAndChargesAlongTheFloor);
+    RUN_TEST(DHZ_TheEventsShutTheArenaAndMakeTheBossLast);
     RUN_TEST(CNZ_TheRoundBumperThrowsWhoeverTouchesIt);
     RUN_TEST(CNZ_TheBossGoesToAndFroAndLetsTheBallFall);
     RUN_TEST(CNZ_TheEventsShutTheArenaAndMakeTheBossLast);
