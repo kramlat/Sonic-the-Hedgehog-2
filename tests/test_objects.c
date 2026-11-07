@@ -12,6 +12,7 @@
 #include "Object/Tails.h"
 #include "Object/ObjectHit.h"
 #include "Object/SFZBoss.h"
+#include "Object/DEZRunning.h"
 #include "Object/CharControl.h"
 #include "Object/Sonic.h"
 #include "Object/SuperSonic.h"
@@ -69,7 +70,7 @@ static const Pending pending[] = {
     { ZoneId_HPZ, 0, { 0 } },
     { ZoneId_CPZ, 0, { 0 } },
     { ZoneId_SFZ, 0, { 0 } },
-    { ZoneId_DEZ, 2, { 0xC6, 0xC7 } }, // (Death Egg's two bosses: they wait)
+    { ZoneId_DEZ, 1, { 0xC7 } }, // (Death Egg's final boss: it waits)
     { ZoneId_SCZ, 0, { 0 } },
     { ZoneId_ARZ, 0, { 0 } },
     { ZoneId_CNZ, 0, { 0 } }, // (Casino Night: everything its layouts place is ported)
@@ -647,6 +648,46 @@ static void SFZEvents_StartAsTheCameraAndMoveOnWithPadTwosStart(void) {
     CHECK_EQ(dle_routine, 6);
     jpad2_hold = 0;
     dle_routine = 0;
+}
+
+// The pre-beta's Robotnik running ($C6, which nothing makes): it makes its door at ($3F8,$160), waits for Sonic within $5C either side, pauses 24 frames and runs right at $200, throws something every $20 frames, and the door
+// (solid until then) opens when he runs and goes
+static void DEZRunning_RunsThrowsAndOpensItsDoor(void) {
+    SstTestClear();
+    scrpos_x.f.u = 0x300;
+    scrpos_y.f.u = 0x100;
+    player->code = sst_object_codes[ObjId_Sonic];
+    player->x_pos.f.u = 0x400;
+    player->y_pos.f.u = 0x100;
+    Sst *rob = &sst[0x20];
+    rob->code = Obj_DEZRunning;
+    rob->subtype = 0x96;
+    rob->x_pos.f.u = 0x400;
+    rob->y_pos.f.u = 0x160;
+    int thrown = 0;
+    bool door_seen = false, door_gone = false;
+    for (int f = 0; f < 120; f++) {
+        for (int i = 0x20; i < 0x80; i++)
+            if (sst[i].code == Obj_DEZRunning)
+                Obj_DEZRunning(&sst[i]);
+        bool door = false;
+        for (int i = 0x20; i < 0x80; i++) {
+            if (sst[i].code != Obj_DEZRunning)
+                continue;
+            if (sst[i].subtype == 0x98) {
+                door = true;
+                CHECK_EQ(sst[i].x_pos.f.u, 0x3F8);
+            }
+            if (sst[i].subtype == 0x9A && sst[i].x_vel == -0x100 && sst[i].mapping_frame == 5)
+                thrown++;
+        }
+        door_seen |= door;
+        door_gone |= door_seen && !door;
+    }
+    CHECK(door_seen);
+    CHECK(door_gone);
+    CHECK(rob->x_pos.f.u > 0x400); // (he ran right)
+    CHECK(thrown > 0);
 }
 
 // The pre-beta's Hurt_Player for Tails: the computer's Tails is only thrown (the rings and the shield stay); in the two player mode he loses the shared rings like Sonic, loses the shield first, and dies with neither
@@ -1332,6 +1373,7 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(Slicer_RaisesItsBladesAndSendsTwoPincers);
     RUN_TEST(SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType);
     RUN_TEST(Tails_HurtFollowsThePreBetasHurtPlayer);
+    RUN_TEST(DEZRunning_RunsThrowsAndOpensItsDoor);
     RUN_TEST(SFZEvents_StartAsTheCameraAndMoveOnWithPadTwosStart);
     RUN_TEST(SFZBoss_BodyMakesItsPartsAndTheBouncerStaysInItsBox);
     RUN_TEST(ObjectHit_FollowsThePreBetasTimingAndArt);
