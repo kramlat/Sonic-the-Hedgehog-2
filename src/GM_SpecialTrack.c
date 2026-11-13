@@ -39,14 +39,13 @@ static void PutBuffer(const SSDisplay *d, int bank, int first_word, int words) {
 static void ShowPlanes(SSDisplay *d) {
     Plane_UseScratchAt(&screen1p.plane_a, d->shown ? 0xC000 : 0x8000);
     Plane_UseScratchAt(&screen1p.plane_b, 0xA000);
-    screen1p.vsram.a = 0;
-    screen1p.vsram.b = (int16_t)(d->b_vscroll >> 16);
-    static int16_t table[224][2];
-    for (int line = 0; line < 224; line++) {
-        table[line][0] = d->hscroll[d->display_flipped ? 1 : 0][line][0];
-        table[line][1] = d->hscroll[d->display_flipped ? 1 : 0][line][1];
+    // (the game's blank uploads its own scroll buffer and vertical scrolls every frame: they are what the picture is made from)
+    vid_scrpos_y_dup = 0;
+    vid_bg_scrpos_y_dup = (int16_t)(d->b_vscroll >> 16);
+    for (int line = 0; line < SCREEN_HEIGHT && line < SS_SCROLL_LINES; line++) {
+        hscroll_buffer[line][0] = d->hscroll[d->display_flipped ? 1 : 0][line][0];
+        hscroll_buffer[line][1] = d->hscroll[d->display_flipped ? 1 : 0][line][1];
     }
-    Viewport_UploadHScroll(&screen1p, table, sizeof(table));
 }
 
 void GM_SpecialTrack(void) {
