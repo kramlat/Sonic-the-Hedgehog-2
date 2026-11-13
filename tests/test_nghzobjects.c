@@ -1,6 +1,7 @@
 #include "Object/InvincibilityStars.h"
 #include "Object/CNZObjects.h"
 #include "Object/CNZFlippers.h"
+#include "Object/CNZTriangles.h"
 #include "Object/CNZSlots.h"
 #include "Object/CNZPlunger.h"
 #include "Object/CharControl.h"
@@ -421,6 +422,40 @@ static void CNZObjects_TheFlipperThrowsWhoStandsOnItWhenAButtonIsPressed(void) {
     CHECK(player->y_vel < 0); // (thrown up)
 }
 
+signed int ReactToItem(Sst *self);
+
+static void CNZObjects_TheLargeTriangleBumpersThrowWhoTouchesThem(void) {
+    Reset();
+    level_id = LEVEL_ID(ZoneId_CNZ, 0);
+    scrpos_x.f.u = 0x340;
+    // (the first triangle of act 1: type $0A at ($410, $540), a box 8 wide and $40 tall)
+    player->x_pos.f.u = 0x40C;
+    player->y_pos.f.u = 0x540;
+    player->x_vel = player->y_vel = 0;
+    player->status &= (uint8_t)~SST_PSTATUS_IN_AIR;
+    CNZTriangles_Touch(player);
+    CHECK((player->status & SST_PSTATUS_IN_AIR) != 0);
+    CHECK(player->x_vel != 0 || player->y_vel != 0);
+    // (nothing near: nothing happens)
+    player->status &= (uint8_t)~SST_PSTATUS_IN_AIR;
+    player->x_vel = player->y_vel = 0;
+    player->x_pos.f.u = 0x300;
+    CNZTriangles_Touch(player);
+    CHECK((player->status & SST_PSTATUS_IN_AIR) == 0);
+}
+
+static void CNZObjects_TheBlueBumperIsTouchedByTheCharacters(void) {
+    Reset();
+    level_id = LEVEL_ID(ZoneId_CNZ, 0);
+    Sst *bumper = SpawnSst(0xD7, 0x00, 500, 300);
+    Obj_CNZBlueBumper(bumper);
+    bumper->render_flags |= SST_RENDER_ON_SCREEN;
+    player->x_pos.f.u = 500;
+    player->y_pos.f.u = 300;
+    ReactToItem(player);
+    CHECK_EQ(bumper->collision_property, 1); // (its own routine throws him: $CA is a special touch, like the round bumper's)
+}
+
 static void CNZObjects_TheAutoSpinLineRollsWhoCrossesItAndLetsHimOutBack(void) {
     Reset();
     level_id = LEVEL_ID(ZoneId_CNZ, 0);
@@ -654,5 +689,7 @@ void RegisterNGHZObjectTests(void) {
     RUN_TEST(CNZObjects_TheSlotMachineSpinsAndStopsOnItsOwn);
     RUN_TEST(CNZObjects_TheSlotStarterHoldsACharacterAndLetsHimGoDown);
     RUN_TEST(CNZObjects_TheFlipperThrowsWhoStandsOnItWhenAButtonIsPressed);
+    RUN_TEST(CNZObjects_TheLargeTriangleBumpersThrowWhoTouchesThem);
+    RUN_TEST(CNZObjects_TheBlueBumperIsTouchedByTheCharacters);
     RUN_TEST(Stars_TheInvincibilityStarsAreOneObjectOfEightAndGoWithTheInvincibility);
 }

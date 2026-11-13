@@ -10,6 +10,7 @@ void Obj_ObjectHit(Sst *self);
 #include "Object/HTZBoss.h"
 #include "Object/NGHZBoss.h"
 #include "Object/CNZBoss.h"
+#include "Object/CNZTriangles.h"
 #include "Object/DHZBoss.h"
 #include "Object/Sonic.h"
 #include "Object/Tails.h"
@@ -856,6 +857,8 @@ signed int ReactToItem(Sst *self) {
     // Test_Ring_Collisions: the rings of the level's layout (a hurt player is blinking and cannot collect them for a while)
     if (scratch->flash_time < 90)
         Ring_TouchLayout(self);
+    if (LEVEL_ZONE(level_id) == ZoneId_CNZ)
+        CNZTriangles_Touch(self);
 
     // Get collision area
     int16_t width, height;
@@ -948,7 +951,7 @@ signed int ReactToItem(Sst *self) {
                     return React_Enemy(self, hit);
                 }
                 switch (hit->collision_flags & 0x3F) { // the alpha's Touch_Special (the final's too): the object's own routine reads and clears col_property each frame, a bit for each character
-                case 6: case 0x14: case 0x15: case 0x16: case 0x17: // (the round bumper, the auto spin: bit 0 is Sonic's, bit 1 Tails')
+                case 6: case 0x0A: case 0x14: case 0x15: case 0x16: case 0x17: // (the round bumper, the blue bumper ($D7, flags $CA), the auto spin: bit 0 is Sonic's, bit 1 Tails')
                     hit->collision_property += 1;
                     return 0;
                 case 0x1A: // (the pre-beta's small Robotnik of Metropolis: rolled into, it bounces him off and counts down from $FF; otherwise it hurts)
