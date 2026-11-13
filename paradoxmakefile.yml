@@ -681,6 +681,11 @@ resources:
   - "SSData/0DA672"
   - "SSData/0DCA9C"
   - "SSData/0DCBCA"
+  - "SSData/006CFC"
+  - "SSData/006E3A"
+  - "SSData/007302"
+  - "SSData/00751A"
+  - "SSData/0309C8"
 
 sources:
   - "src/Sonic2Assets.c"
@@ -701,6 +706,7 @@ sources:
   - "src/HTZQuake.c"
   - "src/HTZBackground.c"
   - "src/Level.c"
+  - "src/SpecialStageTables.c"
   - "src/SandShower.c"
   - "src/HUD.c"
   - "src/Object/Monitor.c"
