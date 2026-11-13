@@ -19,6 +19,7 @@
 #include "Resource/Animation/SpecialStageMiles.h"
 #include "Resource/Animation/SpecialStageMilesTail.h"
 #include "EnginePalette.h"
+#include "MathUtil.h"
 #include "Resource/Mappings/SpecialStageSonic.h"
 #include "Resource/Mappings/SpecialStageMiles.h"
 #include "Resource/Mappings/SpecialStageMilesTail.h"
@@ -174,6 +175,8 @@ static void Show(Sst *self, SSPlayer *p, CharacterArt *art) {
     Sst_Draw(self);
 }
 
+static void SpillRings(SSPlayer *p);
+
 void Obj_SpecialStageSonic(Sst *self) {
     if (self->routine == 0) { // Offset_0x02ED58
         Spawn(self, Who_Sonic, Mappings_SpecialStageSonic, TILE_MAP(0, 1, 0, 0, ArtTile_SpecialStageSonic), 2);
@@ -184,6 +187,7 @@ void Obj_SpecialStageSonic(Sst *self) {
     pad_history[0] = (uint16_t)((jpad1_hold1 << 8) | jpad1_press1);
     SSPlayer *p = &players[Who_Sonic];
     SSPlayer_Step(p, &track, jpad1_hold1, jpad1_press1);
+    SpillRings(p);
     SSPlayer_Animate(p, &track, Animation_SpecialStageSonic);
     if (!p->hit)
         SSItems_Touch(&items, p);
@@ -218,6 +222,7 @@ void Obj_SpecialStageMiles(Sst *self) {
     }
     SSPlayer *p = &players[Who_Miles];
     SSPlayer_Step(p, &track, held, pressed);
+    SpillRings(p);
     SSPlayer_Animate(p, &track, Animation_SpecialStageMiles);
     if (!p->hit)
         SSItems_Touch(&items, p);
@@ -549,5 +554,57 @@ void Obj_SpecialStageStart(Sst *self) { // Offset_0x0090E8
             Sst_Delete(self);
         }
         return;
+    }
+}
+
+// ---- The rings a bomb knocks out (object $5B, Offset_0x030646) ----
+
+void Obj_SpecialStageRingOut(Sst *self) { // a ring flying: up and out, then down in front of the character
+    Sst_MoveSprite(self); // (ObjectFall: the speeds, then gravity $38)
+    if (self->y_vel >= 0) { // Offset_0x030724: on its way down it goes in front, as its other picture
+        self->priority = 0;
+        self->mapping_frame = 9;
+    }
+    if (self->x_pos.f.u < 0 || self->x_pos.f.u >= 0x100 || (uint16_t)self->y_pos.f.u >= 0xE0) {
+        Sst_Delete(self);
+        return;
+    }
+    Sst_Draw(self);
+}
+
+static void SpillRings(SSPlayer *p) {
+    if (!p->spill)
+        return;
+    p->spill = false;
+    static const uint8_t ten[10] = { 0x38, 0x48, 0x2A, 0x56, 0x1C, 0x64, 0x0E, 0x72, 0x00, 0x80 };
+    static const uint8_t few[10] = { 0x40, 0x30, 0x50, 0x20, 0x60, 0x10, 0x70, 0x00, 0x80, 0x00 };
+    const unsigned before = p->touched;
+    p->touched = before > 10 ? before - 10 : 0; // (it keeps what is over ten; with ten or fewer it loses them all)
+    unsigned count;
+    const uint8_t *angles;
+    if (p->touched != 0) {
+        count = 10;
+        angles = ten;
+    } else {
+        count = before;
+        angles = (before & 1) ? few : ten;
+    }
+    for (unsigned i = 0; i < count && i < 10; i++) {
+        Sst *ring = Sst_Allocate();
+        if (ring == NULL)
+            break;
+        int16_t sine, cosine;
+        CalcSine((uint8_t)(p->angle + 0x40 + angles[i]), &sine, &cosine);
+        ring->code = Obj_SpecialStageRingOut;
+        ring->routine = 2;
+        ring->mappings = Mappings_SpecialStageRings;
+        ring->art_tile = TILE_MAP(0, 2, 0, 0, ArtTile_SpecialStageRings);
+        ring->render_flags |= SST_RENDER_LEVEL;
+        ring->priority = 5 * 0x80;
+        ring->mapping_frame = 8;
+        ring->x_pos.f.u = (int16_t)(p->x >> 16);
+        ring->y_pos.f.u = (int16_t)(p->y >> 16);
+        ring->x_vel = (int16_t)((cosine * 0x400) >> 8);
+        ring->y_vel = (int16_t)((sine * 0x800) >> 8);
     }
 }

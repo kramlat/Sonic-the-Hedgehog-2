@@ -23,6 +23,7 @@ typedef struct {
     uint8_t hit;            // Obj_Routine_2: tumbling (hit by a bomb)
     uint8_t tumble;         // var_10: the angle the tumble has got to
     uint16_t touched;       // var_12: how many rings are with it
+    bool spill;             // the first step of a tumble with rings: the rings come out (Offset_0x02EE4C starts object $5B); whoever draws takes this and clears it
     uint8_t anim, prev_anim, anim_frame, anim_time; // Obj_Ani_Number, Obj_Ani_Flag, Obj_Ani_Frame, Obj_Ani_Time
     uint8_t frame;          // Obj_Map_Id
     uint8_t flips;          // the render flags' low bits

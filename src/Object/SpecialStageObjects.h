@@ -18,6 +18,7 @@ void Obj_SpecialStageMilesTail(Sst *self);
 void Obj_SpecialStageShadow(Sst *self);
 
 // What the stage tells them each frame (its speed and how many frames a segment lasts, less one) and the character they follow
+void Obj_SpecialStageRingOut(Sst *self);
 void Obj_SpecialStageItem(Sst *self);
 void Obj_SpecialStageItemShadow(Sst *self);
 

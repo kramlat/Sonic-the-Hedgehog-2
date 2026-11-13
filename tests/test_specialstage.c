@@ -581,6 +581,26 @@ static void SpecialStage_TheCharacterTakesRingsAndIsHurtByBombs(void) {
     CHECK_EQ(p.tumble, p.angle);
 }
 
+static void SpecialStage_ATumbleWithRingsSpillsThemOnItsFirstStepOnly(void) {
+    SSPlayer p;
+    SSPlayer_Init(&p);
+    p.touched = 14;
+    p.hit = 2;
+    p.tumble = p.angle;
+    SSTrackState track = { 12, 4 };
+    SSPlayer_Step(&p, &track, 0, 0);
+    CHECK(p.spill);
+    p.spill = false;
+    SSPlayer_Step(&p, &track, 0, 0);
+    CHECK(!p.spill);
+    SSPlayer q;
+    SSPlayer_Init(&q);
+    q.hit = 2;
+    q.tumble = q.angle;
+    SSPlayer_Step(&q, &track, 0, 0);
+    CHECK(!q.spill); // (with no rings there is nothing to spill)
+}
+
 void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheMainListsArtDecodesAndGoesWherePreBetaPutsIt);
     RUN_TEST(SpecialStage_TheRingsListGoesOverTheTrafficLights);
@@ -607,4 +627,5 @@ void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheLayoutOfAStepFillsTheSlots);
     RUN_TEST(SpecialStage_AnItemComesDownThePipeAndGoes);
     RUN_TEST(SpecialStage_TheCharacterTakesRingsAndIsHurtByBombs);
+    RUN_TEST(SpecialStage_ATumbleWithRingsSpillsThemOnItsFirstStepOnly);
 }
