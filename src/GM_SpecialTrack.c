@@ -151,6 +151,7 @@ void GM_SpecialTrack(void) {
     bool rings_art = false;
     const bool viewer = getenv("SONIC2_SS_TRACK") != NULL; // (the track viewer's own keys: Up and Down for the speed, Start to leave)
     gamemode = GameMode_Special;
+    VDP_SetShadowHighlight(true); // (the pre-beta turns it on: its shadows are colour 15 of the third line, the operator that darkens what is below it)
     for (;;) {
         vbla_routine = 0x0A;
         WaitForVBla();
@@ -188,6 +189,7 @@ void GM_SpecialTrack(void) {
         BuildSprites(&sprite_i);
     }
     Viewport_SetSize(SCREEN_WIDTH, SCREEN_HEIGHT, PLANE_WIDTH, PLANE_HEIGHT);
+    VDP_SetShadowHighlight(false);
     if (viewer)
         gamemode = GameMode_Sega;
 }

@@ -375,17 +375,17 @@ static void SpecialStage_TheWideRowPadsTheWallsAndCropsTheRest(void) {
     for (int stripe = 0; stripe < 4; stripe++) {
         const uint16_t *s = row + stripe * w.stride;
         for (int c = 0; c < w.left_cells - 1; c++)
-            CHECK_EQ(s[c], ArtTile_SpecialStageBlank);
+            CHECK_EQ(s[c], 0x8000 | ArtTile_SpecialStageBlank);
         CHECK_EQ(s[w.left_cells - 1], SSWide_MarginWord(0xE014, first));
         CHECK_EQ(s[w.left_cells], unit[stripe * 32]);
         CHECK_EQ(s[w.left_cells + 31], unit[stripe * 32 + 31]);
         CHECK_EQ(s[w.left_cells + 32], SSWide_MarginWord(0xE014, first)); // (the last cell is turned across: the tile's first pixel is its right edge as drawn)
         for (int c = w.left_cells + 33; c < w.stride; c++)
-            CHECK_EQ(s[c], ArtTile_SpecialStageBlank);
+            CHECK_EQ(s[c], 0x8000 | ArtTile_SpecialStageBlank);
     }
     CHECK_EQ(SSWide_MarginWord(0xE014, 5) & 0xE000, 0xE000);
     CHECK_EQ(SSWide_MarginWord(0xE014, 5) & 0x07FF, ArtTile_SpecialStageSolid + 5);
-    CHECK_EQ(SSWide_MarginWord(0xE014, 0), ArtTile_SpecialStageBlank);
+    CHECK_EQ(SSWide_MarginWord(0xE014, 0), 0x8000 | ArtTile_SpecialStageBlank);
 }
 
 // --- Stage 4a: the character ---

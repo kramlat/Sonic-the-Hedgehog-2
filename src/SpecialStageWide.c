@@ -40,7 +40,7 @@ static int EdgeColour(uint16_t word, bool right) {
 
 uint16_t SSWide_MarginWord(uint16_t edge_word, int colour) {
     if (colour == 0)
-        return ArtTile_SpecialStageBlank; // (nothing: the background shows)
+        return 0x8000 | ArtTile_SpecialStageBlank; /* (with the priority bit, as every tile of the track has it: the shadow mode leaves the background as it is) */ // (nothing: the background shows)
     return (uint16_t)((edge_word & 0xE000) | (ArtTile_SpecialStageSolid + colour));
 }
 
@@ -48,7 +48,7 @@ void SSWide_ExpandUnit(const SSWide *wide, const uint16_t *unit, uint16_t *row) 
     for (int w = 0; w < 4; w++) {
         const uint16_t *core = unit + w * 32;
         uint16_t *to = row + w * wide->stride;
-        const uint16_t blank = ArtTile_SpecialStageBlank;
+        const uint16_t blank = 0x8000 | ArtTile_SpecialStageBlank;
         const uint16_t left = SSWide_MarginWord(core[0], EdgeColour(core[0], false));
         const uint16_t right = SSWide_MarginWord(core[31], EdgeColour(core[31], true));
         for (int c = 0; c < wide->left_cells; c++)
