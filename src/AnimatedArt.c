@@ -219,6 +219,8 @@ void S2_AnimateLevelArt(void) {
         Dynamic_Normal(AnimCue_OOZ, (int)(sizeof(AnimCue_OOZ) / sizeof(AnimCue_OOZ[0])));
         break;
     case ZoneId_CNZ:
+        if (boss_flag) // (CHz_Animate_Routine: the slot machine's symbols stand still during the boss: they are written over the ship's art at $A800)
+            break;
         Dynamic_Normal(AnimCue_CNZ, (int)(sizeof(AnimCue_CNZ) / sizeof(AnimCue_CNZ[0])));
         break;
     case ZoneId_ARZ:
