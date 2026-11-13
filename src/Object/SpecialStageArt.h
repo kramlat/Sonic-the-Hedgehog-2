@@ -11,6 +11,7 @@
 #define ArtTile_SpecialStageVerticalShadow  0x2D9 // $5B20
 #define ArtTile_SpecialStageTrafficLights   0x30D // $61A0: the lights of the start; the rings' art goes over them (list $3D) once it has gone
 #define ArtTile_SpecialStageRings           0x30D // $61A0
+#define ArtTile_SpecialStageBombs           0x3C0 // $7800: the bombs' frame, copied in a frame at a time
 #define ArtTile_SpecialStageBombsExplosion  0x3D0 // $7A00
 #define ArtTile_SpecialStageSonic         0x2F2 // $5E40: Sonic's art, streamed a frame at a time from the buffers (Offset_0x02EED4)
 #define ArtTile_SpecialStageMiles         0x381 // $7020: Miles' art

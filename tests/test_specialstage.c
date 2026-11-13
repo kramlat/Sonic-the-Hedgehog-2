@@ -11,6 +11,7 @@
 #include "SpecialStageDisplay.h"
 #include "SpecialStageWide.h"
 #include "SpecialStageCharacter.h"
+#include "SpecialStageItems.h"
 #include "Object/SpecialStageArt.h"
 
 // The pre-beta's special stage (built in stages, see docs/Sonic2SpecialStage.md). Stage 1: its art, imported as it is: every picture of the two lists the stage loads ($3C and $3D) decodes to the tiles its header
@@ -492,6 +493,94 @@ static void SpecialStage_MilesRunsOnABiggerPipe(void) {
     CHECK(frames > 8 && frames < 200);
 }
 
+// --- Stage 5a: rings and bombs ---
+
+// The size by distance: 9 at the character, 0 from $1E on
+static void SpecialStage_AnItemsSizeFollowsItsDistance(void) {
+    CHECK_EQ(SSItem_AnimationOfDistance(0), 9);
+    CHECK_EQ(SSItem_AnimationOfDistance(3), 8);
+    CHECK_EQ(SSItem_AnimationOfDistance(0x13), 1);
+    CHECK_EQ(SSItem_AnimationOfDistance(0x1E), 0);
+    CHECK_EQ(SSItem_AnimationOfDistance(0x7F), 0);
+}
+
+// The step's layout is put in the slots once: step 5 has seven rings and a bomb, step 6 a ring and a bomb, the others nothing
+static void SpecialStage_TheLayoutOfAStepFillsTheSlots(void) {
+    SSItems items;
+    SSItems_Reset(&items);
+    SSItems_Load(&items, 0);
+    int n = 0;
+    for (int i = 0; i < SS_ITEM_SLOTS; i++)
+        n += items.item[i].kind != SS_ITEM_NONE;
+    CHECK_EQ(n, 0);
+    SSItems_Load(&items, 5);
+    int rings = 0, bombs = 0;
+    for (int i = 0; i < SS_ITEM_SLOTS; i++) {
+        rings += items.item[i].kind == SS_ITEM_RING;
+        bombs += items.item[i].kind == SS_ITEM_BOMB;
+    }
+    CHECK_EQ(rings, 7);
+    CHECK_EQ(bombs, 1);
+    CHECK_EQ(items.item[0].distance, 0x46u << 16);
+    CHECK_EQ(items.item[0].angle, 0x10);
+    CHECK_EQ(items.item[7].kind, SS_ITEM_BOMB);
+    CHECK_EQ(items.item[7].distance, 0x4Eu << 16);
+    items.item[0].distance = 1;
+    SSItems_Load(&items, 5);           // (once for a step: the same step again does not put them back)
+    CHECK_EQ(items.item[0].distance, 1);
+}
+
+// An item comes on at 0.8 a frame, gets its place from the block (the middle, how far across and down), and is gone when it has come
+static void SpecialStage_AnItemComesDownThePipeAndGoes(void) {
+    // a block of 3 distances: the middle at ($80,$60), $40 across, $30 down, no hidden angles
+    static const uint8_t block[2 + 18] = { 0, 3, 0x80, 0x60, 0x40, 0x30, 0, 0, 0x80, 0x60, 0x40, 0x30, 0, 0, 0x80, 0x60, 0x40, 0x30, 0, 0 };
+    SSItems items;
+    SSItems_Reset(&items);
+    items.item[0].kind = SS_ITEM_RING;
+    items.item[0].distance = (uint32_t)3 << 16;
+    items.item[0].angle = 0x40;       // (straight down: cosine 0, sine 256)
+    items.item[0].collision = 1;
+    SSItems_Update(&items, block, sizeof(block), false);
+    CHECK(items.item[0].visible);
+    CHECK_EQ(items.item[0].x, 0x80);
+    CHECK_EQ(items.item[0].y, 0x60 + 0x30);
+    CHECK_EQ(items.item[0].anim, 9 - (SSItem_AnimationOfDistance(2) == 9 ? 0 : 1)); // (distance 2.2: the nearest size)
+    int frames = 1;
+    while (items.item[0].kind != SS_ITEM_NONE && frames < 20) {
+        SSItems_Update(&items, block, sizeof(block), false);
+        frames++;
+    }
+    CHECK_EQ(frames, 4);              // ($30000 less $CD00 a frame is under 0 on the fourth)
+    // (further than the block goes: not shown)
+    items.item[1].kind = SS_ITEM_RING;
+    items.item[1].distance = (uint32_t)40 << 16;
+    SSItems_Update(&items, block, sizeof(block), false);
+    CHECK(!items.item[1].visible);
+}
+
+// A ring at the nearest size is taken by the character's box; a bomb hurts him and goes off
+static void SpecialStage_TheCharacterTakesRingsAndIsHurtByBombs(void) {
+    SSPlayer p;
+    SSPlayer_Init(&p);
+    SSItems items;
+    SSItems_Reset(&items);
+    const int16_t px = (int16_t)(p.x >> 16), py = (int16_t)(p.y >> 16);
+    items.item[0] = (SSItem){ .kind = SS_ITEM_RING, .anim = 8, .collision = 1, .x = px, .y = py };
+    items.item[1] = (SSItem){ .kind = SS_ITEM_RING, .anim = 7, .collision = 1, .x = px, .y = py };        // (not near enough yet)
+    items.item[2] = (SSItem){ .kind = SS_ITEM_RING, .anim = 8, .collision = 1, .x = (int16_t)(px + 60), .y = py }; // (to the side)
+    CHECK_EQ(SSItems_Touch(&items, &p), 1);
+    CHECK(items.item[0].touched);
+    CHECK(!items.item[1].touched);
+    CHECK(!items.item[2].touched);
+    CHECK_EQ(p.touched, 1);
+    CHECK_EQ(SSItems_Touch(&items, &p), 0);   // (the same ring is not taken twice)
+    items.item[3] = (SSItem){ .kind = SS_ITEM_BOMB, .anim = 8, .collision = 2, .x = px, .y = py };
+    SSItems_Touch(&items, &p);
+    CHECK_EQ(items.item[3].collision, 0);
+    CHECK_EQ(p.hit, 2);
+    CHECK_EQ(p.tumble, p.angle);
+}
+
 void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheMainListsArtDecodesAndGoesWherePreBetaPutsIt);
     RUN_TEST(SpecialStage_TheRingsListGoesOverTheTrafficLights);
@@ -514,4 +603,8 @@ void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheCharacterJumpsAndComesBackToThePipe);
     RUN_TEST(SpecialStage_TheShadowFollowsTheCharacter);
     RUN_TEST(SpecialStage_MilesRunsOnABiggerPipe);
+    RUN_TEST(SpecialStage_AnItemsSizeFollowsItsDistance);
+    RUN_TEST(SpecialStage_TheLayoutOfAStepFillsTheSlots);
+    RUN_TEST(SpecialStage_AnItemComesDownThePipeAndGoes);
+    RUN_TEST(SpecialStage_TheCharacterTakesRingsAndIsHurtByBombs);
 }

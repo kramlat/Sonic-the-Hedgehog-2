@@ -103,8 +103,22 @@ void GM_SpecialTrack(void) {
             for (int column = 0; column < wide.plane_width; column++)
                 Plane_Put(&b, ((size_t)row * wide.plane_width + column) * 2, d.plane_b[row * SS_PLANE_WIDTH + (column % 32)]);
     }
+    for (int i = 0; i < SS_ITEM_SLOTS; i++) { // (the rings and bombs, and their shadows: each follows a place in the layout)
+        Sst *item = Sst_Allocate();
+        Sst *shadow = Sst_Allocate();
+        if (item != NULL) {
+            item->code = Obj_SpecialStageItem;
+            item->subtype = (uint8_t)i;
+        }
+        if (shadow != NULL) {
+            shadow->code = Obj_SpecialStageItemShadow;
+            shadow->subtype = (uint8_t)i;
+        }
+    }
+    SSItems_Reset(SpecialStageObjects_Items());
     PlayMusic(bgm_SS);
     SSDisplay_Prime(&d);
+    QuickPLC(PlcId_SSRings); // (the rings' art over the traffic lights': list $3D)
     PutRows(&d, 0, 0, SS_PLANE_HEIGHT);
     PutRows(&d, 1, 0, SS_PLANE_HEIGHT);
     ShowPlanes(&d);
@@ -123,6 +137,12 @@ void GM_SpecialTrack(void) {
             PutRows(&d, d.bank, d.frame * SS_TRACK_SLICE_UNITS, SS_TRACK_SLICE_UNITS);
         ShowPlanes(&d);
         SpecialStageObjects_SetTrack(d.speed, d.period_less);
+        {
+            size_t block_size = 0;
+            const uint8_t *block = d.segment >= 0 ? SS_TrackBlock(d.segment, &block_size) : NULL;
+            SpecialStageObjects_SetItems(d.track.step, block, block_size, d.track.flipped, d.frame == 4);
+            SpecialStageObjects_UpdateItems();
+        }
         scrpos_x.v = (int32_t)(-wide.x0) << 16; // (the sprites are at the 256-pixel stage's places: the camera puts them in the middle of a wider screen)
         scrpos_y.v = 0;
         ExecuteObjects();

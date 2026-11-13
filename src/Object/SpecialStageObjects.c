@@ -22,6 +22,9 @@
 #include "Resource/Mappings/SpecialStageMiles.h"
 #include "Resource/Mappings/SpecialStageMilesTail.h"
 #include "Resource/Mappings/SpecialStageShadow.h"
+#include "Resource/Mappings/SpecialStageRings.h"
+#include "Resource/Mappings/SpecialStageBombs.h"
+#include "Resource/Art/SpecialStageBombs.h"
 #include "Resource/Art/SpecialStageSonic.h"
 #include "Resource/Art/SpecialStageSonicDiagonal.h"
 #include "Resource/Art/SpecialStageSonicHorizontal.h"
@@ -37,6 +40,10 @@
 enum { Who_Sonic = 0, Who_Miles = 1 };
 
 static SSPlayer players[2];
+static SSItems items;
+static const uint8_t *track_block;
+static size_t track_block_size;
+static bool track_flipped;
 static SSTrackState track = { 12, 4 };
 
 // What Sonic's pad has been, a frame at a time (Offset_0x02ED44, $FFFF9B62 to $FFFF9B80: the newest first): Miles does what Sonic did 15 frames ago, if nobody works his own pad (Offset_0x02FD5C)
@@ -174,6 +181,8 @@ void Obj_SpecialStageSonic(Sst *self) {
     SSPlayer *p = &players[Who_Sonic];
     SSPlayer_Step(p, &track, jpad1_hold1, jpad1_press1);
     SSPlayer_Animate(p, &track, Animation_SpecialStageSonic);
+    if (!p->hit)
+        SSItems_Touch(&items, p);
     Show(self, p, &sonic_art);
 }
 
@@ -206,6 +215,8 @@ void Obj_SpecialStageMiles(Sst *self) {
     SSPlayer *p = &players[Who_Miles];
     SSPlayer_Step(p, &track, held, pressed);
     SSPlayer_Animate(p, &track, Animation_SpecialStageMiles);
+    if (!p->hit)
+        SSItems_Touch(&items, p);
     Show(self, p, &miles_art);
 }
 
@@ -252,5 +263,90 @@ void Obj_SpecialStageShadow(Sst *self) { // Offset_0x02F436
     self->mapping_frame = shadow.frame;
     self->art_tile = shadow.art_tile;
     self->render_flags = (uint8_t)((self->render_flags & 0xFC) | (shadow.flips & 3));
+    Sst_Draw(self);
+}
+
+void SpecialStageObjects_SetItems(int step, const uint8_t *block, size_t block_size, bool flipped, bool load) {
+    track_block = block;
+    track_block_size = block_size;
+    track_flipped = flipped;
+    if (load)
+        SSItems_Load(&items, step);
+}
+
+SSItems *SpecialStageObjects_Items(void) {
+    return &items;
+}
+
+void SpecialStageObjects_UpdateItems(void) {
+    SSItems_Update(&items, track_block, track_block_size, track_flipped);
+}
+
+// The bombs' pictures (Offset_0x0302CC): a frame's tiles are copied to VRAM tile $3C0 from the decoded art, the frames' places from the script's entries $12 on (a single word each)
+static uint8_t bomb_buffer[ART_BYTES];
+static uint8_t bomb_cached = 0xFF;
+static bool bomb_loaded;
+
+static void LoadBombFrame(uint8_t frame) {
+    if (!bomb_loaded) {
+        NemDecToRAM(Art_SpecialStageBombs, bomb_buffer);
+        bomb_loaded = true;
+    }
+    if (frame == bomb_cached)
+        return;
+    bomb_cached = frame;
+    const uint8_t *entry_bytes = ScriptEntry(frame + 0x12);
+    const uint16_t entry = (uint16_t)((entry_bytes[0] << 8) | entry_bytes[1]);
+    const size_t tiles = (size_t)((entry >> 12) & 0xF) + 1;
+    const size_t from = (size_t)(entry & 0x0FFF) * 2;
+    VDP_SeekVRAM((size_t)ArtTile_SpecialStageBombs * 32);
+    VDP_WriteVRAM(bomb_buffer + from, tiles * 32);
+}
+
+void Obj_SpecialStageItem(Sst *self) { // Offset_0x030316 and Offset_0x030218: the item of the slot named by the subtype
+    const SSItem *item = &items.item[self->subtype];
+    if (self->routine == 0) {
+        self->routine = 2;
+        self->render_flags |= SST_RENDER_LEVEL;
+        self->priority = 3 * 0x80;
+    }
+    if (item->kind == SS_ITEM_NONE || !item->visible) {
+        self->render_flags &= (uint8_t)~SST_RENDER_ON_SCREEN;
+        return;
+    }
+    self->x_pos.f.u = item->x;
+    self->y_pos.f.u = item->y;
+    self->mapping_frame = item->frame;
+    if (item->kind == SS_ITEM_RING) {
+        self->mappings = Mappings_SpecialStageRings;
+        self->art_tile = TILE_MAP(0, 2, 0, 0, ArtTile_SpecialStageRings);
+    } else {
+        self->mappings = Mappings_SpecialStageBombs;
+        if (item->anim == 0x0A) {
+            self->art_tile = TILE_MAP(0, 2, 0, 0, ArtTile_SpecialStageBombsExplosion);
+        } else {
+            self->art_tile = TILE_MAP(0, 1, 0, 0, ArtTile_SpecialStageBombs);
+            LoadBombFrame(item->frame);
+        }
+    }
+    Sst_Draw(self);
+}
+
+void Obj_SpecialStageItemShadow(Sst *self) { // Offset_0x03058A: a shadow under the item (its size by the item's, its look by the angle)
+    const SSItem *item = &items.item[self->subtype];
+    if (self->routine == 0) {
+        self->routine = 2;
+        self->mappings = Mappings_SpecialStageShadow;
+        self->render_flags |= SST_RENDER_LEVEL;
+        self->priority = 5 * 0x80;
+    }
+    if (item->kind == SS_ITEM_NONE || !item->visible || item->anim > 9)
+        return;
+    static const uint16_t art[3] = { 0x6279, 0x629F, 0x62D9 };
+    self->x_pos.f.u = item->x;
+    self->y_pos.f.u = item->y;
+    self->art_tile = art[item->shadow_look];
+    self->mapping_frame = (uint8_t)((9 - item->anim) * 3 + item->shadow_look);
+    self->render_flags = (uint8_t)((self->render_flags & 0xFC) | (item->shadow_flipped ? 1 : 0));
     Sst_Draw(self);
 }
