@@ -18,12 +18,16 @@
 #include "Resource/Animation/SpecialStageSonic.h"
 #include "Resource/Animation/SpecialStageMiles.h"
 #include "Resource/Animation/SpecialStageMilesTail.h"
+#include "EnginePalette.h"
 #include "Resource/Mappings/SpecialStageSonic.h"
 #include "Resource/Mappings/SpecialStageMiles.h"
 #include "Resource/Mappings/SpecialStageMilesTail.h"
 #include "Resource/Mappings/SpecialStageShadow.h"
 #include "Resource/Mappings/SpecialStageRings.h"
 #include "Resource/Mappings/SpecialStageBombs.h"
+#include "Resource/Mappings/SpecialStageHud.h"
+#include "Resource/Mappings/SpecialStageStart.h"
+#include "Resource/Mappings/SpecialStageCounter.h"
 #include "Resource/Art/SpecialStageBombs.h"
 #include "Resource/Art/SpecialStageSonic.h"
 #include "Resource/Art/SpecialStageSonicDiagonal.h"
@@ -349,4 +353,201 @@ void Obj_SpecialStageItemShadow(Sst *self) { // Offset_0x03058A: a shadow under 
     self->mapping_frame = (uint8_t)((9 - item->anim) * 3 + item->shadow_look);
     self->render_flags = (uint8_t)((self->render_flags & 0xFC) | (item->shadow_flipped ? 1 : 0));
     Sst_Draw(self);
+}
+
+// ---- The head up display (stage 5b) ----
+
+static bool stage_started; // $FFFF9B23: the START banner has gone, the stage runs and the clock counts
+static bool time_over;
+static int8_t clock_tens, clock_ones;
+static uint16_t clock_ticks;
+static Sst *banner;
+
+bool SpecialStageObjects_Started(void) {
+    return stage_started;
+}
+
+bool SpecialStageObjects_TimeUp(void) {
+    return time_over;
+}
+
+void SpecialStageObjects_ResetHud(void) {
+    stage_started = false;
+    time_over = false;
+    clock_tens = clock_ones = 9;
+    clock_ticks = 0x3B;
+    banner = NULL;
+}
+
+static void ShowAt(Sst *self, int16_t x, int16_t y, uint8_t frame) {
+    self->x_pos.f.u = x;
+    self->y_pos.f.u = y;
+    self->mapping_frame = frame;
+    Sst_Draw(self);
+}
+
+void Obj_SpecialStageHud(Sst *self) { // Offset_0x00907A: the words RINGS and TIME and the second ring counter's frame, one picture
+    if (self->routine == 0) {
+        self->routine = 2;
+        self->mappings = Mappings_SpecialStageHud;
+        self->art_tile = TILE_MAP(0, 2, 0, 0, ArtTile_SpecialStageHudFont);
+        self->render_flags |= SST_RENDER_LEVEL;
+        self->priority = 1 * 0x80;
+    }
+    ShowAt(self, 0x80, 0, 0);
+}
+
+void Obj_SpecialStageCounter(Sst *self) { // Offset_0x0094FA: one digit of Sonic's (subtype 0 to 2) or Miles' (3 to 5) ring count: hundreds, tens, ones
+    if (self->routine == 0) {
+        self->routine = 2;
+        self->mappings = Mappings_SpecialStageCounter;
+        self->art_tile = TILE_MAP(0, 2, 0, 0, ArtTile_SpecialStageHudFont);
+        self->render_flags |= SST_RENDER_LEVEL;
+        self->priority = 0;
+    }
+    const int who = self->subtype / 3, place = self->subtype % 3;
+    const unsigned rings = players[who].touched % 1000;
+    const unsigned digit = place == 0 ? rings / 100 : place == 1 ? rings / 10 % 10 : rings % 10;
+    ShowAt(self, (int16_t)((who == 0 ? 0x44 : 0xDC) + place * 8), 0x20, (uint8_t)digit);
+}
+
+void Obj_SpecialStageClock(Sst *self) { // Offset_0x0093BE: the two digits of the time, counting down a second at a time once the stage has started (the tens are subtype 0, the ones 1)
+    if (self->routine == 0) {
+        self->routine = 2;
+        self->mappings = Mappings_SpecialStageCounter;
+        self->art_tile = TILE_MAP(0, 2, 0, 0, ArtTile_SpecialStageHudFont);
+        self->render_flags |= SST_RENDER_LEVEL;
+        self->priority = 1 * 0x80;
+    }
+    if (self->subtype == 0 && stage_started && !time_over && --clock_ticks == 0) { // (the tens' object keeps the time for both)
+        clock_ticks = 0x3C;
+        if (--clock_ones < 0) {
+            clock_ones = 9;
+            if (--clock_tens < 0) {
+                clock_tens = clock_ones = 0;
+                time_over = true;
+            }
+        }
+    }
+    ShowAt(self, self->subtype == 0 ? 0x7C : 0x84, 0x20, (uint8_t)(self->subtype == 0 ? clock_tens : clock_ones));
+}
+
+// The START banner (object $5F): it comes down from above, the three lights below it go red, yellow, green a second each, and then the banner bursts into its pieces (the flags, the letters) which fly off, the A falling
+static void ParkedTrafficLights(Sst *self) {
+    static const uint16_t lights[2][3] = { { 0x00EA, 0x00C6, 0x0082 }, { 0x0AEE, 0x00CE, 0x008A } }; // (green, then yellow: colours 11 to 13 of the third line)
+    if (self->own.s16[0]-- > 0) {
+        Sst_Draw(self);
+        return;
+    }
+    self->own.s16[0] = 0x3C;
+    if (--self->own.s16[1] == 0) { // (the green has been on its second: the banner is told to go)
+        if (banner != NULL)
+            banner->own.s16[0] = -1;
+        Sst_Delete(self);
+        return;
+    }
+    memcpy(&dry_palette[3][11], lights[self->own.s16[1] - 1], sizeof(lights[0]));
+    memcpy(&dry_palette_dup[3][11], lights[self->own.s16[1] - 1], sizeof(lights[0]));
+    self->y_pos.f.u += 0x10;
+    Sst_Draw(self);
+}
+
+void Obj_SpecialStageStart(Sst *self) { // Offset_0x0090E8
+    static const struct { uint8_t frame; int8_t speed; } pieces[8] = { { 2, -0x60 }, { 3, -0x40 }, { 4, -0x20 }, { 5, 0 }, { 6, 0x20 }, { 7, 0x40 }, { 8, 0x60 }, { 9, 0x60 } };
+    switch (self->routine) {
+    case 0: // Offset_0x009170: above the screen, coming down
+        self->x_pos.f.u = 0x80;
+        self->y_pos.f.u = -0x40;
+        self->y_vel = 0x100;
+        self->mappings = Mappings_SpecialStageStart;
+        self->art_tile = ArtTile_SpecialStageTrafficLights;
+        self->render_flags |= SST_RENDER_LEVEL;
+        self->priority = 1 * 0x80;
+        self->own.s16[0] = 0;
+        banner = self;
+        self->routine = 2;
+        // fallthrough
+    case 2: // Offset_0x0091A2
+        Sst_MoveSprite2(self);
+        if (self->y_pos.f.u < 0x48) {
+            Sst_Draw(self);
+            return;
+        }
+        {
+            Sst *lights = Sst_Allocate(); // Offset_0x0092A2: the lights' own object
+            if (lights != NULL) {
+                lights->code = Obj_SpecialStageStart;
+                lights->x_pos.f.u = 0xE0;
+                lights->y_pos.f.u = 0x48;
+                lights->mappings = Mappings_SpecialStageStart;
+                lights->art_tile = TILE_MAP(0, 3, 0, 0, ArtTile_SpecialStageTrafficLights);
+                lights->render_flags |= SST_RENDER_LEVEL;
+                lights->priority = 0;
+                lights->routine = 8;
+                lights->own.s16[0] = 0x3C;
+                lights->own.s16[1] = 3;
+                lights->mapping_frame = 1;
+            }
+        }
+        self->y_vel = 0;
+        self->y_pos.f.u = 0x48;
+        self->routine = 4;
+        Sst_Draw(self);
+        return;
+    case 4: // Offset_0x0091CA: waits for the lights, then bursts
+        if (self->own.s16[0] == 0) {
+            Sst_Draw(self);
+            return;
+        }
+        for (int i = 0; i < 8; i++) {
+            Sst *piece = Sst_Allocate();
+            if (piece == NULL)
+                break;
+            piece->code = Obj_SpecialStageStart;
+            piece->x_pos.f.u = self->x_pos.f.u;
+            piece->y_pos.f.u = self->y_pos.f.u;
+            piece->mappings = self->mappings;
+            piece->art_tile = self->art_tile;
+            piece->render_flags = self->render_flags;
+            piece->priority = self->priority;
+            piece->routine = 6;
+            piece->mapping_frame = pieces[i].frame;
+            piece->x_vel = (int16_t)(pieces[i].speed * 16);
+            if (i == 3) { // (the A falls)
+                piece->x_vel = 0;
+                piece->y_vel = 0x600;
+            }
+        }
+        self->routine = 0x0A;
+        self->own.s16[0] = 0x1E;
+        self->mapping_frame = 0;
+        return; // (the banner itself is not drawn again: its pieces are)
+    case 6: // Offset_0x009102: a piece flying
+        if (self->x_vel == 0 && self->y_vel == 0) {
+            // (nothing)
+        } else if (self->x_vel == 0 || self->y_vel != 0) {
+            self->y_vel = (int16_t)(self->y_vel + 0x40 > 0x800 ? 0x800 : self->y_vel + 0x40);
+        } else if (self->x_vel > 0) {
+            self->x_vel = (int16_t)(self->x_vel + 0x40 > 0x800 ? 0x800 : self->x_vel + 0x40);
+        } else {
+            self->x_vel = (int16_t)(self->x_vel - 0x40 < -0x800 ? -0x800 : self->x_vel - 0x40);
+        }
+        Sst_MoveSprite2(self);
+        if (self->x_pos.f.u < -0x18 || self->x_pos.f.u > 0x118 || self->y_pos.f.u > 0x100) {
+            Sst_Delete(self);
+            return;
+        }
+        Sst_Draw(self);
+        return;
+    case 8:
+        ParkedTrafficLights(self);
+        return;
+    case 0x0A: // Offset_0x00923A: the banner is gone; a half second more and the stage starts
+        if (--self->own.s16[0] < 0) {
+            stage_started = true;
+            banner = NULL;
+            Sst_Delete(self);
+        }
+        return;
+    }
 }

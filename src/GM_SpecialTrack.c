@@ -116,13 +116,36 @@ void GM_SpecialTrack(void) {
         }
     }
     SSItems_Reset(SpecialStageObjects_Items());
+    SpecialStageObjects_ResetHud();
+    {
+        static void (*const hud[])(Sst *) = { Obj_SpecialStageHud, Obj_SpecialStageStart };
+        for (int i = 0; i < 2; i++) {
+            Sst *o = Sst_Allocate();
+            if (o != NULL)
+                o->code = hud[i];
+        }
+        for (int i = 0; i < 6; i++) {
+            Sst *o = Sst_Allocate();
+            if (o != NULL) {
+                o->code = Obj_SpecialStageCounter;
+                o->subtype = (uint8_t)i;
+            }
+        }
+        for (int i = 0; i < 2; i++) {
+            Sst *o = Sst_Allocate();
+            if (o != NULL) {
+                o->code = Obj_SpecialStageClock;
+                o->subtype = (uint8_t)i;
+            }
+        }
+    }
     PlayMusic(bgm_SS);
     SSDisplay_Prime(&d);
-    QuickPLC(PlcId_SSRings); // (the rings' art over the traffic lights': list $3D)
     PutRows(&d, 0, 0, SS_PLANE_HEIGHT);
     PutRows(&d, 1, 0, SS_PLANE_HEIGHT);
     ShowPlanes(&d);
     PaletteWhiteIn();
+    bool rings_art = false;
     for (;;) {
         vbla_routine = 0x0A;
         WaitForVBla();
@@ -132,6 +155,10 @@ void GM_SpecialTrack(void) {
             d.speed++;
         if ((jpad1_press1 & JPAD_DOWN) && d.speed > 8)
             d.speed--;
+        if (!rings_art && SpecialStageObjects_Started()) { // (the traffic lights are gone: the rings' art goes over theirs, list $3D)
+            QuickPLC(PlcId_SSRings);
+            rings_art = true;
+        }
         SSDisplay_Frame(&d);
         if (d.frame < SS_TRACK_SLICES) // (a slice came into the buffer being decoded: its 7 rows)
             PutRows(&d, d.bank, d.frame * SS_TRACK_SLICE_UNITS, SS_TRACK_SLICE_UNITS);

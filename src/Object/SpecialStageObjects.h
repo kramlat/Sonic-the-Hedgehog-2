@@ -26,6 +26,15 @@ void SpecialStageObjects_SetItems(int step, const uint8_t *block, size_t block_s
 void SpecialStageObjects_UpdateItems(void);
 SSItems *SpecialStageObjects_Items(void);
 
+// The head up display (stage 5b): the words, the ring counters (subtypes 0 to 2 Sonic, 3 to 5 Miles), the clock (subtypes 0 and 1) and the START banner with its lights. The stage runs once the banner is gone
+void Obj_SpecialStageHud(Sst *self);
+void Obj_SpecialStageCounter(Sst *self);
+void Obj_SpecialStageClock(Sst *self);
+void Obj_SpecialStageStart(Sst *self);
+void SpecialStageObjects_ResetHud(void);
+bool SpecialStageObjects_Started(void);
+bool SpecialStageObjects_TimeUp(void);
+
 void SpecialStageObjects_SetTrack(uint16_t speed, uint8_t period_less);
 SSPlayer *SpecialStageObjects_Sonic(void);
 SSPlayer *SpecialStageObjects_Miles(void);
