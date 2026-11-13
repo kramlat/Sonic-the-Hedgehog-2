@@ -31,3 +31,5 @@ PlcId_CPZBoss, // the pre-beta's list $28: Chemical Plant's boss (the ship, its 
 PlcId_DEZFinal, // the pre-beta's list $31: the giant Robotnik of the Death Egg
 PlcId_OOZBoss, // the pre-beta's list $2F: Oil Ocean's boss (the boss and the explosions)
 PlcId_DEZBoss, // the pre-beta's list $30: Death Egg's Metal Sonic (the explosions)
+PlcId_SSMain, // the pre-beta's list $3C: the special stage's art
+PlcId_SSRings, // its list $3D: the rings

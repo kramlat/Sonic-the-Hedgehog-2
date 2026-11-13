@@ -55,6 +55,17 @@
 #include "Resource/Art/CNZBoss.h"
 #include "Resource/Art/OOZBoss.h"
 #include "Object/BossArt.h"
+#include "Resource/Art/SpecialStageEmerald.h"
+#include "Resource/Art/SpecialStageWingsHand.h"
+#include "Resource/Art/SpecialStageBackground.h"
+#include "Resource/Art/SpecialStageHudFont.h"
+#include "Resource/Art/SpecialStagePlayerShadow.h"
+#include "Resource/Art/SpecialStageDiagonalShadow.h"
+#include "Resource/Art/SpecialStageVerticalShadow.h"
+#include "Resource/Art/SpecialStageTrafficLights.h"
+#include "Resource/Art/SpecialStageBombsExplosion.h"
+#include "Resource/Art/SpecialStageRings.h"
+#include "Object/SpecialStageArt.h"
 #include "Resource/Art/NGHZBoss.h"
 #include "Resource/Art/NGHZAutoDoor.h"
 #include "Resource/Art/ChopChop.h"
@@ -980,6 +991,28 @@ static const PLCList PLC_DEZ2 = { // Death Egg's secondary list, the pre-beta's 
     }
 };
 
+static const PLCList PLC_SSMain = { // the pre-beta's list $3C: the special stage's art (the emerald, the wings and hand, the background, the HUD's font, the shadows, the traffic lights, the bombs' explosion)
+    9,
+    (const PLC[]) {
+        { Art_SpecialStageEmerald,        ART_VRAM(ArtTile_SpecialStageEmerald) },
+        { Art_SpecialStageWingsHand,      ART_VRAM(ArtTile_SpecialStageWingsHand) },
+        { Art_SpecialStageBackground,     ART_VRAM(ArtTile_SpecialStageBackground) },
+        { Art_SpecialStageHudFont,        ART_VRAM(ArtTile_SpecialStageHudFont) },
+        { Art_SpecialStagePlayerShadow,   ART_VRAM(ArtTile_SpecialStagePlayerShadow) },
+        { Art_SpecialStageDiagonalShadow, ART_VRAM(ArtTile_SpecialStageDiagonalShadow) },
+        { Art_SpecialStageVerticalShadow, ART_VRAM(ArtTile_SpecialStageVerticalShadow) },
+        { Art_SpecialStageTrafficLights,  ART_VRAM(ArtTile_SpecialStageTrafficLights) },
+        { Art_SpecialStageBombsExplosion, ART_VRAM(ArtTile_SpecialStageBombsExplosion) },
+    }
+};
+
+static const PLCList PLC_SSRings = { // the pre-beta's list $3D: the rings, over the traffic lights
+    1,
+    (const PLC[]) {
+        { Art_SpecialStageRings, ART_VRAM(ArtTile_SpecialStageRings) },
+    }
+};
+
 static const PLCList PLC_DEZBoss = { // the pre-beta's list $30: Metal Sonic's explosions
     1,
     (const PLC[]) {
@@ -1131,5 +1164,7 @@ const PLCList* plcs[PlcId_Num] = {
     /* PlcId_DEZFinal    */ &PLC_DEZFinal,
     /* PlcId_OOZBoss     */ &PLC_OOZBoss,
     /* PlcId_DEZBoss     */ &PLC_DEZBoss,
+    /* PlcId_SSMain      */ &PLC_SSMain,
+    /* PlcId_SSRings     */ &PLC_SSRings,
 };
 
