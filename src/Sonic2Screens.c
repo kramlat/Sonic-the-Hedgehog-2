@@ -34,11 +34,14 @@ static void Screen_Level(void) {
 }
 
 // The special stage: the pre-beta's (docs/Sonic2SpecialStage.md). SONIC2_SS_SONIC1 in the environment gives Sonic 1's again (kept while the new one is played through); SONIC2_SS_TRACK is the track viewer
+extern bool ss_sonic1_palette_cycle;
 static void Screen_Special(void) {
-    if (getenv("SONIC2_SS_SONIC1") != NULL)
+    ss_sonic1_palette_cycle = getenv("SONIC2_SS_SONIC1") != NULL;
+    if (ss_sonic1_palette_cycle)
         GM_Special();
     else
         GM_SpecialTrack();
+    ss_sonic1_palette_cycle = true;
 }
 
 const ScreenFunc game_screens[] = {

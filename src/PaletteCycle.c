@@ -476,8 +476,11 @@ static const SSPalEntry ss_pal_timing[32] = {
 #undef P5
 #undef P6
 
+// Sonic 1's special stage cycles its palette from the shared blank (Game.c) and its own loop; Sonic 2's stage (GM_SpecialTrack) has a palette of its own that this would overwrite (lines 3 and 4), so it turns this off
+bool ss_sonic1_palette_cycle = true;
+
 void PCycle_SS(void) {
-    if (pause_state)
+    if (pause_state || !ss_sonic1_palette_cycle)
         return;
     if (--palss_time >= 0)
         return;
