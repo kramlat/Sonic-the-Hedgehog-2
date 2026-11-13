@@ -38,6 +38,7 @@ void RegisterScrollBlockTests(void);
 void RegisterOscillationTests(void);
 void RegisterMathTests(void);
 void RegisterEditorTests(void);
+void RegisterNetplayTests(void);
 
 int main(void) {
     printf("Compression tests:\n");
@@ -68,6 +69,8 @@ int main(void) {
     RegisterHTZBackgroundTests();
     printf("Level editor model tests:\n");
     RegisterEditorTests();
+    printf("Network play tests:\n");
+    RegisterNetplayTests();
     printf("Water tests:\n");
     RegisterWaterTests();
     printf("Signpost tests:\n");
