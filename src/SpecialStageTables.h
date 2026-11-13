@@ -17,6 +17,9 @@ typedef struct {
 // at $5F62 takes the sections' places from those words): the data is what follows the header.
 #define SS_SEGMENT_COUNT 56
 const SSBlob *SS_Segment(int segment);
+
+// The script of the characters' art ($2F94E: Sonic's, Miles' and his tails' share it): a table of offsets for each frame, and at each a count of words and then the words (the tiles to copy: a count and a place)
+const uint8_t *SS_DynamicScript(size_t *size);
 bool SS_SegmentSections(int segment, SSBlob sections[3]);
 
 // How the stage runs through the segments. A stage is a sequence of steps (the bytes at $5F08); a step's list (the low 3 bits, the high bit is a flag the pre-beta's code reads) is one of 5 lists of segment numbers (the

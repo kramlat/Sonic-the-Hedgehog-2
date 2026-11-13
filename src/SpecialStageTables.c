@@ -2,6 +2,7 @@
 #include "SpecialStageTables.h"
 
 #include "Resource/SSData/006CFC.h"
+#include "Resource/SSData/02F94E.h"
 #include "Resource/SSData/008FEC.h"
 #include "Resource/SSData/008E5C.h"
 #include "Resource/SSData/0011B8.h"
@@ -222,4 +223,9 @@ const uint8_t *SS_BackgroundMap(int which, size_t *size) {
     }
     *size = 0;
     return NULL;
+}
+
+const uint8_t *SS_DynamicScript(size_t *size) {
+    *size = RES_SIZE(SSData_02F94E);
+    return SSData_02F94E;
 }

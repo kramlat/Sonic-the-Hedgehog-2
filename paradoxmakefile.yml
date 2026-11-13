@@ -686,6 +686,8 @@ resources:
   - "SSData/007302"
   - "SSData/00751A"
   - "SSData/0309C8"
+  - "SSData/02F94E"
+  - "Animation/SpecialStageSonic"
   - "SSData/0011B8"
   - "SSData/008E5C"
   - "SSData/008FEC"
@@ -712,6 +714,8 @@ sources:
   - "src/SpecialStageTables.c"
   - "src/SpecialStageTrack.c"
   - "src/SpecialStageDisplay.c"
+  - "src/SpecialStageCharacter.c"
+  - "src/Object/SpecialStageObjects.c"
   - "src/SpecialStageWide.c"
   - "src/GM_SpecialTrack.c"
   - "src/SandShower.c"
@@ -799,6 +803,8 @@ sources:
   - "src/Object/TitleCharacters.c"
 # binary sprite mappings in Sonic 2's format (the importer's output): their headers are written in Sonic 3 & Knuckles' format
 mappings_SonicTheHedgehog2:
+  - "Mappings/SpecialStageSonic"
+  - "Mappings/SpecialStageShadow"
   - "Mappings/Sonic"
   - "Mappings/SegaSprites"
   - "Mappings/TitleCardNames"

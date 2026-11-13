@@ -10,6 +10,7 @@
 #include "SpecialStageTrack.h"
 #include "SpecialStageDisplay.h"
 #include "SpecialStageWide.h"
+#include "SpecialStageCharacter.h"
 #include "Object/SpecialStageArt.h"
 
 // The pre-beta's special stage (built in stages, see docs/Sonic2SpecialStage.md). Stage 1: its art, imported as it is: every picture of the two lists the stage loads ($3C and $3D) decodes to the tiles its header
@@ -386,6 +387,85 @@ static void SpecialStage_TheWideRowPadsTheWallsAndCropsTheRest(void) {
     CHECK_EQ(SSWide_MarginWord(0xE014, 0), ArtTile_SpecialStageBlank);
 }
 
+// --- Stage 4a: the character ---
+
+// The square roots of the pre-beta's Newton's iterations
+static void SpecialStage_ThePreBetasSquareRoots(void) {
+    CHECK_EQ(SS_Sqrt16(10000, 15), 100);
+    CHECK_EQ(SS_Sqrt16(16384, 15), 128);
+    CHECK_EQ(SS_Sqrt16(1, 15), 1);
+    CHECK_EQ(SS_Sqrt16(0, 15), 0);
+    CHECK_EQ(SS_Sqrt16(400, 10), 20);
+    CHECK_EQ(SS_Sqrt16(40000, 10), 0); // (ten iterations from 1 do not get to it: the pre-beta's second distance is 0 for the far ones)
+}
+
+// It starts at the bottom of the pipe ($40), at ($7F,$A8) and stays there with no pad; left turns it up the left side (the angle goes up), right the other way, and it settles back
+static void SpecialStage_TheCharacterRunsRoundThePipeAndSettlesBack(void) {
+    SSPlayer p;
+    SSPlayer_Init(&p);
+    const SSTrackState track = { 12, 4 };
+    SSPlayer_Step(&p, &track, 0, 0);
+    CHECK_EQ(p.angle, 0x40);
+    CHECK_EQ(p.x >> 16, 0x7F);
+    CHECK_EQ(p.y >> 16, 0xA8);
+    for (int i = 0; i < 20; i++)
+        SSPlayer_Step(&p, &track, 0x04, 0);                 // (left)
+    CHECK(p.angle > 0x40);
+    CHECK((p.x >> 16) < 0x7F);                              // (up the left side: further left, the angle on from $40: sine and cosine of the byte angle)
+    const uint8_t high = p.angle;
+    for (int i = 0; i < 12; i++)
+        SSPlayer_Step(&p, &track, 0, 0);
+    CHECK(p.angle < high);                                  // (the slope pulls it back down: it swings, the pre-beta's pipe having hardly any friction)
+    SSPlayer_Init(&p);
+    for (int i = 0; i < 20; i++)
+        SSPlayer_Step(&p, &track, 0x08, 0);                 // (right)
+    CHECK(p.angle < 0x40);
+    CHECK((p.x >> 16) > 0x7F);
+}
+
+// A button jumps (the character goes up from the pipe's side it is on: along the angle's opposite), is in the air with the third animation, and is back on the pipe when it has gone as far as the ellipse
+static void SpecialStage_TheCharacterJumpsAndComesBackToThePipe(void) {
+    SSPlayer p;
+    SSPlayer_Init(&p);
+    const SSTrackState track = { 12, 4 };
+    SSPlayer_Step(&p, &track, 0, 0x40);                     // (A)
+    CHECK_EQ(p.routine, 4);
+    CHECK(p.status & SS_STATUS_AIR);
+    CHECK_EQ(p.anim, 3);
+    CHECK(p.y_speed < 0);                                    // (up from the bottom)
+    int16_t top = 0x7FFF;
+    int frames = 0;
+    while (p.routine == 4 && frames++ < 200) {
+        SSPlayer_Step(&p, &track, 0, 0);
+        if ((int16_t)(p.y >> 16) < top)
+            top = (int16_t)(p.y >> 16);
+    }
+    CHECK_EQ(p.routine, 2);
+    CHECK(!(p.status & SS_STATUS_AIR));
+    CHECK_EQ(p.inertia, 0);
+    CHECK_EQ(p.x_speed, 0);
+    CHECK(top < 0xA8 - 0x10);                                // (it went well up before it came down)
+    CHECK(frames > 8 && frames < 120);
+}
+
+// The shadow follows: under the character in the middle, to its side on the pipe's sides, and mirrored about the pipe's middle line below it
+static void SpecialStage_TheShadowFollowsTheCharacter(void) {
+    SSPlayer p;
+    SSPlayer_Init(&p);
+    SSShadow s;
+    SSPlayer_Shadow(&p, &s);
+    CHECK_EQ(s.art_tile, 0x6279);
+    CHECK_EQ(s.frame, 0);
+    CHECK_EQ(s.x, 0x7F);
+    CHECK_EQ(s.y, 0xA8 + 0x18);
+    p.angle = 0x20;                                          // (on the right side: the diagonal shadow)
+    SSPlayer_Shadow(&p, &s);
+    CHECK_EQ(s.art_tile, 0x629F);
+    p.angle = 0xC0;                                          // (past the middle line: mirrored about it, the frame past)
+    SSPlayer_Shadow(&p, &s);
+    CHECK(s.y != (int16_t)((p.y >> 16) + 0x18));
+}
+
 void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheMainListsArtDecodesAndGoesWherePreBetaPutsIt);
     RUN_TEST(SpecialStage_TheRingsListGoesOverTheTrafficLights);
@@ -403,4 +483,8 @@ void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheBackgroundMovesWithTheCurves);
     RUN_TEST(SpecialStage_TheWideLayoutKeepsTheTrackInTheMiddle);
     RUN_TEST(SpecialStage_TheWideRowPadsTheWallsAndCropsTheRest);
+    RUN_TEST(SpecialStage_ThePreBetasSquareRoots);
+    RUN_TEST(SpecialStage_TheCharacterRunsRoundThePipeAndSettlesBack);
+    RUN_TEST(SpecialStage_TheCharacterJumpsAndComesBackToThePipe);
+    RUN_TEST(SpecialStage_TheShadowFollowsTheCharacter);
 }

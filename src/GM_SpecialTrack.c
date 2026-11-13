@@ -4,6 +4,10 @@
 #include "SpecialStageTables.h"
 #include "SpecialStageWide.h"
 #include "Object/SpecialStageArt.h"
+#include "Object/SpecialStageObjects.h"
+#include "EngineObject.h"
+#include "SstLoad.h"
+#include "Object.h"
 
 #include "Game.h"
 #include "Palette.h"
@@ -87,6 +91,8 @@ void GM_SpecialTrack(void) {
     QuickPLC(PlcId_SSMain); // (the background's tiles go to $E000, the HUD's font and the rest)
     PalLoad1(PalId_SpecialStage2);
     SSDisplay_Reset(&d);
+    Sst_ResetAll();
+    player->code = Obj_SpecialStageSonic; // (Sonic and his shadow: the characters of stage 4)
     {
         // the background: its map across the whole plane
         plane_t b;
@@ -110,12 +116,16 @@ void GM_SpecialTrack(void) {
             d.speed++;
         if ((jpad1_press1 & JPAD_DOWN) && d.speed > 8)
             d.speed--;
-        if (jpad1_press1 & JPAD_RIGHT)
-            d.speed_frac ^= 0x8000;
         SSDisplay_Frame(&d);
         if (d.frame < SS_TRACK_SLICES) // (a slice came into the buffer being decoded: its 7 rows)
             PutRows(&d, d.bank, d.frame * SS_TRACK_SLICE_UNITS, SS_TRACK_SLICE_UNITS);
         ShowPlanes(&d);
+        SpecialStageObjects_SetTrack(d.speed, d.period_less);
+        scrpos_x.v = (int32_t)(-wide.x0) << 16; // (the sprites are at the 256-pixel stage's places: the camera puts them in the middle of a wider screen)
+        scrpos_y.v = 0;
+        ExecuteObjects();
+        uint8_t sprite_i;
+        BuildSprites(&sprite_i);
     }
     Viewport_SetSize(SCREEN_WIDTH, SCREEN_HEIGHT, PLANE_WIDTH, PLANE_HEIGHT);
     gamemode = GameMode_Sega;
