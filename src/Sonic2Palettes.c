@@ -3,6 +3,7 @@
 // Sonic 2's palettes: Sonic 1's (a copy of Sonic1Palettes.c) with the zone slots' palettes replaced by their Sonic 2 zones' as those come (slot 3 = Emerald Hill).
 #include "Resource/S2Palette/EHZ.h"
 #include "Resource/S2Palette/Sonic.h"
+#include "Resource/S2Palette/SpecialStage.h"
 #include "Resource/S2Palette/CPZ.h"
 #include "Resource/S2Palette/HPZ.h"
 #include "Resource/S2Palette/HTZ.h"
@@ -83,5 +84,6 @@ PalettePointer palette_pointers[] = {
     /* PalId_SFZ       */ { (const uint16_t*)S2Palette_SFZ, &dry_palette[1][0], 0x30, PAL_FORMAT_GENESIS },
     /* PalId_DEZ       */ { (const uint16_t*)S2Palette_DEZ, &dry_palette[1][0], 0x30, PAL_FORMAT_GENESIS },
     /* PalId_SCZ       */ { (const uint16_t*)S2Palette_SCZ, &dry_palette[1][0], 0x30, PAL_FORMAT_GENESIS },
+    /* PalId_SpecialStage2 */ { (const uint16_t*)S2Palette_SpecialStage, &dry_palette[0][0], 0x40, PAL_FORMAT_GENESIS },
 };
 

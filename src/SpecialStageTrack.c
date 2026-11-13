@@ -48,7 +48,7 @@ bool SSDecoder_Start(SSDecoder *decoder, int segment) {
 }
 
 // One unit: words until the unit's end; the count, or -1 when the data is wrong
-static int DecodeUnit(SSDecoder *decoder, uint16_t *out, size_t room) {
+static int DecodeUnit(SSDecoder *decoder, uint16_t *out, size_t room, bool flipped) {
     size_t count = 0;
     for (;;) {
         const int flag = Bit(&decoder->flags);
@@ -64,7 +64,8 @@ static int DecodeUnit(SSDecoder *decoder, uint16_t *out, size_t room) {
             const size_t index = (size_t)number + (wide ? 0x40 : 0);
             if (index >= SS_TileWordCount() || count >= room)
                 return -1;
-            out[count++] = (uint16_t)(SS_TileWord(index) | 0x6000);
+            // (the turned track's decoder, Offset_0x0066AA on, XORs $6800 on a single tile instead of ORing $6000: the palette is put on the same, and the tile is turned the other way across, as the track is)
+            out[count++] = flipped ? (uint16_t)(SS_TileWord(index) ^ 0x6800) : (uint16_t)(SS_TileWord(index) | 0x6000);
             continue;
         }
         SSBits *runs = &decoder->runs;
@@ -105,7 +106,7 @@ bool SSDecoder_Slice(SSDecoder *decoder, bool flipped, uint16_t *out) {
         uint16_t *to = out + unit * SS_TRACK_UNIT_WORDS;
         // (a unit that is not 128 words would have run into the next one's place: the data is not what the stage expects)
         uint16_t scratch[SS_TRACK_UNIT_WORDS + 1];
-        const int count = DecodeUnit(decoder, scratch, SS_TRACK_UNIT_WORDS + 1);
+        const int count = DecodeUnit(decoder, scratch, SS_TRACK_UNIT_WORDS + 1, flipped);
         if (count != SS_TRACK_UNIT_WORDS) {
             decoder->valid = false;
             return false;
@@ -138,18 +139,9 @@ void SSTrack_Reset(SSTrack *track) {
 // Offset_0x008B9E: three of the segments turn the track over or back; the others leave it as it is. Segment $11 (the pre-beta's ROM range $0CDEC6 to $0CE544) always turns it over; $0D and $1A turn it
 // over when the stage's step (the one the stage is at by now) has its flag set, and back when it has not
 static void Turn(SSTrack *track) {
-    const bool flag = (SS_SequenceStep((size_t)track->step) & 0x80) != 0;
-    switch (track->segment) {
-    case 0x11:
-        track->flipped = true;
-        break;
-    case 0x0D:
-    case 0x1A:
-        track->flipped = flag;
-        break;
-    default:
-        break;
-    }
+    bool flipped;
+    if (SSTrack_Turns(track, &flipped))
+        track->flipped = flipped;
 }
 
 // Offset_0x005F16's first half. The step's byte gives the list ($FF: the sequence is over and starts again, with the first list); a segment of the list is taken, and the place in the list goes on; at the list's end the
@@ -173,4 +165,18 @@ int SSTrack_NextSegment(SSTrack *track) {
     }
     Turn(track);
     return track->segment;
+}
+
+bool SSTrack_Turns(const SSTrack *track, bool *flipped) {
+    switch (track->segment) {
+    case 0x11:
+        *flipped = true;
+        return true;
+    case 0x0D:
+    case 0x1A:
+        *flipped = (SS_SequenceStep((size_t)track->step) & 0x80) != 0;
+        return true;
+    default:
+        return false;
+    }
 }

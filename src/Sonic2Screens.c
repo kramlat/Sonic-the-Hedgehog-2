@@ -11,6 +11,8 @@
 #include "GM_SSRG.h"
 #endif
 #include "GM_Special.h"
+#include "GM_SpecialTrack.h"
+#include <stdlib.h>
 #include "GM_Title.h"
 
 #include "Backend/VDP.h"
@@ -31,13 +33,21 @@ static void Screen_Level(void) {
     sprite_split_screen = SPRITE_SPLIT_NONE;
 }
 
+// The special stage: Sonic 1's until the pre-beta's is built (docs/Sonic2SpecialStage.md); SONIC2_SS_TRACK in the environment shows the pre-beta's track alone, as it is so far
+static void Screen_Special(void) {
+    if (getenv("SONIC2_SS_TRACK") != NULL)
+        GM_SpecialTrack();
+    else
+        GM_Special();
+}
+
 const ScreenFunc game_screens[] = {
     [GameMode_Sega] = GM_Sega,
     [GameMode_Title] = GM_Title,
     [GameMode_Demo] = Screen_Level,
     [GameMode_Level] = Screen_Level,
     [GameMode_Editor] = Screen_Level,
-    [GameMode_Special] = GM_Special,
+    [GameMode_Special] = Screen_Special,
     [GameMode_Continue] = GM_Continue,
     [GameMode_Ending] = GM_Ending,
     [GameMode_Credits] = GM_Credits,

@@ -40,6 +40,7 @@ enum {
 	PalId_SFZ,  // Sky Fortress's (the pre-beta's)
 	PalId_DEZ,  // Death Egg's
 	PalId_SCZ,  // Sky Chase's
+	PalId_SpecialStage2, // the pre-beta's special stage's (the four lines of its main palette)
 
 	PalId_EHZ = PalId_SLZ,
 	PalId_CPZ = PalId_MZ,

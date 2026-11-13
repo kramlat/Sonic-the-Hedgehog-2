@@ -12,7 +12,7 @@
 // plus $40 for the 10-bit ones, picks a word of the table at $6E3A) and the runs' stream (a bit: 1 a 7-bit number, 0 a 6-bit one; plus $40 for the 7-bit ones, a pair of the table at $7302: a tile and how many times
 // it is written, less one). A byte $FF in the runs' stream where a byte begins, or the 7-bit number $7F, ends a "unit". The words are the name table's: $6000 (palette 3) is put on a tile's word and $E000 (palette 3,
 // priority) on a run's. A segment is 28 units, each 128 words (4 rows of the plane's 32 cells): 3,584 words. The stage's code decodes 7 units a frame (a slice) for four frames, to four places of the name table.
-// When the track is turned over (the pre-beta's flipped state) each unit's words go in the other order, as the code that writes backwards into RAM does.
+// When the track is turned over (the pre-beta's flipped state) each unit's words go in the other order, as the code that writes backwards into RAM does, and a single tile's word is XORed with $6800 (not ORed with $6000): the tile is turned the other way across.
 
 #define SS_TRACK_UNIT_WORDS   128
 #define SS_TRACK_SLICE_UNITS  7
@@ -50,6 +50,8 @@ typedef struct {
 } SSTrack;
 
 void SSTrack_Reset(SSTrack *track);
+// Whether the current segment is one that turns the track over or back ($11, $0D and $1A), and to which: the state it would have, which the display takes up at the end of the segment's time
+bool SSTrack_Turns(const SSTrack *track, bool *flipped);
 // The next segment of the stage (and the flipped state it brings)
 int SSTrack_NextSegment(SSTrack *track);
 

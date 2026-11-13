@@ -8,6 +8,7 @@
 #include "PLC.h"
 #include "SpecialStageTables.h"
 #include "SpecialStageTrack.h"
+#include "SpecialStageDisplay.h"
 
 // The pre-beta's special stage (built in stages, see docs/Sonic2SpecialStage.md). Stage 1: its art, imported as it is: every picture of the two lists the stage loads ($3C and $3D) decodes to the tiles its header
 // counts, to the last byte and not one more, and goes to the places the pre-beta's lists give.
@@ -135,13 +136,18 @@ static void SpecialStage_EverySegmentDecodesToItsNameTable(void) {
         CHECK(SS_DecodeSegment(s, false, normal));
         CHECK(SS_DecodeSegment(s, true, flipped));
         bool palette = true, turned = true;
+        int across = 0;
         for (int i = 0; i < SS_TRACK_SEGMENT_WORDS; i++) {
-            palette &= (normal[i] & 0x6000) == 0x6000;
+            palette &= (normal[i] & 0x6000) == 0x6000 && (flipped[i] & 0x6000) == 0x6000;
             const int unit = i / SS_TRACK_UNIT_WORDS, at = i % SS_TRACK_UNIT_WORDS;
-            turned &= flipped[i] == normal[unit * SS_TRACK_UNIT_WORDS + SS_TRACK_UNIT_WORDS - 1 - at];
+            const uint16_t was = normal[unit * SS_TRACK_UNIT_WORDS + SS_TRACK_UNIT_WORDS - 1 - at];
+            // (the same words in the other order, a single tile turned the other way across: only the horizontal flip bit differs)
+            turned &= flipped[i] == was || flipped[i] == (uint16_t)(was ^ 0x0800);
+            across += flipped[i] != was;
         }
         CHECK(palette);
         CHECK(turned);
+        CHECK(across > 0); // (every segment has single tiles)
     }
     CHECK(!SS_DecodeSegment(SS_SEGMENT_COUNT, false, normal));
 }
@@ -213,6 +219,109 @@ static void SpecialStage_TheSegmentsComeInTheStagesOrder(void) {
     CHECK_EQ(SSTrack_NextSegment(&track), 0x11);
 }
 
+// --- Stage 3b: the track as it is shown ---
+
+// The pace: speed $0C is five frames a segment all the way round; $08 is eight and seven by turns (and the pattern goes round after twice the speed)
+static void SpecialStage_ThePaceFollowsTheSpeed(void) {
+    static SSDisplay d;
+    SSDisplay_Reset(&d);
+    int sum = 0;
+    for (int i = 0; i < 24; i++) {
+        d.counter = 0; // (each call is the first frame of a segment)
+        const int p = SSDisplay_Pace(&d);
+        CHECK_EQ(p, 5);
+        sum += p;
+    }
+    CHECK_EQ(sum, 120);
+    SSDisplay_Reset(&d);
+    d.speed = 8;
+    int periods[16];
+    for (int i = 0; i < 16; i++) {
+        d.counter = 0;
+        periods[i] = SSDisplay_Pace(&d);
+    }
+    CHECK_EQ(periods[0], 8);
+    CHECK_EQ(periods[1], 7);
+    CHECK_EQ(periods[14], 8);
+    CHECK_EQ(periods[15], 7);
+    // (a frame that is not the first of a segment gives the same period, and the segment ends when the frames are out)
+    SSDisplay_Reset(&d);
+    CHECK_EQ(SSDisplay_Pace(&d), 5);
+    for (int i = 0; i < 4; i++)
+        CHECK_EQ(SSDisplay_Pace(&d), 5);
+}
+
+// The pre-roll decodes the first segment ($11 of list 3, which turns the track over) into the second buffer over its first period (the first period passes empty), shows it, and has begun the next into the first;
+// every segment after is decoded into the buffer that is not shown and shown when its time is out
+static void SpecialStage_TheTrackIsDecodedIntoOneBufferAndShownFromTheOther(void) {
+    static SSDisplay d;
+    static uint16_t expected[SS_TRACK_SEGMENT_WORDS];
+    SSDisplay_Reset(&d);
+    SSDisplay_Prime(&d);
+    CHECK_EQ(d.segment, 0x12);                             // (the second has begun)
+    CHECK_EQ(d.shown, 1);                                  // (the first is shown, from the second buffer)
+    CHECK_EQ(d.bank, 0);
+    CHECK(d.track.flipped);                                // ($11 turned the decoding at once)
+    CHECK(d.display_flipped);                              // (and the turned track's scroll shown by the end of its time)
+    CHECK(SS_DecodeSegment(0x11, true, expected));
+    CHECK(memcmp(d.plane_a[1], expected, sizeof(expected)) == 0);
+    // the second is decoded into the first buffer over its next frames
+    for (int i = 0; i < 3; i++)
+        SSDisplay_Frame(&d);
+    CHECK(SS_DecodeSegment(0x12, true, expected));
+    CHECK(memcmp(d.plane_a[0], expected, sizeof(expected)) == 0);
+    // and shown when its time is out
+    for (int i = 0; i < 2 && d.shown != 0; i++)
+        SSDisplay_Frame(&d);
+    CHECK_EQ(d.shown, 0);
+    CHECK_EQ(d.bank, 1);
+}
+
+// The scroll buffers: a line has the stripe of its line group, and the turned track's the other way round; the background's own are 0
+static void SpecialStage_TheScrollBuffersGiveTheLinesTheirStripes(void) {
+    static SSDisplay d;
+    SSDisplay_Reset(&d);
+    for (int line = 0; line < 16; line++) {
+        const int group = (line / 2) % 4;
+        CHECK_EQ(d.hscroll[0][line][0], -0x100 * group);
+        CHECK_EQ(d.hscroll[1][line][0], -0x100 * (3 - group));
+        CHECK_EQ(d.hscroll[0][line][1], 0);
+    }
+    CHECK_EQ(d.hscroll[0][255][0], -0x300);
+    // the background: the map, four times across
+    CHECK_EQ(d.plane_b[0], d.plane_b[32]);
+    CHECK_EQ(d.plane_b[SS_PLANE_WIDTH + 5], d.plane_b[SS_PLANE_WIDTH + 5 + 96]);
+    CHECK((d.plane_b[7] & 0x07FF) >= 0x700 || d.plane_b[7] == 0);
+}
+
+// A stretch with no curves leaves the background where it is; in the stretches that bend (list 0, the segments up to $0C: the horizontal curve) the background moves, to the one side in the track and the other
+// in the turned one
+static void SpecialStage_TheBackgroundMovesWithTheCurves(void) {
+    static SSDisplay d;
+    SSDisplay_Reset(&d);
+    SSDisplay_Prime(&d);
+    // (the sequence begins with list 3: no curve)
+    for (int i = 0; i < 200; i++)
+        SSDisplay_Frame(&d);
+    CHECK_EQ(d.list, 3);
+    CHECK_EQ(d.b_hscroll, 0);
+    CHECK_EQ(d.b_vscroll, 0);
+    // (on through the lists until list 0 is in: the horizontal curve and then the vertical one move it)
+    int guard = 0;
+    while (d.list != 0 && guard++ < 20000)
+        SSDisplay_Frame(&d);
+    CHECK_EQ(d.list, 0);
+    int moved_x = 0, moved_y = 0;
+    for (int i = 0; i < 5000 && d.list == 0; i++) {
+        const int32_t x = d.b_hscroll, y = d.b_vscroll;
+        SSDisplay_Frame(&d);
+        moved_x += d.b_hscroll != x;
+        moved_y += d.b_vscroll != y;
+    }
+    CHECK(moved_x > 0);
+    CHECK(moved_y > 0);
+}
+
 void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheMainListsArtDecodesAndGoesWherePreBetaPutsIt);
     RUN_TEST(SpecialStage_TheRingsListGoesOverTheTrafficLights);
@@ -224,4 +333,8 @@ void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_EverySegmentDecodesToItsNameTable);
     RUN_TEST(SpecialStage_TheSlicesGiveTheWholeSegment);
     RUN_TEST(SpecialStage_TheSegmentsComeInTheStagesOrder);
+    RUN_TEST(SpecialStage_ThePaceFollowsTheSpeed);
+    RUN_TEST(SpecialStage_TheTrackIsDecodedIntoOneBufferAndShownFromTheOther);
+    RUN_TEST(SpecialStage_TheScrollBuffersGiveTheLinesTheirStripes);
+    RUN_TEST(SpecialStage_TheBackgroundMovesWithTheCurves);
 }

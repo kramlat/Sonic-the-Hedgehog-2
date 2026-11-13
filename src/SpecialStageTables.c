@@ -2,6 +2,9 @@
 #include "SpecialStageTables.h"
 
 #include "Resource/SSData/006CFC.h"
+#include "Resource/SSData/008FEC.h"
+#include "Resource/SSData/008E5C.h"
+#include "Resource/SSData/0011B8.h"
 #include "Resource/SSData/006E3A.h"
 #include "Resource/SSData/007302.h"
 #include "Resource/SSData/00751A.h"
@@ -178,4 +181,45 @@ bool SS_ObjectEntry(int part, int index, int *position, bool *bomb, uint8_t *lan
     *bomb = (entry[0] & 0x80) != 0;
     *lane = entry[1];
     return true;
+}
+
+const uint8_t *SS_PacePattern(int pattern, size_t *size) {
+    if (pattern < 0 || pattern >= SS_PACE_PATTERNS) {
+        *size = 0;
+        return NULL;
+    }
+    const size_t start = Word(SSData_0011B8 + pattern * 2);
+    const size_t end = (pattern + 1 < SS_PACE_PATTERNS) ? Word(SSData_0011B8 + (pattern + 1) * 2) : RES_SIZE(SSData_0011B8);
+    *size = end - start;
+    return SSData_0011B8 + start;
+}
+
+uint16_t SS_VCurveEntry(int curve, int entry) {
+    if (curve < 0 || curve >= SS_VCURVES || entry < 0 || entry >= 5)
+        return 0;
+    return Word(SSData_008E5C + Word(SSData_008E5C + curve * 2) + entry * 2);
+}
+
+uint16_t SS_HCurveEntry(int curve, int entry) {
+    if (curve < 0 || curve >= SS_HCURVES || entry < 0 || entry >= 5)
+        return 0;
+    return Word(SSData_008FEC + Word(SSData_008FEC + curve * 2) + entry * 2);
+}
+
+const uint8_t *SS_TrackTiles(size_t *count) {
+    *count = Word(SSData_0DA672);
+    return SSData_0DA672 + 2;
+}
+
+const uint8_t *SS_BackgroundMap(int which, size_t *size) {
+    if (which == 0) {
+        *size = RES_SIZE(SSData_0DCBCA);
+        return SSData_0DCBCA;
+    }
+    if (which == 1) {
+        *size = RES_SIZE(SSData_0DCA9C);
+        return SSData_0DCA9C;
+    }
+    *size = 0;
+    return NULL;
 }

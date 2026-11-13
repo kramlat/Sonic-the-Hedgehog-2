@@ -686,6 +686,9 @@ resources:
   - "SSData/007302"
   - "SSData/00751A"
   - "SSData/0309C8"
+  - "SSData/0011B8"
+  - "SSData/008E5C"
+  - "SSData/008FEC"
 
 sources:
   - "src/Sonic2Assets.c"
@@ -708,6 +711,8 @@ sources:
   - "src/Level.c"
   - "src/SpecialStageTables.c"
   - "src/SpecialStageTrack.c"
+  - "src/SpecialStageDisplay.c"
+  - "src/GM_SpecialTrack.c"
   - "src/SandShower.c"
   - "src/HUD.c"
   - "src/Object/Monitor.c"
