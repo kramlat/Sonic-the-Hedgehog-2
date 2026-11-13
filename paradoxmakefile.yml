@@ -707,6 +707,7 @@ sources:
   - "src/HTZBackground.c"
   - "src/Level.c"
   - "src/SpecialStageTables.c"
+  - "src/SpecialStageTrack.c"
   - "src/SandShower.c"
   - "src/HUD.c"
   - "src/Object/Monitor.c"

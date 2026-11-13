@@ -7,6 +7,7 @@
 #include "Nemesis.h"
 #include "PLC.h"
 #include "SpecialStageTables.h"
+#include "SpecialStageTrack.h"
 
 // The pre-beta's special stage (built in stages, see docs/Sonic2SpecialStage.md). Stage 1: its art, imported as it is: every picture of the two lists the stage loads ($3C and $3D) decodes to the tiles its header
 // counts, to the last byte and not one more, and goes to the places the pre-beta's lists give.
@@ -125,6 +126,93 @@ static void SpecialStage_ThePartsHaveTheirRingsAndBombs(void) {
     CHECK(ok && !bomb && position == 0x36 && lane == 0x7F);
 }
 
+// --- Stage 3a: the track's decoding and order ---
+
+// Every segment decodes to 4 slices of 7 units of 128 words, each word with the palette's bits the stage puts on it, and the flipped track is each unit turned round
+static void SpecialStage_EverySegmentDecodesToItsNameTable(void) {
+    static uint16_t normal[SS_TRACK_SEGMENT_WORDS], flipped[SS_TRACK_SEGMENT_WORDS];
+    for (int s = 0; s < SS_SEGMENT_COUNT; s++) {
+        CHECK(SS_DecodeSegment(s, false, normal));
+        CHECK(SS_DecodeSegment(s, true, flipped));
+        bool palette = true, turned = true;
+        for (int i = 0; i < SS_TRACK_SEGMENT_WORDS; i++) {
+            palette &= (normal[i] & 0x6000) == 0x6000;
+            const int unit = i / SS_TRACK_UNIT_WORDS, at = i % SS_TRACK_UNIT_WORDS;
+            turned &= flipped[i] == normal[unit * SS_TRACK_UNIT_WORDS + SS_TRACK_UNIT_WORDS - 1 - at];
+        }
+        CHECK(palette);
+        CHECK(turned);
+    }
+    CHECK(!SS_DecodeSegment(SS_SEGMENT_COUNT, false, normal));
+}
+
+// The slices come one at a time (the pre-beta decodes one a frame) and the same words come out as from the whole; a fifth does not
+static void SpecialStage_TheSlicesGiveTheWholeSegment(void) {
+    static uint16_t whole[SS_TRACK_SEGMENT_WORDS], parts[SS_TRACK_SEGMENT_WORDS];
+    CHECK(SS_DecodeSegment(0x26, false, whole));
+    SSDecoder d;
+    CHECK(SSDecoder_Start(&d, 0x26));
+    for (int slice = 0; slice < SS_TRACK_SLICES; slice++)
+        CHECK(SSDecoder_Slice(&d, false, parts + slice * SS_TRACK_SLICE_WORDS));
+    CHECK(memcmp(whole, parts, sizeof(whole)) == 0);
+    CHECK(!SSDecoder_Slice(&d, false, parts));
+}
+
+// The stage's order: 226 segments, and the pre-beta's slip (the second time round it begins with the first list, not the first step's)
+static void SpecialStage_TheSegmentsComeInTheStagesOrder(void) {
+    SSTrack track;
+    SSTrack_Reset(&track);
+    int total = 0;
+    static const int sizes[13] = { 16, 16, 16, 16, 7, 24, 24, 24, 12, 16, 7, 24, 24 }; // (the lists of the 13 steps)
+    int at_step[13] = { 0 };
+    int first[13];
+    bool flipped_at[256]; // (by the number of the call)
+    int segment_at[256];
+    int step_at[256];
+    for (int step = 0; step < 13; step++) {
+        first[step] = total;
+        for (int i = 0; i < sizes[step]; i++) {
+            const int step_before = track.step;
+            const int segment = SSTrack_NextSegment(&track);
+            CHECK_EQ(step_before, step);
+            segment_at[total] = segment;
+            step_at[total] = step;
+            flipped_at[total] = track.flipped;
+            at_step[step]++;
+            total++;
+        }
+    }
+    CHECK_EQ(total, 226);
+    CHECK_EQ(track.step, 13);
+    CHECK_EQ(segment_at[0], 0x11);                 // (list 3: the four segments $11 to $14 and again)
+    CHECK_EQ(segment_at[3], 0x14);
+    CHECK_EQ(segment_at[4], 0x11);
+    CHECK_EQ(segment_at[first[4]], 0x31);          // (list 4)
+    CHECK_EQ(segment_at[first[5]], 0x26);          // (list 0)
+    CHECK_EQ(segment_at[first[5] + 7], 0x00);
+    CHECK_EQ(segment_at[first[6]], 0x26);          // (list 1: the start, then $15 on)
+    CHECK_EQ(segment_at[first[6] + 7], 0x15);
+    CHECK(flipped_at[0]);                          // ($11 turns the track over)
+    // ($0D turns it over where the step's flag is set and back where it is not; $1A the same)
+    CHECK(!flipped_at[first[5] + 20]);             // (step 5: list 0 without the flag)
+    CHECK_EQ(segment_at[first[5] + 20], 0x0D);
+    CHECK(flipped_at[first[7] + 20]);              // (step 7: list 0 with it)
+    CHECK_EQ(segment_at[first[7] + 20], 0x0D);
+    CHECK_EQ(segment_at[first[6] + 12], 0x1A);
+    CHECK(!flipped_at[first[6] + 12]);              // (step 6: list 1 without)
+    CHECK_EQ(segment_at[first[12] + 12], 0x1A);
+    CHECK(flipped_at[first[12] + 12]);              // (step 12: list 1 with)
+    (void)step_at;
+    // the sequence is over: it starts again with list 0
+    CHECK_EQ(SSTrack_NextSegment(&track), 0x26);
+    CHECK_EQ(track.list, 0);
+    CHECK_EQ(track.step, 0);
+    for (int i = 1; i < 24; i++)
+        SSTrack_NextSegment(&track);
+    CHECK_EQ(track.step, 1);                       // (and goes on from the second step)
+    CHECK_EQ(SSTrack_NextSegment(&track), 0x11);
+}
+
 void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheMainListsArtDecodesAndGoesWherePreBetaPutsIt);
     RUN_TEST(SpecialStage_TheRingsListGoesOverTheTrafficLights);
@@ -133,4 +221,7 @@ void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheTileTablesHaveTheirEntries);
     RUN_TEST(SpecialStage_EverySegmentHasATrackBlock);
     RUN_TEST(SpecialStage_ThePartsHaveTheirRingsAndBombs);
+    RUN_TEST(SpecialStage_EverySegmentDecodesToItsNameTable);
+    RUN_TEST(SpecialStage_TheSlicesGiveTheWholeSegment);
+    RUN_TEST(SpecialStage_TheSegmentsComeInTheStagesOrder);
 }
