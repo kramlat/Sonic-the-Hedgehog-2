@@ -14,6 +14,7 @@ typedef struct {
     uint8_t angle;          // Obj_Angle ($26)
     int16_t centre_x, centre_y; // var_00, var_02: the middle of the pipe's circle
     int16_t radius_x, radius_y; // var_0C, var_0E: how far across and down it runs
+    int16_t landing_offset, landing_sum; // the ellipse it comes back to the pipe at: how far above and below the middle its two points are, and the two distances together (Sonic's $3C and $C8, Miles' $4D and $100)
     uint8_t flip_period;    // var_04: how many steps of the running animation before the character turns round (4)
     int8_t flip_count;      // var_05: the steps counted
     uint8_t cannot_steer;   // var_06: it has gone round too fast to steer
@@ -36,6 +37,8 @@ typedef struct {
 } SSTrackState;
 
 void SSPlayer_Init(SSPlayer *p);
+// Miles (Obj $10): lower and on a bigger pipe, in front: ($7F,$B8), the middle $80 above, $66 across and $80 down
+void SSPlayer_InitMiles(SSPlayer *p);
 // A frame of the character on the pipe or in the air: `held` the pad's buttons, `pressed` the ones just pressed (Genesis bits: up 0, down 1, left 2, right 3, B 4, C 5, A 6)
 void SSPlayer_Step(SSPlayer *p, const SSTrackState *track, uint8_t held, uint8_t pressed);
 // The animation of the pre-beta's special stage (Offset_0x02F1E4: its frames last as long as the track's segments do) and the animation chosen by the angle

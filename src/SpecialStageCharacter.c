@@ -42,6 +42,18 @@ void SSPlayer_Init(SSPlayer *p) { // Offset_0x02ED58
     p->centre_y = (int16_t)(0x00A8 - 0x0064);
     p->radius_x = 0x0050;
     p->radius_y = 0x0064;
+    p->landing_offset = 0x3C;
+    p->landing_sum = 0xC8;
+}
+
+void SSPlayer_InitMiles(SSPlayer *p) { // Offset_0x02FC30
+    SSPlayer_Init(p);
+    p->y = (int32_t)0x00B8 << 16;
+    p->centre_y = (int16_t)(0x00B8 - 0x0080);
+    p->radius_x = 0x0066;
+    p->radius_y = 0x0080;
+    p->landing_offset = 0x4D;
+    p->landing_sum = 0x100;
 }
 
 // Offset_0x02F274: the pad turns the character round the pipe, and it slows when the pad is let go
@@ -166,7 +178,7 @@ uint16_t SS_Sqrt16(uint16_t value, int iterations) { // Offset_0x02F0A4
 // Offset_0x02F02E: in the air the character is back on the pipe when it has gone as far as the ellipse whose two foci are the pipe's middle $3C above and below, with $C8 for the two distances together
 static void Land(SSPlayer *p) {
     const int16_t x = (int16_t)(p->x >> 16), y = (int16_t)(p->y >> 16);
-    const int16_t d5 = 0x3C, d3 = 0xC8;
+    const int16_t d5 = p->landing_offset, d3 = p->landing_sum;
     int16_t d0 = p->centre_y;
     if ((int16_t)(d0 - 8) > y)
         return;

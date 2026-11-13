@@ -466,6 +466,32 @@ static void SpecialStage_TheShadowFollowsTheCharacter(void) {
     CHECK(s.y != (int16_t)((p.y >> 16) + 0x18));
 }
 
+// Miles is lower and in front, on a bigger pipe: ($7F,$B8) with the middle $80 above, $66 across and $80 down, and his ellipse for the landing is the bigger ($4D and $100); he runs and jumps as Sonic does
+static void SpecialStage_MilesRunsOnABiggerPipe(void) {
+    SSPlayer p;
+    SSPlayer_InitMiles(&p);
+    CHECK_EQ(p.x >> 16, 0x7F);
+    CHECK_EQ(p.y >> 16, 0xB8);
+    CHECK_EQ(p.centre_y, 0x38);
+    CHECK_EQ(p.radius_x, 0x66);
+    CHECK_EQ(p.radius_y, 0x80);
+    CHECK_EQ(p.landing_offset, 0x4D);
+    CHECK_EQ(p.landing_sum, 0x100);
+    const SSTrackState track = { 12, 4 };
+    for (int i = 0; i < 20; i++)
+        SSPlayer_Step(&p, &track, 0x04, 0);
+    CHECK(p.angle > 0x40);
+    CHECK((p.x >> 16) < 0x7F - 0x10);         // (further across than Sonic goes: $66 against $50)
+    SSPlayer_InitMiles(&p);
+    SSPlayer_Step(&p, &track, 0, 0x20);       // (C)
+    CHECK_EQ(p.routine, 4);
+    int frames = 0;
+    while (p.routine == 4 && frames++ < 300)
+        SSPlayer_Step(&p, &track, 0, 0);
+    CHECK_EQ(p.routine, 2);
+    CHECK(frames > 8 && frames < 200);
+}
+
 void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheMainListsArtDecodesAndGoesWherePreBetaPutsIt);
     RUN_TEST(SpecialStage_TheRingsListGoesOverTheTrafficLights);
@@ -487,4 +513,5 @@ void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheCharacterRunsRoundThePipeAndSettlesBack);
     RUN_TEST(SpecialStage_TheCharacterJumpsAndComesBackToThePipe);
     RUN_TEST(SpecialStage_TheShadowFollowsTheCharacter);
+    RUN_TEST(SpecialStage_MilesRunsOnABiggerPipe);
 }

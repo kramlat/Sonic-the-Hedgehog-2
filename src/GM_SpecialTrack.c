@@ -5,6 +5,7 @@
 #include "SpecialStageWide.h"
 #include "Object/SpecialStageArt.h"
 #include "Object/SpecialStageObjects.h"
+#include "Object/Tails.h"
 #include "EngineObject.h"
 #include "SstLoad.h"
 #include "Object.h"
@@ -93,6 +94,7 @@ void GM_SpecialTrack(void) {
     SSDisplay_Reset(&d);
     Sst_ResetAll();
     player->code = Obj_SpecialStageSonic; // (Sonic and his shadow: the characters of stage 4)
+    TAILS_OBJ->code = Obj_SpecialStageMiles; // (and Miles, with his tails, in the second character's place)
     {
         // the background: its map across the whole plane
         plane_t b;

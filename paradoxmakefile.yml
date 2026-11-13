@@ -688,6 +688,8 @@ resources:
   - "SSData/ObjectLayouts"
   - "SSData/CharacterArtScript"
   - "Animation/SpecialStageSonic"
+  - "Animation/SpecialStageMiles"
+  - "Animation/SpecialStageMilesTail"
   - "SSData/PacePatterns"
   - "SSData/VerticalCurves"
   - "SSData/HorizontalCurves"
@@ -805,6 +807,8 @@ sources:
 mappings_SonicTheHedgehog2:
   - "Mappings/SpecialStageSonic"
   - "Mappings/SpecialStageShadow"
+  - "Mappings/SpecialStageMiles"
+  - "Mappings/SpecialStageMilesTail"
   - "Mappings/Sonic"
   - "Mappings/SegaSprites"
   - "Mappings/TitleCardNames"
