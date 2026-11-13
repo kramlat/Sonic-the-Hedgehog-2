@@ -19,6 +19,9 @@
 #include "Backend/VDP.h"
 #include "Backend/Joypad.h"
 
+#include "GM_Level.h"
+
+#include <stdlib.h>
 #include <string.h>
 
 // The track's tiles at the start of the tile space ($008C6C: each is a row of 8 pixels, eight times over), and this port's 16 tiles of one colour that carry the track's edge pixels out at the sides of a wide screen (the blank tile beside them is the tile space as it was cleared)
@@ -146,15 +149,23 @@ void GM_SpecialTrack(void) {
     ShowPlanes(&d);
     PaletteWhiteIn();
     bool rings_art = false;
+    const bool viewer = getenv("SONIC2_SS_TRACK") != NULL; // (the track viewer's own keys: Up and Down for the speed, Start to leave)
+    gamemode = GameMode_Special;
     for (;;) {
         vbla_routine = 0x0A;
         WaitForVBla();
-        if (jpad1_press1 & JPAD_START)
-            break;
-        if ((jpad1_press1 & JPAD_UP) && d.speed < 0x0F)
-            d.speed++;
-        if ((jpad1_press1 & JPAD_DOWN) && d.speed > 8)
-            d.speed--;
+        if (viewer) {
+            if (jpad1_press1 & JPAD_START)
+                break;
+            if ((jpad1_press1 & JPAD_UP) && d.speed < 0x0F)
+                d.speed++;
+            if ((jpad1_press1 & JPAD_DOWN) && d.speed > 8)
+                d.speed--;
+        } else {
+            PauseGame(); // (Start pauses, B and C step a frame, A leaves for the title: the pre-beta's stage has no other way out)
+            if (gamemode != GameMode_Special)
+                break;
+        }
         if (!rings_art && SpecialStageObjects_Started()) { // (the traffic lights are gone: the rings' art goes over theirs, list $3D)
             QuickPLC(PlcId_SSRings);
             rings_art = true;
@@ -177,5 +188,6 @@ void GM_SpecialTrack(void) {
         BuildSprites(&sprite_i);
     }
     Viewport_SetSize(SCREEN_WIDTH, SCREEN_HEIGHT, PLANE_WIDTH, PLANE_HEIGHT);
-    gamemode = GameMode_Sega;
+    if (viewer)
+        gamemode = GameMode_Sega;
 }

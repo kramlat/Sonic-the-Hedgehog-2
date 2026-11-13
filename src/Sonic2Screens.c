@@ -33,12 +33,12 @@ static void Screen_Level(void) {
     sprite_split_screen = SPRITE_SPLIT_NONE;
 }
 
-// The special stage: Sonic 1's until the pre-beta's is built (docs/Sonic2SpecialStage.md); SONIC2_SS_TRACK in the environment shows the pre-beta's track alone, as it is so far
+// The special stage: the pre-beta's (docs/Sonic2SpecialStage.md). SONIC2_SS_SONIC1 in the environment gives Sonic 1's again (kept while the new one is played through); SONIC2_SS_TRACK is the track viewer
 static void Screen_Special(void) {
-    if (getenv("SONIC2_SS_TRACK") != NULL)
-        GM_SpecialTrack();
-    else
+    if (getenv("SONIC2_SS_SONIC1") != NULL)
         GM_Special();
+    else
+        GM_SpecialTrack();
 }
 
 const ScreenFunc game_screens[] = {
