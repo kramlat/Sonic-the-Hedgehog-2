@@ -712,6 +712,7 @@ sources:
   - "src/SpecialStageTables.c"
   - "src/SpecialStageTrack.c"
   - "src/SpecialStageDisplay.c"
+  - "src/SpecialStageWide.c"
   - "src/GM_SpecialTrack.c"
   - "src/SandShower.c"
   - "src/HUD.c"

@@ -9,6 +9,8 @@
 #include "SpecialStageTables.h"
 #include "SpecialStageTrack.h"
 #include "SpecialStageDisplay.h"
+#include "SpecialStageWide.h"
+#include "Object/SpecialStageArt.h"
 
 // The pre-beta's special stage (built in stages, see docs/Sonic2SpecialStage.md). Stage 1: its art, imported as it is: every picture of the two lists the stage loads ($3C and $3D) decodes to the tiles its header
 // counts, to the last byte and not one more, and goes to the places the pre-beta's lists give.
@@ -292,6 +294,12 @@ static void SpecialStage_TheScrollBuffersGiveTheLinesTheirStripes(void) {
     CHECK_EQ(d.plane_b[0], d.plane_b[32]);
     CHECK_EQ(d.plane_b[SS_PLANE_WIDTH + 5], d.plane_b[SS_PLANE_WIDTH + 5 + 96]);
     CHECK((d.plane_b[7] & 0x07FF) >= 0x700 || d.plane_b[7] == 0);
+    // (the map has two halves, 16 rows each; every cell names one of the background's 127 tiles from $700)
+    for (int row = 0; row < 32; row++)
+        for (int column = 0; column < 32; column++) {
+            const uint16_t tile = d.plane_b[row * SS_PLANE_WIDTH + column] & 0x07FF;
+            CHECK(tile >= 0x700 && tile < 0x700 + 127);
+        }
 }
 
 // A stretch with no curves leaves the background where it is; in the stretches that bend (list 0, the segments up to $0C: the horizontal curve) the background moves, to the one side in the track and the other
@@ -322,6 +330,62 @@ static void SpecialStage_TheBackgroundMovesWithTheCurves(void) {
     CHECK(moved_y > 0);
 }
 
+// --- Stage 3b: widescreen ---
+
+// A screen of 256 pixels is the pre-beta's own: the plane 128 cells across and the scroll -$100 a stripe; wider screens get a plane of 4 stripes with room for their margins, the track in the middle
+static void SpecialStage_TheWideLayoutKeepsTheTrackInTheMiddle(void) {
+    SSWide w;
+    SSWide_Layout(&w, 256);
+    CHECK_EQ(w.plane_width, 128);
+    CHECK_EQ(w.x0, 0);
+    for (int stripe = 0; stripe < 4; stripe++)
+        CHECK_EQ(SSWide_ScrollA(&w, stripe), -0x100 * stripe);
+    static const int widths[5] = { 320, 360, 426, 640, 1024 };
+    for (int i = 0; i < 5; i++) {
+        SSWide_Layout(&w, widths[i]);
+        CHECK_EQ(w.x0, (widths[i] - 256) / 2);
+        CHECK_EQ(w.plane_width, 4 * w.stride);
+        CHECK(w.plane_width == 256 || w.plane_width == 512 || w.plane_width == 1024);
+        // the margins hold the screen's sides, and the stripe has room for the track and both
+        CHECK(w.left_cells * 8 >= w.x0);
+        CHECK((w.stride - 32 - w.left_cells) * 8 >= widths[i] - 256 - w.x0);
+        for (int stripe = 0; stripe < 4; stripe++) // (the track's first cell of the stripe is at the screen's x0)
+            CHECK_EQ(-SSWide_ScrollA(&w, stripe) + w.x0, (stripe * w.stride + w.left_cells) * 8);
+        CHECK_EQ(SSWide_ScrollB(&w, 0x10), 0x10 + w.x0);
+    }
+}
+
+// A unit's stripes are put in the wide row with the track's own words in the middle; at each side the cell next to the track carries the edge pixel out (a tile of that colour) and the rest is blank (the background shows)
+static void SpecialStage_TheWideRowPadsTheWallsAndCropsTheRest(void) {
+    SSWide w;
+    SSWide_Layout(&w, 360);
+    uint16_t unit[128], row[512];
+    for (int i = 0; i < 128; i++)
+        unit[i] = (uint16_t)(0xE000 | 0x14);
+    for (int stripe = 0; stripe < 4; stripe++)
+        unit[stripe * 32 + 31] = (uint16_t)(0xE000 | 0x0800 | 0x14);
+    SSWide_ExpandUnit(&w, unit, row);
+    size_t count;
+    const uint8_t *rows = SS_TrackTiles(&count);
+    const uint32_t tile = ((uint32_t)rows[0x14 * 4] << 24) | ((uint32_t)rows[0x14 * 4 + 1] << 16) | ((uint32_t)rows[0x14 * 4 + 2] << 8) | rows[0x14 * 4 + 3];
+    const int first = (int)(tile >> 28);
+    CHECK(first != 0); // (the tile has a colour at its edge, or the test shows nothing)
+    for (int stripe = 0; stripe < 4; stripe++) {
+        const uint16_t *s = row + stripe * w.stride;
+        for (int c = 0; c < w.left_cells - 1; c++)
+            CHECK_EQ(s[c], ArtTile_SpecialStageBlank);
+        CHECK_EQ(s[w.left_cells - 1], SSWide_MarginWord(0xE014, first));
+        CHECK_EQ(s[w.left_cells], unit[stripe * 32]);
+        CHECK_EQ(s[w.left_cells + 31], unit[stripe * 32 + 31]);
+        CHECK_EQ(s[w.left_cells + 32], SSWide_MarginWord(0xE014, first)); // (the last cell is turned across: the tile's first pixel is its right edge as drawn)
+        for (int c = w.left_cells + 33; c < w.stride; c++)
+            CHECK_EQ(s[c], ArtTile_SpecialStageBlank);
+    }
+    CHECK_EQ(SSWide_MarginWord(0xE014, 5) & 0xE000, 0xE000);
+    CHECK_EQ(SSWide_MarginWord(0xE014, 5) & 0x07FF, ArtTile_SpecialStageSolid + 5);
+    CHECK_EQ(SSWide_MarginWord(0xE014, 0), ArtTile_SpecialStageBlank);
+}
+
 void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheMainListsArtDecodesAndGoesWherePreBetaPutsIt);
     RUN_TEST(SpecialStage_TheRingsListGoesOverTheTrafficLights);
@@ -337,4 +401,6 @@ void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheTrackIsDecodedIntoOneBufferAndShownFromTheOther);
     RUN_TEST(SpecialStage_TheScrollBuffersGiveTheLinesTheirStripes);
     RUN_TEST(SpecialStage_TheBackgroundMovesWithTheCurves);
+    RUN_TEST(SpecialStage_TheWideLayoutKeepsTheTrackInTheMiddle);
+    RUN_TEST(SpecialStage_TheWideRowPadsTheWallsAndCropsTheRest);
 }

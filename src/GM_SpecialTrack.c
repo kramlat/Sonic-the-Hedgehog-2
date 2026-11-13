@@ -2,6 +2,8 @@
 #include "GM_SpecialTrack.h"
 #include "SpecialStageDisplay.h"
 #include "SpecialStageTables.h"
+#include "SpecialStageWide.h"
+#include "Object/SpecialStageArt.h"
 
 #include "Game.h"
 #include "Palette.h"
@@ -14,7 +16,7 @@
 
 #include <string.h>
 
-// The track's tiles at the start of the tile space ($008C6C: each is a row of 8 pixels, eight times over)
+// The track's tiles at the start of the tile space ($008C6C: each is a row of 8 pixels, eight times over), and this port's 16 tiles of one colour that carry the track's edge pixels out at the sides of a wide screen (the blank tile beside them is the tile space as it was cleared)
 static void LoadTrackTiles(void) {
     size_t count;
     const uint8_t *rows = SS_TrackTiles(&count);
@@ -26,25 +28,50 @@ static void LoadTrackTiles(void) {
             memcpy(tiles + t * 32 + line * 4, rows + t * 4, 4);
     VDP_SeekVRAM(0);
     VDP_WriteVRAM(tiles, count * 32);
+    static uint8_t solid[16 * 32];
+    for (int colour = 0; colour < 16; colour++)
+        memset(solid + colour * 32, colour * 0x11, 32);
+    VDP_SeekVRAM((size_t)ArtTile_SpecialStageSolid * 32);
+    VDP_WriteVRAM(solid, sizeof(solid));
 }
 
-// The plane's name tables are in the scratch plane memory where the pre-beta had them in VRAM: plane A's two buffers at $8000 and $C000, plane B at $A000
-static void PutBuffer(const SSDisplay *d, int bank, int first_word, int words) {
+static SSWide wide;
+
+// The plane's name tables are in the scratch plane memory, each as many bytes as the plane (the wide plane's cells across, 32 rows): plane A's two buffers and then plane B
+static size_t PlaneBytes(void) {
+    return (size_t)wide.plane_width * SS_PLANE_HEIGHT * 2;
+}
+
+static size_t BufferAt(int bank) {
+    return (size_t)bank * PlaneBytes();
+}
+
+static size_t BackgroundAt(void) {
+    return 2 * PlaneBytes();
+}
+
+// The rows of the slice just decoded, a row at a time into the wide plane (the track's cells in the middle of each stripe and the sides carried on)
+static void PutRows(const SSDisplay *d, int bank, int first_row, int rows) {
     plane_t buffer;
-    Plane_UseScratchAt(&buffer, bank ? 0xC000 : 0x8000);
-    for (int i = first_word; i < first_word + words; i++)
-        Plane_Put(&buffer, (size_t)i * 2, d->plane_a[bank][i]);
+    Plane_UseScratchAt(&buffer, BufferAt(bank));
+    static uint16_t row[512];
+    for (int r = first_row; r < first_row + rows; r++) {
+        SSWide_ExpandUnit(&wide, &d->plane_a[bank][r * SS_PLANE_WIDTH], row);
+        for (int i = 0; i < wide.plane_width; i++)
+            Plane_Put(&buffer, ((size_t)r * wide.plane_width + i) * 2, row[i]);
+    }
 }
 
 static void ShowPlanes(SSDisplay *d) {
-    Plane_UseScratchAt(&screen1p.plane_a, d->shown ? 0xC000 : 0x8000);
-    Plane_UseScratchAt(&screen1p.plane_b, 0xA000);
+    Plane_UseScratchAt(&screen1p.plane_a, BufferAt(d->shown));
+    Plane_UseScratchAt(&screen1p.plane_b, BackgroundAt());
     // (the game's blank uploads its own scroll buffer and vertical scrolls every frame: they are what the picture is made from)
     vid_scrpos_y_dup = 0;
     vid_bg_scrpos_y_dup = (int16_t)(d->b_vscroll >> 16);
     for (int line = 0; line < SCREEN_HEIGHT && line < SS_SCROLL_LINES; line++) {
-        hscroll_buffer[line][0] = d->hscroll[d->display_flipped ? 1 : 0][line][0];
-        hscroll_buffer[line][1] = d->hscroll[d->display_flipped ? 1 : 0][line][1];
+        const int16_t a = d->hscroll[d->display_flipped ? 1 : 0][line][0];
+        hscroll_buffer[line][0] = SSWide_ScrollA(&wide, -a / 0x100);
+        hscroll_buffer[line][1] = SSWide_ScrollB(&wide, d->hscroll[d->display_flipped ? 1 : 0][line][1]);
     }
 }
 
@@ -54,21 +81,24 @@ void GM_SpecialTrack(void) {
     ClearScreen();
     VDP_SeekVRAM(0);
     VDP_FillVRAM(0, 0x10000);
-    Viewport_SetSize(256, SCREEN_HEIGHT, SS_PLANE_WIDTH, SS_PLANE_HEIGHT); // (the stage runs in the 32-cell wide mode, $8C08: its stripes are 256 pixels)
+    SSWide_Layout(&wide, SCREEN_WIDTH);
+    Viewport_SetSize(SCREEN_WIDTH, SCREEN_HEIGHT, wide.plane_width, SS_PLANE_HEIGHT);
     LoadTrackTiles();
     QuickPLC(PlcId_SSMain); // (the background's tiles go to $E000, the HUD's font and the rest)
     PalLoad1(PalId_SpecialStage2);
     SSDisplay_Reset(&d);
     {
+        // the background: its map across the whole plane
         plane_t b;
-        Plane_UseScratchAt(&b, 0xA000);
-        for (int i = 0; i < SS_PLANE_WORDS; i++)
-            Plane_Put(&b, (size_t)i * 2, d.plane_b[i]);
+        Plane_UseScratchAt(&b, BackgroundAt());
+        for (int row = 0; row < SS_PLANE_HEIGHT; row++)
+            for (int column = 0; column < wide.plane_width; column++)
+                Plane_Put(&b, ((size_t)row * wide.plane_width + column) * 2, d.plane_b[row * SS_PLANE_WIDTH + (column % 32)]);
     }
     PlayMusic(bgm_SS);
     SSDisplay_Prime(&d);
-    PutBuffer(&d, 0, 0, SS_PLANE_WORDS);
-    PutBuffer(&d, 1, 0, SS_PLANE_WORDS);
+    PutRows(&d, 0, 0, SS_PLANE_HEIGHT);
+    PutRows(&d, 1, 0, SS_PLANE_HEIGHT);
     ShowPlanes(&d);
     PaletteWhiteIn();
     for (;;) {
@@ -83,8 +113,8 @@ void GM_SpecialTrack(void) {
         if (jpad1_press1 & JPAD_RIGHT)
             d.speed_frac ^= 0x8000;
         SSDisplay_Frame(&d);
-        if (d.frame < SS_TRACK_SLICES) // (a slice came into the buffer being decoded)
-            PutBuffer(&d, d.bank, d.frame * SS_TRACK_SLICE_WORDS, SS_TRACK_SLICE_WORDS);
+        if (d.frame < SS_TRACK_SLICES) // (a slice came into the buffer being decoded: its 7 rows)
+            PutRows(&d, d.bank, d.frame * SS_TRACK_SLICE_UNITS, SS_TRACK_SLICE_UNITS);
         ShowPlanes(&d);
     }
     Viewport_SetSize(SCREEN_WIDTH, SCREEN_HEIGHT, PLANE_WIDTH, PLANE_HEIGHT);

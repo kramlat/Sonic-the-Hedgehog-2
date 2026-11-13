@@ -12,5 +12,7 @@
 #define ArtTile_SpecialStageTrafficLights   0x30D // $61A0: the lights of the start; the rings' art goes over them (list $3D) once it has gone
 #define ArtTile_SpecialStageRings           0x30D // $61A0
 #define ArtTile_SpecialStageBombsExplosion  0x3D0 // $7A00
+#define ArtTile_SpecialStageBlank         0x7C0 // (this port's: a tile with nothing in it, which the widescreen track's sides are made of: the background shows)
+#define ArtTile_SpecialStageSolid         0x7D0 // (this port's: 16 tiles, each of one colour: the walls' padding at the sides of the widescreen track is the edge pixel of each line carried out, 8 pixels)
 
 #endif //_SPECIALSTAGEART_H

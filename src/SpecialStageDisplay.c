@@ -29,7 +29,10 @@ void SSDisplay_Reset(SSDisplay *d) {
     const uint8_t *map = SS_BackgroundMap(0, &size);
     uint8_t bytes[32 * 32 * 2 + 64];
     memset(bytes, 0, sizeof(bytes));
-    EniDec(map, bytes, 0x700);
+    EniDec(map, bytes, 0x700); // (the top half; the second map, Offset_0x0DCA9C, is decoded  bytes on: the bottom half, 32 by 16 cells each)
+    size_t size2;
+    const uint8_t *map2 = SS_BackgroundMap(1, &size2);
+    EniDec(map2, bytes + 0x400, 0x700);
     uint16_t block[32 * 32];
     for (int i = 0; i < 32 * 32; i++)
         block[i] = (uint16_t)((bytes[i * 2] << 8) | bytes[i * 2 + 1]);
