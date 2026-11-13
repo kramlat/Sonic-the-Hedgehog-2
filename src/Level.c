@@ -576,8 +576,15 @@ void SynchroAnimate(void) {
 void SignpostArtLoad(void) {
     // Check if signpost should load (the prototype's End_Level_Art_Load: not in Emerald Hill's act 2, the boss's, where its art load would clear the queue of the art being loaded; every other act, Chemical
     // Plant's and Neo Green Hill's second too, has a signpost and loads its art. Nick Arcade skipped every second act.)
-    if (debug_use || level_id == LEVEL_ID(ZoneId_EHZ, 1))
+    if (debug_use)
         return;
+    // (the ROM's Test_End_Level_Art_Load skips these levels, which are the bosses' acts and the zones without a signpost: loading the signpost's art clears the queue, and with it the boss's art that is still being loaded. Casino Night's act 2 is one: the boss's ship, body and explosions never came, and its pieces drew whatever art was at their places)
+    switch (level_id) {
+    case 0x0001: case 0x0500: case 0x0600: case 0x0701: case 0x0A01: case 0x0B01: case 0x0C01: case 0x0D01: case 0x0E00: case 0x0F01: case 0x1000:
+        return;
+    default:
+        break;
+    }
     // (Sky Chase has no signpost: its Tornado sets the camera's limits each frame, so that "the end" is always reached and the art would be queued afresh every frame, clearing the queue)
     if (LEVEL_ZONE(level_id) == ZoneId_SCZ)
         return;
