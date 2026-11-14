@@ -2,6 +2,7 @@
 // the prototype (8 shows a "?": the final game's versus monitor that hides and randomizes its item; 9 a spring, where the final's teleporter goes), the icons are mapping frame subtype + 1, and a broken monitor plays animation 10.
 #include "Object/Monitor.h"
 #include "VersusStats.h"
+#include "SplitScreen.h"
 void Obj_ObjectHit(Sst *self);
 #include "Resource/Mappings/Monitor.h"
 #include "Resource/Animation/Monitor.h"
@@ -86,6 +87,8 @@ void Obj_Monitor(Sst *self) {
         // Set collision type and animation
         self->collision_flags = 0x46;
         self->anim = self->subtype; // subtype
+        if (two_player_mode)
+            self->anim = 9; // (the versus play: every monitor shows the teleport icon and gives a random item)
         // Fallthrough
     case 2: // Solid
         switch (self->routine_secondary) {
@@ -189,6 +192,8 @@ void Obj_Monitor(Sst *self) {
             item->y_pos.f.u = self->y_pos.f.u;
             item->anim = self->anim;
             item->status_tertiary = self->status_tertiary; // (who broke it)
+            if (two_player_mode)
+                item->anim = (uint8_t)((frame_count & 7) + 1); // (Monitor_Contents: the item is one of the eight, by the frame's count)
         }
 
         // Create explosion object
@@ -250,7 +255,9 @@ void Obj_MonitorItem(Sst *self) {
 
             // Give item (in the versus play the counters are the breaker's: the second player's set is swapped in for it)
             Scratch_Sonic* scratch = (Scratch_Sonic *)player->own.u8;
-            const bool second = vs_stats_active && self->status_tertiary == 1;
+            bool second = vs_stats_active && self->status_tertiary == 1;
+            if (vs_stats_active && (self->anim == 1 || self->anim == 2))
+                second = self->anim == 2; // (versus: the Sonic life is the first player's and the Miles life the second's, whoever broke the monitor)
             if (second)
                 VsStats_Swap();
             VsStats_ItemBroken();
@@ -303,7 +310,11 @@ void Obj_MonitorItem(Sst *self) {
             case 3: // Eggman: hurts whoever broke it (a monitor with a face on it, as Sonic 1's and the final game's)
                 HurtSonicFrom(player, self->x_pos.f.u, false);
                 break;
-            default: // 0, 8 (the "?"), 9 (the spring): nothing, as in the prototype
+            case 8: // The random monitor ("?"): the two players change places
+                if (two_player_mode)
+                    SplitScreen_SwapPlayers();
+                break;
+            default: // 0, 9 (the spring): nothing, as in the prototype
                 break;
             }
             if (second)

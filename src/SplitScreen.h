@@ -23,6 +23,7 @@ int16_t SplitScreen_FollowX(void);
 
 // The end sign's lock: the cameras that see an object at x (half_width wide each way) stop being held back from the right edge of the level (limit_left2 = limit_right2 for the first, its own for the second;
 // with no split screen, the one camera). The second camera's left limit is otherwise the level's own.
+void SplitScreen_SwapPlayers(void); // the random monitor: the two players change places
 void SplitScreen_ShowViews(void); // the two views from the title card on
 void SplitScreen_LockCameras(int16_t x, int16_t half_width);
 

@@ -116,6 +116,38 @@ void SplitScreen_LoadLevel(void) {
     screen2p.vsram.b = vid_bg_scrpos_y_dup;
 }
 
+// The random monitor's ("teleport": Beta 4's Monitor_Random): the two players change places, with their speeds and states and their cameras
+void SplitScreen_SwapPlayers(void) {
+    Sst *a = player, *b = TAILS_OBJ;
+    if (b->code == NULL)
+        return;
+    int32_t t32;
+    int16_t t16;
+    uint8_t t8;
+#define SWAP(type, tmp, x, y) do { tmp = (x); (x) = (y); (y) = tmp; } while (0)
+    SWAP(int32_t, t32, a->x_pos.v, b->x_pos.v);
+    SWAP(int32_t, t32, a->y_pos.v, b->y_pos.v);
+    SWAP(int16_t, t16, a->x_vel, b->x_vel);
+    SWAP(int16_t, t16, a->y_vel, b->y_vel);
+    SWAP(int16_t, t16, a->ground_vel, b->ground_vel);
+    SWAP(uint8_t, t8, a->angle, b->angle);
+    SWAP(uint8_t, t8, a->status, b->status);
+    SWAP(uint8_t, t8, a->anim, b->anim);
+    SWAP(uint8_t, t8, a->mapping_frame, b->mapping_frame);
+    SWAP(uint8_t, t8, a->render_flags, b->render_flags);
+    SWAP(uint8_t, t8, a->routine_secondary, b->routine_secondary);
+#undef SWAP
+    if (camera_split) {
+        const dword_s sx = scrpos_x, sy = scrpos_y;
+        scrpos_x = scrpos_x_p2;
+        scrpos_y = scrpos_y_p2;
+        scrpos_x_p2 = sx;
+        scrpos_y_p2 = sy;
+        LevelPlane_DrawAll(&fg_plane, LEVEL_LAYOUT_PLANE_FG);
+        LevelPlane_DrawAll(&level_plane_p2, LEVEL_LAYOUT_PLANE_FG);
+    }
+}
+
 // The views, before the level is: the title card is shown in them (SplitScreen_LoadLevel does the rest, from SplitOff, when the level is loaded)
 void SplitScreen_ShowViews(void) {
     if (!two_player_mode)

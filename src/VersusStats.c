@@ -16,6 +16,7 @@ typedef struct {
     LevelTime time;
     uint16_t rings;
     uint8_t time_count;
+    uint8_t lives, life_count;
 } Set;
 
 static Set other;              // the set that is not in the game's variables
@@ -25,6 +26,7 @@ static uint16_t items[2], total_rings[2];
 void VsStats_Begin(void) {
     memset(&other, 0, sizeof(other));
     other.time_count = 1;
+    other.lives = lives;
     second_in = false;
     memset(items, 0, sizeof(items));
     memset(total_rings, 0, sizeof(total_rings));
@@ -35,11 +37,13 @@ void VsStats_Begin(void) {
 }
 
 void VsStats_Swap(void) {
-    Set now = { score, level_time, rings, time_count };
+    Set now = { score, level_time, rings, time_count, lives, life_count };
     score = other.score;
     level_time = other.time;
     rings = other.rings;
     time_count = other.time_count;
+    lives = other.lives;
+    life_count = other.life_count;
     other = now;
     second_in = !second_in;
 }
