@@ -42,7 +42,7 @@ static void Connect(NetPlay *host, NetPlay *guest, const char *password) {
 static void Netplay_APasswordIsMadeAndProvedWithoutBeingSent(void) {
     NetPlay *host = NetPlay_Create(), *guest = NetPlay_Create();
     Connect(host, guest, NULL);
-    CHECK_EQ(strlen(NetPlay_Password(host)), 24); // (5 groups of 4 and 4 dashes)
+    CHECK_EQ(strlen(NetPlay_Password(host)), 23); // (4 groups of 5 and 3 dashes)
     CHECK(PumpUntil(host, guest, NETPLAY_READY, NETPLAY_READY));
     CHECK_EQ(NetPlay_LocalPlayer(host), 0);
     CHECK_EQ(NetPlay_LocalPlayer(guest), 1);
@@ -195,6 +195,39 @@ static void Netplay_StoppingTellsTheOtherSide(void) {
     NetPlay_Destroy(guest);
 }
 
+// Finding the host by the session code: the host announces on a UDP port (the tests use their own); the guest hears the tag of its code and joins
+static void Netplay_TheGuestFindsTheHostByTheCode(void) {
+    NetPlay *host = NetPlay_Create(), *guest = NetPlay_Create();
+    NetPlay_SetDiscoveryPort(host, 47933);
+    NetPlay_SetDiscoveryPort(guest, 47933);
+    CHECK(NetPlay_Host(host, "test", NULL, 0, "sad90-oopx8-7680b-rxptr", 2)); // (every address: the guest joins the one the announcement came from)
+    CHECK(NetPlay_JoinByCode(guest, "test", "SAD90 OOPX8 7680B RXPTR")); // (as the code screen shows it: two rows of two groups) // (typed without dashes, in capitals)
+    CHECK_EQ(NetPlay_Status(guest), NETPLAY_SEARCHING);
+    CHECK(PumpUntil(host, guest, NETPLAY_READY, NETPLAY_READY));
+    NetPlay_Destroy(host);
+    NetPlay_Destroy(guest);
+}
+
+static void Netplay_AWrongCodeOrAnotherGameFindsNobody(void) {
+    NetPlay *host = NetPlay_Create(), *wrong = NetPlay_Create(), *other = NetPlay_Create();
+    NetPlay_SetDiscoveryPort(host, 47934);
+    NetPlay_SetDiscoveryPort(wrong, 47934);
+    NetPlay_SetDiscoveryPort(other, 47934);
+    CHECK(NetPlay_Host(host, "test", NULL, 0, "sad90-oopx8-7680b-rxptr", 2));
+    CHECK(NetPlay_JoinByCode(wrong, "test", "sad90-oopx8-7680b-rxpts"));
+    CHECK(NetPlay_JoinByCode(other, "another", "sad90-oopx8-7680b-rxptr"));
+    PumpBoth(host, wrong, 1500);
+    NetPlay_Poll(other);
+    CHECK_EQ(NetPlay_Status(wrong), NETPLAY_SEARCHING); // (it still looks)
+    CHECK_EQ(NetPlay_Status(other), NETPLAY_SEARCHING);
+    CHECK_EQ(NetPlay_Status(host), NETPLAY_LISTENING);
+    NetPlay_Stop(wrong);
+    CHECK_EQ(NetPlay_Status(wrong), NETPLAY_CLOSED);
+    NetPlay_Destroy(host);
+    NetPlay_Destroy(wrong);
+    NetPlay_Destroy(other);
+}
+
 void RegisterNetplayTests(void) {
     RUN_TEST(Netplay_APasswordIsMadeAndProvedWithoutBeingSent);
     RUN_TEST(Netplay_ThePasswordsCaseAndDashesDoNotMatter);
@@ -203,4 +236,6 @@ void RegisterNetplayTests(void) {
     RUN_TEST(Netplay_TheTwoSidesRunInLockstep);
     RUN_TEST(Netplay_ADifferenceInTheGamesEndsTheMatch);
     RUN_TEST(Netplay_StoppingTellsTheOtherSide);
+    RUN_TEST(Netplay_TheGuestFindsTheHostByTheCode);
+    RUN_TEST(Netplay_AWrongCodeOrAnotherGameFindsNobody);
 }
