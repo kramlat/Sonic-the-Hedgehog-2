@@ -1,4 +1,5 @@
-// Casino Night's pinball plunger of the Sonic 2 pre-beta (object $85, Data/Objects/Obj_0x85.asm). With the subtype 0 it stands upright (the pre-beta's routine at $0257DA): a character who lands on it is
+// Casino Night's pinball plunger of Sonic 2 Beta 4 (object $85, objects/obj_0x85.asm; the pre-beta's upright one was smaller: it sat 8 pixels higher, was $10 wide and tall, solid $1B by $8 and $5, and held its character
+// $16 above its centre; Beta 4's is $14, solid $1F by $10 and $D, with the character $1E above; the mappings are Beta 4's too). With the subtype 0 it stands upright (the pre-beta's routine at $0257DA): a character who lands on it is
 // held, rolled up, on its head, and while he holds a button (A, B or C) the spring draws back (up to $20 pixels, by one every 4 frames, its head flashing the faster the further it is); when he lets go
 // he is thrown straight up at ($38 + $10) * $80. With another subtype it lies at 45 degrees ($02597A: the character sits on it, a button draws it back up to $1C and he is thrown up and sideways); with the
 // subtype's top bit set he is thrown along the floor instead. It is drawn as the head (its mapping frame, 1 or flashing 5) and the base (a sub-sprite, frame 2, or 3 when it is far enough back).
@@ -109,13 +110,13 @@ static void Plunger_Character(Sst *self, Own_Plunger *own, Sst *chr, int who, bo
     const uint8_t stand_bit = (uint8_t)(1 << (3 + who));
     const uint8_t push_bit = (uint8_t)(1 << (5 + who));
     const int16_t seat_x = upright ? self->x_pos.f.u : (int16_t)(self->x_pos.f.u + 0x13);
-    const int16_t seat_y = (int16_t)(self->y_pos.f.u - (upright ? 0x16 : 0x13));
+    const int16_t seat_y = (int16_t)(self->y_pos.f.u - (upright ? 0x1E : 0x13));
 
     for (;;) {
         if (own->state[who] == 0) {
             if (debug_use || chr->y_vel < 0)
                 return;
-            Solid_Character(self, chr, who, upright ? 0x1B : 0x23, 8, 5, self->x_pos.f.u, NULL);
+            Solid_Character(self, chr, who, upright ? 0x1F : 0x23, upright ? 0x10 : 8, upright ? 0xD : 5, self->x_pos.f.u, NULL);
             if (!(self->status & stand_bit)) {
                 if (upright || !(self->status & push_bit))
                     return;
@@ -171,9 +172,9 @@ void Obj_CNZPlunger(Sst *self) {
             self->children[0].y = self->y_pos.f.u;
             self->children[0].frame = 2;
         } else {
-            self->height_pixels = 0x10;
-            self->width_pixels = 0x10;
-            self->y_pos.f.u -= 0x18;
+            self->height_pixels = 0x14;
+            self->width_pixels = 0x14;
+            self->y_pos.f.u -= 0x10;
             own->base_y = self->y_pos.f.u;
             self->children[0].x = self->x_pos.f.u;
             self->children[0].y = (int16_t)(self->y_pos.f.u + 0x20);

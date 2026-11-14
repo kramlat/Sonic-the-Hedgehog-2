@@ -12,6 +12,7 @@ void Obj_EnemyPoints(Sst *self);
 #include "Object/Sonic.h"
 #include "Object/Tails.h"
 #include "Solid.h"
+#include "VersusStats.h"
 #include "Sound.h"
 
 #include <string.h>
@@ -19,6 +20,7 @@ void Obj_EnemyPoints(Sst *self);
 #include "Macros.h"
 
 #include "Resource/Animation/CNZBumper.h"
+#include "Resource/Animation/CNZCrawl.h"
 #include "Resource/Mappings/AutoSpin.h"
 #include "Resource/Animation/CNZBlueBumper.h"
 #include "Resource/Animation/CNZGreenBumper.h"
@@ -52,6 +54,21 @@ static void Bumper_Throw(Sst *bumper, Sst *chr) {
     ((Scratch_Sonic *)chr->own.u8)->jumping = false;
 }
 
+static void Bumper_Hit(Sst *self, Sst *chr) {
+    Bumper_Throw(self, chr);
+    self->anim = 1;
+    QueueSound2(sfx_Bumper);
+    if (self->respawn) {
+        if ((*SstLoad_State(self)) >= 0x8A)
+            return;
+        (*SstLoad_State(self))++;
+    }
+    VsStats_AddPointsTo(chr, 1);
+    Sst *points = Sst_SpawnCode(Obj_EnemyPoints, self->x_pos.f.u, self->y_pos.f.u);
+    if (points != NULL)
+        points->mapping_frame = 4;
+}
+
 void Obj_CNZBumper(Sst *self) {
     switch (self->routine) {
     case 0:
@@ -67,26 +84,11 @@ void Obj_CNZBumper(Sst *self) {
         if (self->collision_property) {
             const uint8_t touched = self->collision_property;
             self->collision_property = 0;
+            // each character who touched it is thrown and paid on his own (loc_1B618: the throw, the flash, the sound, the points to the character in a3)
             if (touched & 1)
-                Bumper_Throw(self, player);
+                Bumper_Hit(self, player);
             if ((touched & 2) && TAILS_OBJ->code != NULL)
-                Bumper_Throw(self, TAILS_OBJ);
-            self->anim = 1;
-            QueueSound2(sfx_Bumper);
-            bool award = true;
-            if (self->respawn) {
-                if ((*SstLoad_State(self)) >= 0x8A)
-                    award = false;
-                else
-                    (*SstLoad_State(self))++;
-            }
-            if (award) {
-                AddPoints(1);
-                Sst *points = Sst_SpawnCode(Obj_EnemyPoints, self->x_pos.f.u, self->y_pos.f.u);
-                if (points != NULL) {
-                    points->mapping_frame = 4;
-                }
-            }
+                Bumper_Hit(self, TAILS_OBJ);
         }
         Sst_Animate(self, Animation_CNZBumper);
         SstOnScreenTest(self);
@@ -209,7 +211,7 @@ static void GreenBumper_Hit(Sst *self, Sst *chr, uint8_t *wait) {
             points = 0x32;
         }
     }
-    AddPoints(points);
+    VsStats_AddPointsTo(chr, points);
     Sst *marker = Sst_SpawnCode(Obj_EnemyPoints, self->x_pos.f.u, self->y_pos.f.u);
     if (marker != NULL)
         marker->mapping_frame = points_frame;
@@ -573,65 +575,169 @@ void Obj_CNZGreenPlatform(Sst *self) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
-// Object C8 (the pre-beta's): the Crawl, a guard (it is not hurt: its collision is the bumper's kind, $D7). A character within $60 either way, in the box, turns it to him and it raises its shield (frame 1);
-// whoever touches it is thrown away from it at $700, as by a bumper; it lowers it again when he has gone
+// Object C8 (Beta 4's, loc_39122; the pre-beta's was a still guard): the Crawl, a crab that walks $200 frames one way (at a half pixel a frame), waits a second, and walks back; a character within $40 of it (the
+// nearer of the two) makes it raise its shield, and it guards until he has gone (then it takes up the walk or the wait it was in). A character who touches it while it guards: one who is not rolled up hurts himself
+// on it (the next frame's collision is the hurting $97), a ball in the air is thrown away from it at $700 as by a bumper, and one on the ground is thrown only if he comes at the front it faces; one who
+// comes at its back hurts it (the collision $17: it can be killed)
 // ---------------------------------------------------------------------------------------------------------------------------------------
 #define ArtTile_CNZCrawl 0x340 // ($6800: the zone's list)
 
-// Offset_0x030B3A: a character in the box of `range` about it: returns it, and (side) whether it is on the right of the Crawl
-static Sst *Crawl_Near(const Sst *self, int16_t range, bool *right) {
-    FOR_EACH_CHARACTER(chr, who) {
-        const uint16_t dx = (uint16_t)(self->x_pos.f.u - chr->x_pos.f.u + range);
-        const uint16_t dy = (uint16_t)(self->y_pos.f.u - chr->y_pos.f.u + range);
-        if (dx < (uint16_t)(range * 2) && dy < (uint16_t)(range * 2)) {
-            *right = (uint16_t)self->x_pos.f.u < (uint16_t)chr->x_pos.f.u;
-            return chr;
+enum { CrawlRoutine_Init = 0, CrawlRoutine_Walk = 2, CrawlRoutine_Wait = 4, CrawlRoutine_Guard = 6 };
+
+typedef struct {
+    uint8_t subtype;   // 0x28
+    uint8_t pad0;      // 0x29
+    int16_t timer;     // 0x2A
+    uint8_t saved;     // 0x2C: the routine to go back to when the guard is down
+} Own_Crawl;
+
+// loc_32866: the character nearer in x (the first on a tie): his distance, and which side of it he is on (2: it is to his left / above him, as in the pre-beta's Where)
+typedef struct {
+    Sst *chr;
+    int16_t dx, dy;
+    int side, below;
+} CrawlNear;
+
+static CrawlNear Crawl_Nearest(const Sst *self) {
+    CrawlNear n;
+    n.chr = player;
+    n.dx = (int16_t)(self->x_pos.f.u - player->x_pos.f.u);
+    if (TAILS_OBJ->code != NULL) {
+        const int16_t dx2 = (int16_t)(self->x_pos.f.u - TAILS_OBJ->x_pos.f.u);
+        const int a = n.dx < 0 ? -n.dx : n.dx, b = dx2 < 0 ? -dx2 : dx2;
+        if (a > b) {
+            n.chr = TAILS_OBJ;
+            n.dx = dx2;
         }
     }
-    return NULL;
+    n.side = n.dx < 0 ? 2 : 0;
+    n.below = (uint16_t)self->y_pos.f.u < (uint16_t)n.chr->y_pos.f.u ? 2 : 0;
+    n.dy = (int16_t)(self->y_pos.f.u - n.chr->y_pos.f.u);
+    return n;
+}
+
+// loc_39300: a character within $40: the shield goes up
+static void Crawl_Check(Sst *self, Own_Crawl *own) {
+    const CrawlNear n = Crawl_Nearest(self);
+    if ((uint16_t)(n.dx + 0x40) >= 0x80 || (uint16_t)(n.dy + 0x40) >= 0x80)
+        return;
+    own->saved = self->routine;
+    self->routine = CrawlRoutine_Guard;
+    self->mapping_frame = 0;
+}
+
+// loc_3928E: a character thrown away from it
+static void Crawl_Throw(Sst *self, Sst *chr) {
+    self->mapping_frame = (chr->status & SST_PSTATUS_IN_AIR) ? 3 : 2;
+    Bumper_Throw(self, chr);
+    QueueSound2(sfx_Bumper);
+}
+
+// the touch of one character while it guards (loc_391CE onwards): true when that ends the frame's work
+static bool Crawl_Touched(Sst *self, Sst *chr) {
+    if (chr->anim != SonAnimId_Roll) { // (not a ball: he hurts himself on it)
+        self->collision_flags = 0x97;
+        self->status |= SST_STATUS_PLAYER_STAND;
+        self->mapping_frame = 1;
+        return true;
+    }
+    if (!(chr->status & SST_PSTATUS_IN_AIR)) {
+        const CrawlNear n = Crawl_Nearest(self);
+        int d0 = n.side;
+        if (self->render_flags & SST_RENDER_X_FLIP)
+            d0 -= 2;
+        if (d0 != 0) { // (from behind: it can be hurt)
+            self->collision_flags = 0x17;
+            return true;
+        }
+        chr = n.chr; // (the throw is at the nearer of the two, which the test has just looked for again)
+    }
+    Crawl_Throw(self, chr);
+    return false;
 }
 
 void Obj_CNZCrawl(Sst *self) {
-    bool right = false;
+    Own_Crawl *own = (Own_Crawl *)self->own.u8;
 
     switch (self->routine) {
-    case 0:
+    case CrawlRoutine_Init:
         self->routine += 2;
         self->mappings = Mappings_CNZCrawl;
         self->art_tile = TILE_MAP(1, 0, 0, 0, ArtTile_CNZCrawl);
         self->render_flags |= SST_RENDER_LEVEL;
-        self->priority = 1 * 0x80;
+        self->priority = 3 * 0x80;
         self->width_pixels = 0x10;
         self->collision_flags = 0xD7;
+        own->timer = 0x200;
+        self->x_vel = (self->render_flags & SST_RENDER_X_FLIP) ? 0x20 : -0x20;
+        self->y_radius = 0xF;
+        self->x_radius = 0x10;
         return;
 
-    case 2:
-        if (Crawl_Near(self, 0x60, &right) != NULL) {
-            SST_RENDER_SET(self, SST_RENDER_X_FLIP, right);
+    case CrawlRoutine_Walk: // loc_39160
+        Crawl_Check(self, own);
+        if (--own->timer != 0) {
+            Sst_MoveSprite2(self);
+            const int16_t floor = SstFloorDist(self, self->x_pos.f.u);
+            if (floor >= -1 && floor < 0xC) {
+                self->y_pos.f.u += floor;
+                Sst_Animate(self, Animation_CNZCrawl);
+                SstOnScreenTest(self);
+                return;
+            }
+        }
+        // (the walk is done, or the floor gives way: it waits. If the shield has just gone up the ROM adds two to the guard's routine and jumps past its table; here the wait is what it goes back to)
+        if (self->routine == CrawlRoutine_Guard)
+            own->saved = CrawlRoutine_Wait;
+        else
             self->routine += 2;
-            self->mapping_frame = 1;
+        own->timer = 0x3B;
+        SstOnScreenTest(self);
+        return;
+
+    case CrawlRoutine_Wait: // loc_391A0
+        Crawl_Check(self, own);
+        if (--own->timer < 0) { // turns round and walks again
+            self->routine = CrawlRoutine_Walk;
+            own->timer = 0x200;
+            self->x_vel = (int16_t)-self->x_vel;
+            self->render_flags ^= SST_RENDER_X_FLIP;
+            self->status ^= SST_STATUS_X_FLIP;
         }
         SstOnScreenTest(self);
         return;
 
-    default: // 4
-        if (Crawl_Near(self, 0x60, &right) == NULL) {
-            self->routine -= 2;
-            self->mapping_frame = 0;
-        } else if (self->collision_property) {
-            const uint8_t touched = self->collision_property;
-            self->collision_property = 0;
-            if (touched & 1)
-                Bumper_Throw(self, player);
-            if ((touched & 2) && TAILS_OBJ->code != NULL)
-                Bumper_Throw(self, TAILS_OBJ);
-            self->anim = 1;
-            QueueSound2(sfx_Bumper);
-            if (self->respawn && (*SstLoad_State(self)) < 0x8A)
-                (*SstLoad_State(self))++;
+    default: { // CrawlRoutine_Guard, loc_391CE
+        self->collision_flags = 0xD7;
+        const CrawlNear n = Crawl_Nearest(self);
+        if ((uint16_t)(n.dx + 0x40) >= 0x80 || (uint16_t)(n.dy + 0x40) >= 0x80) { // the character has gone: the shield comes down
+            self->routine = own->saved;
+            SstOnScreenTest(self);
+            return;
+        }
+        if (self->status & SST_STATUS_PLAYER_STAND) { // (one has hurt himself on it last frame)
+            self->status &= (uint8_t)~SST_STATUS_PLAYER_STAND;
+            self->mapping_frame = 1;
+            SstOnScreenTest(self);
+            return;
+        }
+        if (self->collision_property == 0) {
+            SstOnScreenTest(self);
+            return;
+        }
+        const uint8_t touched = self->collision_property;
+        self->collision_property = 0;
+        if ((touched & 1) && Crawl_Touched(self, player)) {
+            SstOnScreenTest(self);
+            return;
+        }
+        if ((touched & 2) && TAILS_OBJ->code != NULL && Crawl_Touched(self, TAILS_OBJ)) {
+            SstOnScreenTest(self);
+            return;
         }
         SstOnScreenTest(self);
         return;
+    }
     }
 }
 
@@ -711,10 +817,7 @@ static void PreBetaAutoSpin(Sst *self) {
         if (TAILS_OBJ->code != NULL)
             AutoSpin_Character(self, own, TAILS_OBJ, SolidChar_Tails, horizontal);
     }
-    if (debug_mode) {
-        SstOnScreenTest(self);
-        return;
-    }
+    // (Beta 4 has no debug display for it: the pre-beta showed the box with debug mode on)
     if (!camera_split && SstOutOfRange(self->x_pos.f.u)) {
         Sst_Delete(self);
         return;

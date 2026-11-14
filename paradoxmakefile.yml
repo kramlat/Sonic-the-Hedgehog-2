@@ -600,6 +600,7 @@ resources:
   - "Animation/SpinyShot"
   - "Animation/CNZBumper"
   - "Animation/CNZGreenBumper"
+  - "Animation/CNZCrawl"
   - "Animation/CNZFlippers"
   - "Animation/CNZBlueBumper"
   - "Animation/CNZSlotStarter"

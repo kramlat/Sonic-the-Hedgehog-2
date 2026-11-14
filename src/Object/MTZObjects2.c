@@ -663,14 +663,16 @@ void Obj_MTZGear(Sst *self) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
-// Object 72: the conveyor belts. Invisible; a character on the ground within the strip it covers (the subtype times $10 either side of it) and the $30 above it is moved two pixels a frame, to the right or, flipped,
-// the left
+// Object 72: the conveyor belts. Invisible; a character on the ground within the strip it covers (the subtype's low seven bits times $10 either side of it) and the $30 above it is moved two pixels a frame, to the right
+// or, flipped, the left. Beta 4's: the subtype's bit 7 makes the belt $70 tall instead (Casino Night's tall belts; the pre-beta used the whole byte as the width and had one height)
 // ---------------------------------------------------------------------------------------------------------------------------------------
 typedef struct {
     uint8_t subtype;   // 0x28
     uint8_t pad0[13];  // 0x29-0x35
     int16_t speed;     // 0x36
     uint8_t range;     // 0x38
+    uint8_t pad1[3];   // 0x39-0x3B
+    int16_t height;    // 0x3C
 } Own_Conveyor;
 
 static void Conveyor_Carry(Sst *self, Own_Conveyor *own, Sst *chr) {
@@ -678,8 +680,8 @@ static void Conveyor_Carry(Sst *self, Own_Conveyor *own, Sst *chr) {
     int16_t d0 = (int16_t)(chr->x_pos.f.u - self->x_pos.f.u + range);
     if ((uint16_t)d0 >= (uint16_t)(range * 2))
         return;
-    int16_t d1 = (int16_t)(chr->y_pos.f.u - self->y_pos.f.u + 0x30);
-    if ((uint16_t)d1 >= 0x30)
+    int16_t d1 = (int16_t)(chr->y_pos.f.u - self->y_pos.f.u + own->height);
+    if ((uint16_t)d1 >= (uint16_t)own->height)
         return;
     if (((chr->status & SST_PSTATUS_IN_AIR) != 0))
         return;
@@ -691,7 +693,8 @@ void Obj_MTZConveyor(Sst *self) {
 
     if (self->routine == 0) {
         self->routine += 2;
-        own->range = (uint8_t)(self->subtype << 4);
+        own->height = (self->subtype & 0x80) ? 0x70 : 0x30;
+        own->range = (uint8_t)((self->subtype & 0x7F) << 4);
         own->speed = (self->status & 1) ? -2 : 2;
     }
     Conveyor_Carry(self, own, player);

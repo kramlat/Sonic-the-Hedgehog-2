@@ -141,6 +141,7 @@ static void Flipper_Push(Sst *self, Sst *chr) {
     ((Scratch_Sonic *)chr->own.u8)->control_lock = 0xF;
     chr->ground_vel = chr->x_vel;
     Flipper_Roll(chr);
+    PlaySound(sfx_Flipper); // (Beta 4's: the pre-beta ended without a sound)
 }
 
 void Obj_CNZFlipper(Sst *self) {

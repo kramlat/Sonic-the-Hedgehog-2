@@ -73,6 +73,17 @@ void VsStats_RingCollected(void) {
         total_rings[second_in ? 1 : 0]++;
 }
 
+void VsStats_AddPointsTo(const Sst *chr, uint16_t points) {
+    const bool for_second = vs_stats_active && chr == TAILS_OBJ;
+    if (for_second != second_in && vs_stats_active) {
+        VsStats_Swap();
+        AddPoints(points);
+        VsStats_Swap();
+    } else {
+        AddPoints(points);
+    }
+}
+
 void VsStats_ItemBroken(void) {
     if (vs_stats_active)
         items[second_in ? 1 : 0]++;

@@ -497,22 +497,37 @@ static void CNZObjects_TheGreenPlatformTurnsThroughItsFramesAndWaits(void) {
     CHECK_EQ(platform->mapping_frame, 0); // (round again)
 }
 
-static void CNZObjects_TheCrawlGuardsAgainstAnyoneNear(void) {
+static void CNZObjects_TheCrawlWalksAndGuardsAgainstAnyoneNear(void) {
     Reset();
     level_id = LEVEL_ID(ZoneId_CNZ, 0);
     Sst *crawl = SpawnSst(0xC8, 0x00, 1300, 400);
     Obj_CNZCrawl(crawl);
     CHECK_EQ(crawl->collision_flags, 0xD7);
-    player->x_pos.f.u = 1250;
+    CHECK_EQ(crawl->x_vel, -0x20); // (unflipped: it walks to the left, a pixel in eight frames)
+    CHECK_EQ(crawl->priority, 3 * 0x80);
+    player->x_pos.f.u = 1250; // (within $40)
     player->y_pos.f.u = 400;
     Obj_CNZCrawl(crawl);
-    CHECK_EQ(crawl->mapping_frame, 1); // (shield up)
+    CHECK_EQ(crawl->routine, 6); // (the shield goes up)
+    CHECK_EQ(crawl->mapping_frame, 0);
+    // a ball in the air that touches it is thrown away from it, and the shield is hit (frame 3)
+    player->anim = SonAnimId_Roll;
+    player->status |= SST_PSTATUS_IN_AIR;
     crawl->collision_property = 1;
     Obj_CNZCrawl(crawl);
-    CHECK(player->x_vel < 0); // (thrown away from it)
+    CHECK(player->x_vel < 0);
+    CHECK_EQ(crawl->mapping_frame, 3);
+    // one who is not a ball hurts himself on it: the collision is the hurting kind for a frame
+    player->anim = 0;
+    crawl->collision_property = 1;
+    Obj_CNZCrawl(crawl);
+    CHECK_EQ(crawl->collision_flags, 0x97);
+    Obj_CNZCrawl(crawl);
+    CHECK_EQ(crawl->mapping_frame, 1);
+    // and it goes back to what it was doing when he has gone
     player->x_pos.f.u = 1000;
     Obj_CNZCrawl(crawl);
-    CHECK_EQ(crawl->mapping_frame, 0); // (and down again)
+    CHECK(crawl->routine == 2 || crawl->routine == 4); // (the walk or the wait: the test has no floor under it)
 }
 
 static void CNZObjects_TheBlueBoxSwingsAboutWhereItWasPut(void) {
@@ -609,18 +624,19 @@ static void CNZObjects_TheSlotMachineSpinsAndStopsOnItsOwn(void) {
     SlotMachine_Reset();
     for (int i = 0; i < 4; i++)
         SlotMachine_Process();
-    CHECK_EQ(SlotMachine_State(), 0x38); // (set up and resting)
+    CHECK_EQ(SlotMachine_State(), 0x18); // (set up and resting; Beta 4's rest state)
     SlotMachine_Start();
     CHECK_EQ(SlotMachine_State(), 0x08);
-    frame_count = 0x1234;
+    frame_count = 0x0007; // (the counter picks the first row of the table: three threes)
     int frames = 0;
-    while (SlotMachine_State() != 0x38 && frames < 6000) {
+    while (SlotMachine_State() != 0x18 && frames < 6000) {
         frame_count++;
         SlotMachine_Process();
         frames++;
     }
-    CHECK_EQ(SlotMachine_State(), 0x38); // (all three reels have stopped)
+    CHECK_EQ(SlotMachine_State(), 0x18); // (all three reels have stopped)
     CHECK(frames > 100 && frames < 3000);
+    CHECK_EQ(SlotMachine_Result(), 0x0150); // (three of the symbol 3 pay $150: the first row of the table)
 }
 
 static void CNZObjects_TheSlotStarterHoldsACharacterAndLetsHimGoDown(void) {
@@ -642,10 +658,39 @@ static void CNZObjects_TheSlotStarterHoldsACharacterAndLetsHimGoDown(void) {
         Obj_CNZSlotStarter(starter);
     }
     CHECK_EQ(OBJ_CONTROL(player), 0x81); // (held)
-    CHECK_EQ(SlotMachine_State(), 0x08);  // (and the reels start)
+    CHECK_EQ(SlotMachine_State(), 0x18);  // (a starter without a subtype only pays: the reels stay at rest)
     for (int i = 0; i < 0x7A; i++)
         Obj_CNZSlotStarter(starter);
     CHECK_EQ(OBJ_CONTROL(player), 0);
+    CHECK_EQ(player->y_vel, 0x400);
+}
+
+static void CNZObjects_ASlotStarterWithASubtypeHoldsUntilTheMachineIsDone(void) {
+    Reset();
+    level_id = LEVEL_ID(ZoneId_CNZ, 0);
+    SlotMachine_Reset();
+    for (int i = 0; i < 4; i++)
+        SlotMachine_Process();
+    Sst *starter = SpawnSst(0xD6, 0x01, 600, 400);
+    Obj_CNZSlotStarter(starter);
+    player->x_pos.f.u = 600;
+    player->y_pos.f.u = 400 - 0x50;
+    player->y_vel = 0x200;
+    player->status |= SST_PSTATUS_IN_AIR;
+    for (int i = 0; i < 60 && OBJ_CONTROL(player) != 0x81; i++) {
+        player->y_pos.f.u += player->y_vel >> 8;
+        Obj_CNZSlotStarter(starter);
+    }
+    CHECK_EQ(OBJ_CONTROL(player), 0x81);
+    CHECK_EQ(SlotMachine_State(), 0x08); // (the reels start)
+    frame_count = 0x0007;
+    for (int i = 0; i < 3000 && OBJ_CONTROL(player) == 0x81; i++) {
+        frame_count++;
+        SlotMachine_Process();
+        Obj_CNZSlotStarter(starter);
+    }
+    CHECK_EQ(OBJ_CONTROL(player), 0); // (let go when the machine rests again: far later than the $78 frames)
+    CHECK_EQ(SlotMachine_State(), 0x18);
     CHECK_EQ(player->y_vel, 0x400);
 }
 
@@ -681,13 +726,14 @@ void RegisterNGHZObjectTests(void) {
     RUN_TEST(CNZObjects_TheGreenBumperThrowsAndGoesAtTheThirdHit);
     RUN_TEST(CNZObjects_TheAutoSpinLineRollsWhoCrossesItAndLetsHimOutBack);
     RUN_TEST(CNZObjects_TheGreenPlatformTurnsThroughItsFramesAndWaits);
-    RUN_TEST(CNZObjects_TheCrawlGuardsAgainstAnyoneNear);
+    RUN_TEST(CNZObjects_TheCrawlWalksAndGuardsAgainstAnyoneNear);
     RUN_TEST(CNZObjects_TheBlueBoxSwingsAboutWhereItWasPut);
     RUN_TEST(CNZObjects_TheElevatorRidesToTheOtherEndAndBack);
     RUN_TEST(CNZObjects_ThePlungerHoldsDrawsBackAndThrowsUp);
     RUN_TEST(CNZObjects_TheBlueBumperThrowsBySideAndMovesWithASubtype);
     RUN_TEST(CNZObjects_TheSlotMachineSpinsAndStopsOnItsOwn);
     RUN_TEST(CNZObjects_TheSlotStarterHoldsACharacterAndLetsHimGoDown);
+    RUN_TEST(CNZObjects_ASlotStarterWithASubtypeHoldsUntilTheMachineIsDone);
     RUN_TEST(CNZObjects_TheFlipperThrowsWhoStandsOnItWhenAButtonIsPressed);
     RUN_TEST(CNZObjects_TheLargeTriangleBumpersThrowWhoTouchesThem);
     RUN_TEST(CNZObjects_TheBlueBumperIsTouchedByTheCharacters);

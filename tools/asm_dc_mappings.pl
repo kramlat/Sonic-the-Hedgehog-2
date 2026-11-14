@@ -25,12 +25,15 @@ for my $n (@names) {
     my @l = grep { /\S/ } @{ $body{$n} // die "no frame $n\n" };
     $l[0] =~ /^\s*dc\.w\s+\$([0-9A-Fa-f]+)\s*$/ or die "$n: no count\n";
     my $count = hex $1;
-    my @pieces;
+    # the longs, one pair for each piece (a line holds one pair in the pre-beta's source, in Beta 4's several; the values are written with or without leading zeros)
+    my @longs;
     for my $i (1 .. $#l) {
-        last if @pieces == $count;
-        $l[$i] =~ /^\s*dc\.l\s+\$([0-9A-Fa-f]{8})\s*,\s*\$([0-9A-Fa-f]{8})/ or die "$n: $l[$i]\n";
-        push @pieces, pack('NN', hex $1, hex $2);
+        $l[$i] =~ /^\s*dc\.l\s+(.*?)\s*$/ or last;
+        push @longs, map { /^\$([0-9A-Fa-f]{1,8})$/ ? hex $1 : /^(\d+)$/ ? $1 + 0 : die "$n: $l[$i]\n" } split /\s*,\s*/, $1;
+        last if @longs >= 2 * $count;
     }
+    my @pieces;
+    push @pieces, pack('NN', splice @longs, 0, 2) while @pieces < $count && @longs >= 2;
     die "$n: $count pieces, found " . scalar @pieces . "\n" unless @pieces == $count;
     my $frame = pack('n', $count) . join('', @pieces);
     push @offsets, $pos;
