@@ -267,8 +267,15 @@ static int tc_wipe = -1; // frames since the level asked the card to go (-1: not
 
 void TitleCard_Leave(void) {
     Sst *curtain = TitleCard_Element(TCE_CURTAIN);
-    if (curtain != NULL) { // the bars come off, then the names wait and go
+    if (curtain != NULL) { // the bars come off (Beta 4 runs the objects until they are, before play begins), then the names wait and go
         tc_wipe = 0;
+        while (TitleCard_Element(TCE_CURTAIN) != NULL) {
+            vbla_routine = 0x0C;
+            WaitForVBla();
+            ExecuteObjects();
+            BuildSprites(NULL);
+            RunPLC();
+        }
         return;
     }
     for (int i = 0; i < 3; i++) { // (the split screen's: the three names, which wait and go)
@@ -348,7 +355,7 @@ bool TitleCard_ArtClashes(PlcId plc) {
 // to fit and sit in the middle of each. Its art is squeezed to half its width (the pieces of every element are made again from the unscaled ones: a letter is two cells wide, so it becomes one; where two
 // pixels meet the brighter one stays, the white of the letter before its outline) and the elements are put so that the name, and ZONE with the number after it, are centred in the view.
 #define TC_SCALED_TILES 0x600 // where the squeezed pieces' tiles go
-static uint8_t titlecard_scaled_map[3][4 + 24 * SPRITE_PIECE_SIZE_S3];
+static uint8_t titlecard_scaled_map[6][4 + 24 * SPRITE_PIECE_SIZE_S3]; // (by element: the name, ZONE, the act, [the curtain], the banner, the zigzag edge)
 
 static bool TitleCard_SplitWanted(void) {
     return SplitScreen_SideBySide();
@@ -415,33 +422,51 @@ static void TitleCard_Squeeze(int index, uint8_t frame, unsigned *next_tile, int
         *left = *right = 0;
 }
 
-// Makes the card fit the views: all three elements, once the split screen is on (the card is made before it is: the level is loaded under it)
+// Makes the card fit the views, once the split screen is on (the card is made before it is: the level is loaded under it): the sprite elements are squeezed to half their width. The name is put in the middle
+// of the view, ZONE and the number after it as one in the middle, the banner on the yellow and the zigzag edge at the edge of the red, which are half as many columns (TitleCard_DrawBars)
 static void TitleCard_FitSplit(void) {
-    Sst *e[3] = { TitleCard_Element(0), TitleCard_Element(1), TitleCard_Element(2) };
+    static const int all[5] = { TCE_NAME, TCE_ZONE, TCE_ACT, TCE_BANNER, TCE_STRIPES };
+    Sst *e[6] = { 0 };
+    for (int i = 0; i < 5; i++)
+        e[all[i]] = TitleCard_Element(all[i]);
     if (e[0] == NULL || e[0]->routine_secondary)
         return;
     const int view_w = SCREEN_WIDTH / 2;
-    const int centre = 128 + view_w / 2; // (an object's x counts from 128 to the view's left edge)
+    const int red_px = 56; // (the red is 7 columns wide in the views: the text is put in what is to the right of it, as the zigzag edge is at its edge)
+    const int centre = 128 + red_px + (view_w - red_px) / 2; // (an object's x counts from 128 to the view's left edge)
     unsigned next_tile = TC_SCALED_TILES;
-    int left[3] = { 0, 0, 0 }, right[3] = { 0, 0, 0 };
-    for (int i = 0; i < 3; i++)
-        if (e[i] != NULL)
-            TitleCard_Squeeze(i, e[i]->status_secondary, &next_tile, &left[i], &right[i]);
-    // where each stands when it has arrived: the name in the middle; ZONE and the number after it as one, in the middle
-    int target[3];
+    int left[6] = { 0 }, right[6] = { 0 };
+    for (int i = 0; i < 5; i++)
+        if (e[all[i]] != NULL)
+            TitleCard_Squeeze(all[i], e[all[i]]->status_secondary, &next_tile, &left[all[i]], &right[all[i]]);
+    // where each stands when it has arrived
+    int target[6] = { 0 };
     target[0] = centre - (left[0] + right[0]) / 2;
     const int zone_w = right[1] - left[1], number_w = e[2] != NULL ? right[2] - left[2] : 0, gap = e[2] != NULL ? 6 : 0;
     const int start = centre - (zone_w + gap + number_w) / 2;
     target[1] = start - left[1];
     target[2] = start + zone_w + gap - left[2];
-    for (int i = 0; i < 3; i++) {
+    for (int k = 0; k < 5; k++) {
+        const int i = all[k];
         if (e[i] == NULL)
             continue;
         Own_TitleCard *own = (Own_TitleCard *)e[i]->own.u8;
-        const int dx = target[i] - own->main_x;       // (the element keeps how far it still has to go, and how far out it starts and goes)
-        e[i]->x_pos.f.u = (int16_t)(e[i]->x_pos.f.u + dx);
-        own->final_x = (int16_t)(own->final_x + dx);
-        own->main_x = (int16_t)target[i];
+        if (i == TCE_BANNER || i == TCE_STRIPES) { // (half the way: from where they start to the edge of the red, or to the yellow)
+            const int x1 = i == TCE_BANNER ? 0x168 : 0x0F0, x0 = i == TCE_BANNER ? 0x2A8 : 0x080;
+            // (how far along it has come is kept: the card is made as the whole picture's and these have usually arrived when the views come)
+            const int old_start = own->final_x, old_target = own->main_x, old_x = e[i]->x_pos.f.u;
+            const int span = old_target - old_start;
+            const int progress = span != 0 ? ((old_x - old_start) * 256) / span : 256;
+            const int new_start = 128 + (x0 - 128) / 2, new_target = 128 + (x1 - 128) / 2;
+            own->main_x = (int16_t)new_target;
+            own->final_x = (int16_t)new_start;
+            e[i]->x_pos.f.u = (int16_t)(new_start + ((new_target - new_start) * progress) / 256);
+        } else {
+            const int dx = target[i] - own->main_x;     // (the element keeps how far it still has to go, and how far out it starts and goes)
+            e[i]->x_pos.f.u = (int16_t)(e[i]->x_pos.f.u + dx);
+            own->final_x = (int16_t)(own->final_x + dx);
+            own->main_x = (int16_t)target[i];
+        }
         e[i]->mappings = titlecard_scaled_map[i];
         e[i]->mapping_frame = 0;
         e[i]->routine_secondary = 1;
@@ -455,26 +480,41 @@ static void TitleCard_FitSplit(void) {
 
 static int tc_age; // frames the card has been there
 
-// The picture's cells: the card's columns are the 320-wide picture's, in the middle of a wider one
+// Whether the views are side by side (each half as wide as the picture): the card is half as wide in them (the stacked views are the whole picture, squashed: the card is as it is)
+static bool TitleCard_Halves(void) {
+    return SplitScreen_SideBySide(); // (the card is made before the split screen is on, as the whole picture's: it changes when the views come)
+}
+
+// The picture's cells: the card's columns are the 320-wide picture's, in the middle of a wider one; in the side by side views every column count is half, from the view's left edge
 static void TitleCard_DrawBars(int yellow_from, int blue_until, int red_columns, int covered_px) {
-    const int ox = PLANE_WIDEADD / 2, oy = PLANE_TALLADD / PLANE_ROW_BYTES;
-    for (int row = 0; row < (int)PLANE_HEIGHT; row++) {
-        for (int col = 0; col < PLANE_WIDTH; col++) {
-            const int lr = row - oy, lc = col - ox;
-            uint16_t word = TC_BLUE;
-            if (lr >= 20 && lc >= yellow_from && lc >= blue_until)
-                word = TC_YELLOW;
-            if (lc < red_columns)
-                word = TC_RED;
-            Plane_Put(&screen1p.window, (size_t)row * PLANE_ROW_BYTES + (size_t)col * 2, word);
-        }
+    const bool halves = TitleCard_Halves();
+    const int ox = halves ? 0 : PLANE_WIDEADD / 2, oy = PLANE_TALLADD / PLANE_ROW_BYTES;
+    if (halves) {
+        yellow_from = (yellow_from + 1) / 2;
+        blue_until = (blue_until + 1) / 2;
+        red_columns = (red_columns + 1) / 2;
     }
-    if (covered_px >= SCREEN_HEIGHT) {
-        Viewport_SetWindow(&screen1p, (window_region_t){ .use_x = true, .x = 0, .right = true });
-    } else if (covered_px > 0) {
-        Viewport_SetWindow(&screen1p, (window_region_t){ .use_y = true, .y = (uint16_t)covered_px, .below = false });
-    } else {
-        Viewport_ClearWindow(&screen1p);
+    viewport_t *views[2] = { &screen1p, &screen2p };
+    for (int v = 0; v < (two_player_mode ? 2 : 1); v++) {
+        viewport_t *vp = views[v];
+        for (int row = 0; row < (int)PLANE_HEIGHT; row++) {
+            for (int col = 0; col < PLANE_WIDTH; col++) {
+                const int lr = row - oy, lc = col - ox;
+                uint16_t word = TC_BLUE;
+                if (lr >= 20 && lc >= yellow_from && lc >= blue_until)
+                    word = TC_YELLOW;
+                if (lc < red_columns)
+                    word = TC_RED;
+                Plane_Put(&vp->window, (size_t)row * PLANE_ROW_BYTES + (size_t)col * 2, word);
+            }
+        }
+        if (covered_px >= SCREEN_HEIGHT) {
+            Viewport_SetWindow(vp, (window_region_t){ .use_x = true, .x = 0, .right = true });
+        } else if (covered_px > 0) {
+            Viewport_SetWindow(vp, (window_region_t){ .use_y = true, .y = (uint16_t)covered_px, .below = false });
+        } else {
+            Viewport_ClearWindow(vp);
+        }
     }
 }
 
@@ -515,7 +555,7 @@ void Obj_TitleCard(Sst *self) {
         titlecard_art_loaded = false; // (the art goes in once the level's first pattern load cues are done: see routine 2)
         tc_age = 0;
         tc_wipe = -1;
-        const bool bars = !two_player_mode; // (the split screen's card is the three names, squeezed into the views: no bars)
+        const bool bars = true;
         hud_hold_back = bars; // (the HUD comes when the level is shown)
 
         const int16_t to_add = SCREEN_WIDEADD2;
@@ -612,6 +652,7 @@ void Obj_TitleCard(Sst *self) {
             }
             if (f >= 16 + 8) { // (the level is all there: the names wait and go)
                 Viewport_ClearWindow(&screen1p);
+                Viewport_ClearWindow(&screen2p);
                 hud_hold_back = false;
                 for (int i = 0; i < 3; i++) {
                     Sst *e = TitleCard_Element(i);
@@ -630,7 +671,7 @@ void Obj_TitleCard(Sst *self) {
             own->timer--;
             break;
         }
-        TitleCard_Slide(self, own->main_x, 16, false);
+        TitleCard_Slide(self, own->main_x, TitleCard_Halves() && (self->subtype == TCE_BANNER || self->subtype == TCE_STRIPES) ? 8 : 16, false);
         break;
     case 4: // the banner and the zigzag edge going out (the names hold: routine 5)
         if (self->subtype == TCE_BANNER || self->subtype == TCE_STRIPES) {
@@ -638,7 +679,7 @@ void Obj_TitleCard(Sst *self) {
                 Sst_Delete(self);
                 break;
             }
-            TitleCard_Slide(self, own->final_x, 32, true);
+            TitleCard_Slide(self, own->final_x, TitleCard_Halves() ? 16 : 32, true);
             break;
         }
         // (the names hold on the card until the wipe is done)
