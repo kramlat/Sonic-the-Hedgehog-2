@@ -1,4 +1,5 @@
 // Neo Green Hill's badniks for Sonic 2, as the alpha has them: see NGHZBadniks.h. Each sets itself up from the alpha's table of looks (Object_Settings), whose entries are written out below.
+#include "MathUtil.h"
 #include "Object/NGHZBadniks.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
@@ -77,8 +78,8 @@ static void Settings(Sst *self, const void *mappings, uint16_t tile, uint8_t ren
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
 // The Whisp (8C): a fly that flutters at Sonic. It waits until it is on screen, goes up and follows Sonic for $60 frames with a speed that is kept to $200 either way, stops and waits $10 frames, and
-// starts again; the fifth time it flies off to the left. The pre-beta's table of routines has one more entry than the alpha's, so the leaving routine is 8 and what the code sets as the leaving one (6)
-// is the wait: it flies off $11 frames late, and does so one frame at a time, as the pre-beta does
+// starts again; the fifth time it flies off to the left. Beta 4's (checked against its object $8C on 2026-11-14): the leaving routine is the real one (8, flying off at once: the pre-beta set the wait's, 6, and
+// flew off $11 frames late), and between two chases it waits a random 0 to $1F frames (the pre-beta: $10)
 // ---------------------------------------------------------------------------------------------------------------------------------------
 typedef struct {
     uint8_t subtype;
@@ -102,9 +103,9 @@ static void Whisp_Leave(Sst *self) {
 
 // Offset_0x030E18
 static void Whisp_Chase(Sst *self, Own_Whisp *own) {
-    if ((int8_t)--own->timer < 0) { // done: stops, waits $10 and starts again
-        self->routine -= 2;
-        own->timer = 0x10;
+    if ((int8_t)--own->timer < 0) { // done: stops, waits a random while and starts again
+        self->routine = WhispRoutine_Timer;
+        own->timer = (uint8_t)(RandomNumber() & 0x1F);
         self->x_vel = 0;
         self->y_vel = 0;
         Whisp_Animate(self);
@@ -135,8 +136,9 @@ static void Whisp_Start(Sst *self, Own_Whisp *own) {
         Whisp_Chase(self, own);
         return;
     }
-    self->routine = WhispRoutine_Timer; // (the leaving routine of the alpha's table)
+    self->routine = WhispRoutine_Leave;
     SST_STATUS_SET(self, SST_STATUS_X_FLIP, false);
+    self->y_vel = 0;
     self->x_vel = (int16_t)0xFE00;
     self->y_vel = (int16_t)0xFE00;
     Whisp_Leave(self);
