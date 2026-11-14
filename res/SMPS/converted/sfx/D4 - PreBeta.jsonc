@@ -17,7 +17,7 @@
     },
     {
       "smpsHeaderChanSFX": [
-        "0x1"
+        "0x2"
       ]
     },
     {
@@ -26,6 +26,14 @@
         "sndD4_FM5",
         "0x0",
         "0x0"
+      ]
+    },
+    {
+      "smpsHeaderSFXChannel": [
+        "cPSG3",
+        "sndD4_PSG3",
+        "0x0",
+        "0x6"
       ]
     }
   ],
@@ -98,6 +106,53 @@
       {
         "inheritedNote": true,
         "duration": "0x15"
+      },
+      "smpsStop"
+    ],
+    "sndD4_PSG3": [
+      {
+        "smpsPSGform": "0xE7"
+      },
+      {
+        "smpsPSGvoice": "0x4"
+      },
+      {
+        "inheritedNote": true,
+        "duration": "0xC6"
+      },
+      {
+        "inheritedNote": true,
+        "duration": "0x3"
+      },
+      "smpsNoAttack",
+      {
+        "tie": true,
+        "duration": "0xC5"
+      },
+      "smpsNoAttack",
+      {
+        "tie": true,
+        "duration": "0xC4"
+      },
+      "smpsNoAttack",
+      {
+        "tie": true,
+        "duration": "0xC3"
+      },
+      "smpsNoAttack",
+      {
+        "tie": true,
+        "duration": "0xC2"
+      },
+      "smpsNoAttack",
+      {
+        "tie": true,
+        "duration": "0xC1"
+      },
+      "smpsNoAttack",
+      {
+        "tie": true,
+        "duration": "0xC0"
       },
       "smpsStop"
     ]

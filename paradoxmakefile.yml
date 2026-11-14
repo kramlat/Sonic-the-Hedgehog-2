@@ -1076,12 +1076,12 @@ songs:
   - {file: "sfx/D1 - Alpha.jsonc", name: S2Sfx_D1}
   - {file: "sfx/D2 - Alpha.jsonc", name: S2Sfx_D2}
   - {file: "sfx/D3 - Alpha.jsonc", name: S2Sfx_D3}
-  - {file: "sfx/D4 - Alpha.jsonc", name: S2Sfx_D4}
+  - {file: "sfx/D4 - PreBeta.jsonc", name: S2Sfx_D4}
   - {file: "sfx/D5 - Alpha.jsonc", name: S2Sfx_D5}
   - {file: "sfx/D6 - Alpha.jsonc", name: S2Sfx_D6}
-  - {file: "sfx/D7 - Alpha.jsonc", name: S2Sfx_D7}
+  - {file: "sfx/D7 - PreBeta.jsonc", name: S2Sfx_D7}
   - {file: "sfx/D8 - Alpha.jsonc", name: S2Sfx_D8}
-  - {file: "sfx/D9 - Alpha.jsonc", name: S2Sfx_D9}
+  - {file: "sfx/D9 - PreBeta.jsonc", name: S2Sfx_D9}
   - {file: "sfx/DA - Alpha.jsonc", name: S2Sfx_DA}
   - {file: "sfx/DB - Alpha.jsonc", name: S2Sfx_DB}
   - {file: "sfx/DC - Alpha.jsonc", name: S2Sfx_DC}
@@ -1089,13 +1089,13 @@ songs:
   - {file: "sfx/DE - Alpha.jsonc", name: S2Sfx_DE}
   - {file: "sfx/DF - Alpha.jsonc", name: S2Sfx_DF}
   - {file: "sfx/E0 - Alpha.jsonc", name: S2Sfx_E0}
-  - {file: "sfx/E1 - Alpha.jsonc", name: S2Sfx_E1}
+  - {file: "sfx/E1 - PreBeta.jsonc", name: S2Sfx_E1}
   - {file: "sfx/E2 - Alpha.jsonc", name: S2Sfx_E2}
   - {file: "sfx/E3 - Alpha.jsonc", name: S2Sfx_E3}
   - {file: "sfx/E4 - Alpha.jsonc", name: S2Sfx_E4}
   - {file: "sfx/E5 - Alpha.jsonc", name: S2Sfx_E5}
   - {file: "sfx/E6 - Alpha.jsonc", name: S2Sfx_E6}
-  - {file: "sfx/E7 - Alpha.jsonc", name: S2Sfx_E7}
+  - {file: "sfx/E7 - PreBeta.jsonc", name: S2Sfx_E7}
   - {file: "sfx/E8 - Alpha.jsonc", name: S2Sfx_E8}
   - {file: "sfx/E9 - Alpha.jsonc", name: S2Sfx_E9}
   - {file: "sfx/EA - Laser Burst.jsonc", name: S2Sfx_EA}
