@@ -12,6 +12,7 @@
 
 // HUD assets
 #include "Resource/Art/HUDLifeTails.h"
+#include "VersusStats.h"
 #include "Resource/Art/HUDLifeMiles.h"
 #include "Resource/Art/HUDNum.h"
 #include "Resource/Art/LifeNum.h"
@@ -223,6 +224,9 @@ void HUD_Update(void) {
                         level_time.min = 9;
                 }
             }
+
+            if (vs_stats_active)
+                VsStats_Tick(); // (the second player's clock)
 
             // Write time
             HUD_WriteNumber2(0xDE40, level_time.min, &hud_dec[5], 0);

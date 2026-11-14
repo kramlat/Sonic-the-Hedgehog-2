@@ -1,9 +1,9 @@
 #!/usr/bin/perl
-# The object art of Sky Fortress, Sky Chase and Death Egg in the Sonic 2 pre-beta (Nemesis files of its Data/SFz, SCz, DEz and CPz: S2PREBETA gives the disassembly's folder, default ~/Projects/s2prebeta-disasm) into
+# The object art of Sky Fortress, Sky Chase and Death Egg in the Sonic 2 pre-beta (Nemesis files of its Data/SFz, SCz, DEz and CPz: S2PREBETA gives the disassembly's folder, default ~/Projects/reference/s2prebeta-disasm) into
 # res/Art, byte for byte (SFZ<name> for Sky Fortress's). The zones' own tiles are tools/import_s2prebeta_zone.pl's. Run it in the Sonic 2 folder.
 use strict;
 use warnings;
-my $base = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/s2prebeta-disasm") . "/Data";
+my $base = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/reference/s2prebeta-disasm") . "/Data";
 my $src = "$base/SFz";
 my %files = (
     'RbtnkShp.nem' => 'RobotnikShip', 'Tornado.nem' => 'Tornado', 'Clouds.nem' => 'Clouds', 'VerHelix.nem' => 'VerticalHelix', 'HorHelix.nem' => 'HorizontalHelix', 'Balkiry.nem' => 'Balkiry',

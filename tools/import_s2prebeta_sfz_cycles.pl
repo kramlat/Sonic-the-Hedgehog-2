@@ -1,9 +1,9 @@
 #!/usr/bin/perl
-# The four palette cycles of Sky Fortress in the Sonic 2 pre-beta (Pal_SFzCyc1 to 4 of its S2140992.asm: S2PREBETA gives the folder, default ~/Projects/s2prebeta-disasm) into res/S2Palette/SFZCycle1 to 4 as words.
+# The four palette cycles of Sky Fortress in the Sonic 2 pre-beta (Pal_SFzCyc1 to 4 of its S2140992.asm: S2PREBETA gives the folder, default ~/Projects/reference/s2prebeta-disasm) into res/S2Palette/SFZCycle1 to 4 as words.
 # Run it in the Sonic 2 folder.
 use strict;
 use warnings;
-my $path = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/s2prebeta-disasm") . "/S2140992.asm";
+my $path = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/reference/s2prebeta-disasm") . "/S2140992.asm";
 open my $f, '<', $path or die "$path: $!\n";
 my (%data, $label);
 while (<$f>) {

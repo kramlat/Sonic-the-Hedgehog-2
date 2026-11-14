@@ -41,6 +41,7 @@ void RegisterEditorTests(void);
 void RegisterNetplayTests(void);
 void RegisterSpecialStageTests(void);
 void RegisterVersusFlowTests(void);
+void RegisterVersusStatsTests(void);
 
 int main(void) {
     printf("Compression tests:\n");
@@ -76,6 +77,7 @@ int main(void) {
     printf("Special stage tests:\n");
     RegisterSpecialStageTests();
     RegisterVersusFlowTests();
+    RegisterVersusStatsTests();
     printf("Water tests:\n");
     RegisterWaterTests();
     printf("Signpost tests:\n");

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # Brings the Sonic 2 pre-beta's Green Hill (its first zone slot: Emerald Hill, EHZ, here) into res/: its tiles, blocks, chunks, collision indices, layouts, objects and rings (S2PREBETA gives the disassembly's folder,
-# default ~/Projects/s2prebeta-disasm; the files are its Data/GHz). It replaces what the alpha had for the zone, in the formats the engine reads now:
+# default ~/Projects/reference/s2prebeta-disasm; the files are its Data/GHz). It replaces what the alpha had for the zone, in the formats the engine reads now:
 #   tiles      Tiles.nem (Nemesis) -> Kosinski (res/S2Art/EHZ), and its secondary group from tile $1FC on (res/S2Art/EHZSecondary: the primary, shared with Hill Top, must be the one that is there already)
 #   blocks     Blocks.kos -> res/S2Map16/EHZ, its secondary from block $130 on (res/S2Map16/EHZSecondary; the primary is Hill Top's too)
 #   chunks     Chunks.kos (Kosinski already) -> res/S2Map128/EHZ
@@ -16,7 +16,7 @@ use strict;
 use warnings;
 use File::Temp qw(tempdir);
 
-my $src = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/s2prebeta-disasm") . '/Data/GHz';
+my $src = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/reference/s2prebeta-disasm") . '/Data/GHz';
 my ($kosenc, $kosdec, $nem2kos, $kossplit, $solids2s3) = map { $ENV{$_->[0]} // $_->[1] } (['KOSENC', 'kosenc'], ['KOSDEC', 'kosdec'], ['NEM2KOS', 'nem2kos'], ['KOSSPLIT', 'kossplit'], ['SOLIDS2S3', 'solids2s3']);
 my $res = 'res';
 my $tmp = tempdir(CLEANUP => 1);

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# Imports the title cards of the Sonic 2 pre-beta (September 14, 1992: Neto's disassembly, S2PREBETA gives the folder, default ~/Projects/s2prebeta-disasm): the object $34's mappings
+# Imports the title cards of the Sonic 2 pre-beta (September 14, 1992: Neto's disassembly, S2PREBETA gives the folder, default ~/Projects/reference/s2prebeta-disasm): the object $34's mappings
 # (the name of each zone, ZONE, and the act numbers), its two Nemesis arts (the fixed part at tile $580: E, N, O, ZONE and the numbers; the alphabet at its own, from which the letters a zone
 # needs are copied to tile $5DE on, in the order the name uses them: Load_Title_Cards_Art) and the table of those letters.
 # Written: asm/Mappings/TitleCardNames.asm (Sonic 2 mappings format), src/TitleCardData.c, res/Art/TitleCardZone and res/Art/TitleCardLetters.
@@ -10,7 +10,7 @@
 use strict;
 use warnings;
 
-my $src = $ENV{S2PREBETA} // "$ENV{HOME}/Projects/s2prebeta-disasm";
+my $src = $ENV{S2PREBETA} // "$ENV{HOME}/Projects/reference/s2prebeta-disasm";
 my $asm = do { open my $f, '<', "$src/S2140992.asm" or die "$src/S2140992.asm: $!\n"; local $/; <$f> };
 
 # the alphabet's letters in tc_ay.nem: [first tile, tiles] (vars.asm's TC_x for the ones the pre-beta uses; B, J, Q, V, W and X are the gaps between them)

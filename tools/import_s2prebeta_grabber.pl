@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# The Grabber of the Sonic 2 pre-beta (Chemical Plant's spider, objects $A7 to $AB: S2PREBETA gives the disassembly's folder, default ~/Projects/s2prebeta-disasm) into res/, from its Data/Objects/Obj_0xAB.asm: the two
+# The Grabber of the Sonic 2 pre-beta (Chemical Plant's spider, objects $A7 to $AB: S2PREBETA gives the disassembly's folder, default ~/Projects/reference/s2prebeta-disasm) into res/, from its Data/Objects/Obj_0xAB.asm: the two
 # mapping tables in Sonic 2's format (the build converts them) and the animation script. The art (Data/CPz/Grabber.nem) is the alpha's, byte for byte.
 #   Mappings/Grabber        the body, the claw and the head: seven frames
 #   Mappings/GrabberStrand  the thread the body hangs from: frames 0-7, one more link of it for each (the ninth is the eighth again)
@@ -8,7 +8,7 @@
 use strict;
 use warnings;
 
-my $src = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/s2prebeta-disasm") . "/Data/Objects/Obj_0xAB.asm";
+my $src = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/reference/s2prebeta-disasm") . "/Data/Objects/Obj_0xAB.asm";
 open my $f, '<', $src or die "$src: $!\n";
 my @lines = <$f>;
 close $f;

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# The invincibility stars of the Sonic 2 pre-beta (object $35: S2PREBETA gives the disassembly's folder, default ~/Projects/s2prebeta-disasm) from its Data/Objects/Obj_0x35.asm, the mappings in S2140992.asm and Data/Art/InvStars.nem:
+# The invincibility stars of the Sonic 2 pre-beta (object $35: S2PREBETA gives the disassembly's folder, default ~/Projects/reference/s2prebeta-disasm) from its Data/Objects/Obj_0x35.asm, the mappings in S2140992.asm and Data/Art/InvStars.nem:
 #   res/Art/Invincibility              the stars' art (Nemesis)
 #   res/Mappings/InvincibilityStars    the stars' 9 frames (Sonic 2's format: the build converts them)
 #   src/Object/InvincibilityStarsData.h  the tables of where each star is (the object's own: the offsets from Sonic by his angle, the two orbits by frame parity, and the trailing pair)
@@ -7,7 +7,7 @@
 use strict;
 use warnings;
 
-my $base = $ENV{S2PREBETA} // "$ENV{HOME}/Projects/s2prebeta-disasm";
+my $base = $ENV{S2PREBETA} // "$ENV{HOME}/Projects/reference/s2prebeta-disasm";
 my $src = "$base/Data/Objects/Obj_0x35.asm";
 open my $f, '<', $src or die "$src: $!\n";
 my @lines = <$f>;

@@ -749,6 +749,7 @@ sources:
   - "src/SpecialStageCharacter.c"
   - "src/SpecialStageItems.c"
   - "src/VersusFlow.c"
+  - "src/VersusStats.c"
   - "src/Object/SpecialStageObjects.c"
   - "src/SpecialStageWide.c"
   - "src/GM_SpecialTrack.c"

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# The badniks of Oil Ocean in the Sonic 2 pre-beta (the Octus, object $4A, and the Aquis, $50: S2PREBETA gives the disassembly's folder, default ~/Projects/s2prebeta-disasm) into res/, from its Data/Objects/Obj_0x4A.asm
+# The badniks of Oil Ocean in the Sonic 2 pre-beta (the Octus, object $4A, and the Aquis, $50: S2PREBETA gives the disassembly's folder, default ~/Projects/reference/s2prebeta-disasm) into res/, from its Data/Objects/Obj_0x4A.asm
 # and Obj_0x50.asm and Data/OOz/Octus.nem and Aquis.nem:
 #   Art/Octus, Art/Aquis             the art (Nemesis)
 #   Mappings/Octus, Mappings/Aquis   the frames (Sonic 2's format: the build converts them)
@@ -8,7 +8,7 @@
 use strict;
 use warnings;
 
-my $base = $ENV{S2PREBETA} // "$ENV{HOME}/Projects/s2prebeta-disasm";
+my $base = $ENV{S2PREBETA} // "$ENV{HOME}/Projects/reference/s2prebeta-disasm";
 
 sub slurp { my $p = shift; open my $in, '<:raw', $p or die "$p: $!\n"; local $/; my $d = <$in>; close $in; $d }
 sub spit { my ($p, $d) = @_; open my $o, '>:raw', $p or die "$p: $!\n"; print $o $d; close $o }

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# The boss of Chemical Plant in the Sonic 2 pre-beta (object $5D: S2PREBETA gives the disassembly's folder, default ~/Projects/s2prebeta-disasm) into res/, from its Data/Objects/Obj_0x5D.asm and Data/CPz/Boss.nem:
+# The boss of Chemical Plant in the Sonic 2 pre-beta (object $5D: S2PREBETA gives the disassembly's folder, default ~/Projects/reference/s2prebeta-disasm) into res/, from its Data/Objects/Obj_0x5D.asm and Data/CPz/Boss.nem:
 #   Art/CPZBoss              the boss's own art (Nemesis: the list $28 puts it at tile $500)
 #   Mappings/CPZBoss         the boss's parts (39 frames, in Sonic 2's format: the build converts them)
 #   Mappings/CPZBoss1        the ship's body and its flame (3 frames), Mappings/CPZBoss2 the light (2), Mappings/CPZBoss3 the vapour (4)
@@ -9,7 +9,7 @@
 use strict;
 use warnings;
 
-my $base = $ENV{S2PREBETA} // "$ENV{HOME}/Projects/s2prebeta-disasm";
+my $base = $ENV{S2PREBETA} // "$ENV{HOME}/Projects/reference/s2prebeta-disasm";
 my $src = "$base/Data/Objects/Obj_0x5D.asm";
 open my $f, '<', $src or die "$src: $!\n";
 my @lines = <$f>;

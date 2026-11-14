@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# The Sonic 2 pre-beta's special stage data (S2PREBETA gives the disassembly's folder, default ~/Projects/s2prebeta-disasm; its Data/SS) into res, under the names the port has:
+# The Sonic 2 pre-beta's special stage data (S2PREBETA gives the disassembly's folder, default ~/Projects/reference/s2prebeta-disasm; its Data/SS) into res, under the names the port has:
 #   art (Nemesis, kept as it is): res/Art/SS<Name>; the main palette: res/S2Palette/SpecialStage; the track's segment data and the two other blobs: res/SSData/<ROM offset>
 # The data's files are named for what they are (the ROM offsets they have in the pre-beta, in the names map below: SegmentNN is the stage's NNth segment, in the order of its table at $6D5A).
 # The two lists the stage loads (PLC $3C and $3D) and the tile numbers are in Sonic2PLC.c and Object/BossArt.h's neighbour SpecialStageArt.h. The leftovers of an earlier build (PB_*) are not imported.
@@ -8,7 +8,7 @@ use strict;
 use warnings;
 use File::Copy;
 
-my $src = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/s2prebeta-disasm") . '/Data/SS';
+my $src = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/reference/s2prebeta-disasm") . '/Data/SS';
 my %art = (
     'Sonic.nem' => 'SpecialStageSonic', 'Sonic_D.nem' => 'SpecialStageSonicDiagonal', 'Sonic_H.nem' => 'SpecialStageSonicHorizontal', 'Sonic_S.nem' => 'SpecialStageSonicSpin',
     'Miles.nem' => 'SpecialStageMiles', 'Miles_D.nem' => 'SpecialStageMilesDiagonal', 'Miles_H.nem' => 'SpecialStageMilesHorizontal', 'Miles_S.nem' => 'SpecialStageMilesSpin',

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# The Flasher and the Crawlton of Dust Hill in the Sonic 2 pre-beta (objects $A3 and $9E: S2PREBETA gives the disassembly's folder, default ~/Projects/s2prebeta-disasm) into res/, from its Data/Objects/Obj_0xA3.asm,
+# The Flasher and the Crawlton of Dust Hill in the Sonic 2 pre-beta (objects $A3 and $9E: S2PREBETA gives the disassembly's folder, default ~/Projects/reference/s2prebeta-disasm) into res/, from its Data/Objects/Obj_0xA3.asm,
 # Obj_0x9E.asm and Data/DHz/Flasher.nem:
 #   Art/Flasher             the Flasher's art (Nemesis; it is not the alpha's: five frames' worth of tiles)
 #   Mappings/Flasher        its five frames (Sonic 2's format: the build converts them)
@@ -10,7 +10,7 @@
 use strict;
 use warnings;
 
-my $base = $ENV{S2PREBETA} // "$ENV{HOME}/Projects/s2prebeta-disasm";
+my $base = $ENV{S2PREBETA} // "$ENV{HOME}/Projects/reference/s2prebeta-disasm";
 
 sub slurp { my $p = shift; open my $in, '<:raw', $p or die "$p: $!\n"; local $/; my $d = <$in>; close $in; $d }
 sub spit { my ($p, $d) = @_; open my $o, '>:raw', $p or die "$p: $!\n"; print $o $d; close $o }

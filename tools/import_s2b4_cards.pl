@@ -1,12 +1,12 @@
 #!/usr/bin/perl
-# Imports the cards of Sonic 2 Beta 4 (s2b4: desiresin's Sonic-2-Beta-4-Improved, S2B4 gives the folder, default ~/Projects/s2b4-disasm): the mappings of the end of act card
+# Imports the cards of Sonic 2 Beta 4 (s2b4: desiresin's Sonic-2-Beta-4-Improved, S2B4 gives the folder, default ~/Projects/reference/s2b4-disasm): the mappings of the end of act card
 # (End_Level_Results_Mappings, object $3A) as asm/Mappings/LevelResults.asm (Sonic 2 mappings format, the pieces as the disassembly has them), and the cards' Nemesis art
 # (res/Art/B4CardZone: ZONE and the fixed letters at tile $580; B4CardResults: the results' words at $5B0; B4MiniSonic: the continue icon at $5F4).
 # Run it in the Sonic 2 folder: import_s2b4_cards.pl
 use strict;
 use warnings;
 
-my $src = $ENV{S2B4} // "$ENV{HOME}/Projects/s2b4-disasm";
+my $src = $ENV{S2B4} // "$ENV{HOME}/Projects/reference/s2b4-disasm";
 my $asm = do { open my $f, '<', "$src/Sonic2B4.asm" or die "$src/Sonic2B4.asm: $!\n"; local $/; <$f> };
 $asm .= do { open my $f, '<', "$src/objects/obj_0x21.asm" or die "obj_0x21.asm: $!\n"; local $/; "\n" . <$f> };   # (the versus banner's mappings are in its object's file)
 

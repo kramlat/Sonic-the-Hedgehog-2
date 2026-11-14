@@ -1,6 +1,7 @@
 // Tails (Nick Arcade's objects 02 and 05), made as Sonic Team made him: a copy of Sonic's object (Sonic.c) with the changes Tails needs, and the same copy's quirks. His control is pad 2, which the pre-beta's CPU
 // plays when no real pad 2 has him (Tails_Control: five states, he follows what Sonic did 16 frames before, and when left behind flies in from above); he has no water code of his own to speak of, no debug mode and no
 // carrying flight yet; hurting him loses SONIC'S rings (the copy of the hurt code works on the shared ring count); he does not die from enemies, only from falling below the level, and then he comes back above Sonic.
+#include "VersusStats.h"
 #include "ScrollEngine.h"
 #include "Standing.h"
 void Obj_ObjectHit(Sst *self);
@@ -2277,8 +2278,19 @@ void Obj_TailsTails(Sst *self) {
     }
 }
 
-// Tails (object 02)
+// Tails (object 02): in the versus play he runs with his own counters in the game's variables (VersusStats.h)
+static void Obj_Tails_Run(Sst *self);
 void Obj_Tails(Sst *self) {
+    if (!vs_stats_active) {
+        Obj_Tails_Run(self);
+        return;
+    }
+    VsStats_Swap();
+    Obj_Tails_Run(self);
+    VsStats_Swap();
+}
+
+static void Obj_Tails_Run(Sst *self) {
     Scratch_Sonic *scratch = (Scratch_Sonic *)self->own.u8;
 
     switch (self->routine) {

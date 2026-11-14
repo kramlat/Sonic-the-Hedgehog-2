@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# Brings a zone of the Sonic 2 pre-beta (September 14, 1992: Neto's disassembly, S2PREBETA gives the folder, default ~/Projects/s2prebeta-disasm; its Data/<folder>) into res/, in the formats the engine reads now, for a zone that
+# Brings a zone of the Sonic 2 pre-beta (September 14, 1992: Neto's disassembly, S2PREBETA gives the folder, default ~/Projects/reference/s2prebeta-disasm; its Data/<folder>) into res/, in the formats the engine reads now, for a zone that
 # has no primary and secondary group (Emerald Hill and Hill Top have: tools/import_s2prebeta_ghz.pl). One argument: the zone's name here (CPZ).
 #   tiles      <Tiles.nem> (Nemesis) -> Kosinski                                                         res/S2Art/<ZONE>
 #   blocks     Blocks.kos -> res/S2Map16/<ZONE>;  chunks Chunks.kos (Kosinski already) -> res/S2Map128/<ZONE>
@@ -39,7 +39,7 @@ my %zones = (
 my $zone = shift or die "usage: $0 ZONE\n";
 my $z = $zones{$zone} or die "no zone $zone: ", join(', ', sort keys %zones), "\n";
 
-my $src = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/s2prebeta-disasm") . "/Data/$z->{dir}";
+my $src = ($ENV{S2PREBETA} // "$ENV{HOME}/Projects/reference/s2prebeta-disasm") . "/Data/$z->{dir}";
 my ($kosenc, $kosdec, $nem2kos, $solids2s3) = map { $ENV{$_->[0]} // $_->[1] } (['KOSENC', 'kosenc'], ['KOSDEC', 'kosdec'], ['NEM2KOS', 'nem2kos'], ['SOLIDS2S3', 'solids2s3']);
 my $res = 'res';
 my $tmp = tempdir(CLEANUP => 1);
