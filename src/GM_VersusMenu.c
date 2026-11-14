@@ -313,9 +313,10 @@ static void DrawBox(int box, int slot, bool selected) {
         cells[2 * BOX_W + 2 + i] = (uint16_t)(line | WordTile(z->name[i]));
     for (int i = 0; i < 5; i++)
         cells[4 * BOX_W + 6 + i] = (uint16_t)(line | WordTile(z->kind[i]));
+    // The one chosen shows its icon; the others a red "?" (tile $6B on palette line 1) until played; a played one shows the blank icon
     const int icon = zone_played[box] < 0 ? z->icon : PLAYED_ICON;
     for (int i = 0; i < ICON_WORDS; i++)
-        cells[(6 + i / 4) * BOX_W + 6 + i % 4] = icon_map[icon + i];
+        cells[(6 + i / 4) * BOX_W + 6 + i % 4] = (!selected && zone_played[box] < 0) ? 0x206B : icon_map[icon + i];
     for (int y = 0; y < BOX_H; y++)
         for (int x = 0; x < BOX_W; x++)
             Plane_Put(&screen1p.plane_a, Cell(origin_row[slot] + y, origin_col[slot] + x), cells[y * BOX_W + x]);
