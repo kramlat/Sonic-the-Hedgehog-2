@@ -3,7 +3,8 @@
 # (the name of each zone, ZONE, and the act numbers), its two Nemesis arts (the fixed part at tile $580: E, N, O, ZONE and the numbers; the alphabet at its own, from which the letters a zone
 # needs are copied to tile $5DE on, in the order the name uses them: Load_Title_Cards_Art) and the table of those letters.
 # Written: asm/Mappings/TitleCardNames.asm (Sonic 2 mappings format), src/TitleCardData.c, res/Art/TitleCardZone and res/Art/TitleCardLetters.
-# The pre-beta's own names are kept as they are. Hidden Palace's, Wood's, Sand Shower's and Cyber City's are written here from the same alphabet (the user: do not port the pre-beta's Hidden
+# The final game's names (the user, 2026-11-14: the cards have them although the level select keeps the old ones, which it will lose in a later milestone): Emerald Hill, Mystic Cave, Aquatic Ruin and Wing Fortress
+# are written here from the same alphabet; the other pre-beta names are kept as they are. Hidden Palace's, Wood's, Sand Shower's and Cyber City's are written here from the same alphabet (the user: do not port the pre-beta's Hidden
 # Palace data; Wood, Sand Shower and Cyber City have no card in it): the letters 16 pixels wide (I is 8, M and W 24), 16 between words, the name centred where Green Hill's is.
 # Run it in the Sonic 2 folder: import_s2prebeta_titlecards.pl
 use strict;
@@ -47,16 +48,16 @@ sub verbatim {
     @letters = sort { $a->[0] <=> $b->[0] } @letters;
     push @names, [ $comment, \@words, [ map { [ $_->[1], $_->[2] ] } @letters ] ];
 }
-verbatim('GREEN HILL', 'GHz_TC_Map');
+authored('EMERALD HILL');
 verbatim('METROPOLIS', 'Mz_TC_Map');
 verbatim('HILL TOP', 'HTz_TC_Map');
 verbatim('OIL OCEAN', 'OOz_TC_Map');
-verbatim('DUST HILL', 'DHz_TC_Map');
+authored('MYSTIC CAVE');
 verbatim('CASINO NIGHT', 'CNz_TC_Map');
 verbatim('CHEMICAL PLANT', 'CPz_TC_Map');
-verbatim('NEO GREEN HILL', 'NGHz_TC_Map');
+authored('AQUATIC RUIN');
 verbatim('SKY CHASE', 'SCz_TC_Map');
-verbatim('SKY FORTRESS', 'SFz_TC_Map');
+authored('WING FORTRESS');
 verbatim('DEATH EGG', 'DEz_TC_Map');
 
 # a name written from the alphabet
