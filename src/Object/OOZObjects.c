@@ -67,6 +67,8 @@ void Obj_OilSurface(Sst *self) {
         self->status |= 0x80;
     }
 
+    if (debug_use) // (Beta 4: nothing happens in debug mode)
+        return;
     for (int who = SolidChar_Sonic; who <= SolidChar_Tails; who++) {
         Sst *chr = Character(who);
         if (chr == NULL)

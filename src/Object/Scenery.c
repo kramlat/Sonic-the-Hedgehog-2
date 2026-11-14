@@ -19,6 +19,7 @@
 #include "Resource/Mappings/SceneryB.h"
 #include "Resource/Mappings/SceneryD.h"
 #include "Resource/Mappings/SceneryOOZ.h"
+#include "Resource/Mappings/SceneryOOZ01.h"
 #include "Resource/Mappings/Scenery.h" // (Sonic 1's, kept for the debug list that names it)
 
 typedef struct {
@@ -43,11 +44,21 @@ static const SceneryLook looks[] = {
     { Mappings_SceneryA, TILE_MAP(0, 2, 0, 0, 0x000), 0, 8, 1 },       // (level art)
     { Mappings_SceneryA, TILE_MAP(0, 2, 0, 0, 0x000), 1, 8, 1 },
     { Mappings_SceneryB, TILE_MAP(0, 2, 0, 0, 0x428), 0, 4, 4 },       // (Neo Green Hill's waterfall)
-    { Mappings_SceneryOOZ, TILE_MAP(0, 2, 0, 0, 0x346), 0, 8, 4 },     // (Oil Ocean's oil)
-    { Mappings_SceneryOOZ, TILE_MAP(0, 2, 0, 0, 0x346), 1, 8, 4 },
-    { Mappings_SceneryOOZ, TILE_MAP(0, 2, 0, 0, 0x346), 2, 8, 4 },
-    { Mappings_SceneryOOZ, TILE_MAP(0, 2, 0, 0, 0x346), 3, 8, 4 },
+    { Mappings_SceneryOOZ, TILE_MAP(0, 2, 0, 0, 0x346), 0, 4, 4 },     // (Oil Ocean's oil; Beta 4's widths are 4, the pre-beta's were 8)
+    { Mappings_SceneryOOZ, TILE_MAP(0, 2, 0, 0, 0x346), 1, 4, 4 },
+    { Mappings_SceneryOOZ, TILE_MAP(0, 2, 0, 0, 0x346), 2, 4, 4 },
+    { Mappings_SceneryOOZ, TILE_MAP(0, 2, 0, 0, 0x346), 3, 4, 4 },
+    { Mappings_SceneryOOZ, TILE_MAP(0, 2, 0, 0, 0x346), 4, 4, 4 },     // (Beta 4's: seven more)
+    { Mappings_SceneryOOZ, TILE_MAP(0, 2, 0, 0, 0x346), 5, 4, 4 },
+    { Mappings_SceneryOOZ01, TILE_MAP(0, 2, 0, 0, 0x346), 0, 0x18, 4 },
+    { Mappings_SceneryOOZ01, TILE_MAP(0, 2, 0, 0, 0x346), 1, 0x18, 4 },
+    { Mappings_SceneryOOZ01, TILE_MAP(0, 2, 0, 0, 0x346), 2, 8, 4 },
+    { Mappings_SceneryOOZ01, TILE_MAP(0, 2, 0, 0, 0x346), 3, 8, 4 },
+    { Mappings_SceneryOOZ01, TILE_MAP(0, 2, 0, 0, 0x346), 4, 8, 4 },
 };
+
+// loc_EFAA (Beta 4): the looks with a height of their own, which is how far they count as on screen (the render flag $10): the Oil Ocean ones that are tall
+static const uint8_t look_heights[21] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0x40, 0x60, 0, 0, 0x30, 0x40, 0x50 };
 
 void Obj_Scenery(Sst *self) {
     Own_Scenery *own = (Own_Scenery *)self->own.u8;
@@ -61,6 +72,12 @@ void Obj_Scenery(Sst *self) {
         self->mapping_frame = look->frame;
         self->width_pixels = look->width;
         self->priority = (uint16_t)(look->priority * 0x80);
+        const unsigned index = self->subtype % (sizeof(looks) / sizeof(looks[0]));
+        if (index < sizeof(look_heights) && look_heights[index] != 0) {
+            self->y_radius = look_heights[index];
+            self->height_pixels = look_heights[index];
+            self->render_flags |= 0x10;
+        }
     }
     Sst_Draw(self);
     SstDeleteIfNotInRange2(self, self->x_pos.f.u);

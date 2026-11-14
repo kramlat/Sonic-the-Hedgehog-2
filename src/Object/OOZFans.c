@@ -1,4 +1,4 @@
-// Oil Ocean's fans (object 3F of the pre-beta): a fan that spins, and for a while at full speed blows a character who stands in front of it along (subtype bit 7 clear: a vertical fan that pushes sideways, bit 0 which way;
+// Oil Ocean's fans (object 3F of Beta 4): a fan that spins, and for a while at full speed blows a character who stands in front of it along (subtype bit 7 clear: a vertical fan that pushes sideways, bit 0 which way;
 // bit 7 set: a horizontal fan that lifts, with a flip in the air). Every 120 frames it spins up (and then idles for 180); with subtype bit 1 it blows all the time.
 #include "SstLoad.h"
 #include "ObjectSst.h"
@@ -7,6 +7,7 @@
 #include "Constants.h"
 
 #include "Level.h"
+#include "Object/CharControl.h"
 #include "Object/Sonic.h"
 #include "Object/Tails.h"
 #include "Oscillatory Routines.h"
@@ -46,8 +47,10 @@ static void Fan_PushSideways(Sst *self, Sst *chr) {
         d0 = (int16_t)(d0 + d0);
     }
     d0 = (int16_t)(d0 + 0x60);
-    if (self->status & SST_STATUS_X_FLIP)
-        d0 = (int16_t)-d0;
+    // Beta 4 negates the low byte only the second time (`neg.b`: the pre-beta's `neg.w` undid the first negation, so that the push was d0 >> 4 one way and -d0 >> 4 the other): d0 is under $100 here, so the push is
+    // (256 - d0) >> 4 one way and the other way round, and about 70% stronger
+    const int16_t n = (int16_t)(uint8_t)(0x100 - d0);
+    d0 = (self->status & SST_STATUS_X_FLIP) ? n : (int16_t)-n;
     d0 = (int16_t)(d0 >> 4);
     if (self->subtype & 1)
         d0 = (int16_t)-d0;
@@ -124,7 +127,7 @@ void Obj_OOZFan(Sst *self) {
     } else { // it blows, and goes round at full speed
         for (int who = SolidChar_Sonic; who <= SolidChar_Tails; who++) {
             Sst *chr = who == SolidChar_Sonic ? player : (TAILS_OBJ->code != NULL ? TAILS_OBJ : NULL);
-            if (chr == NULL)
+            if (chr == NULL || chr->routine >= 4 || OBJ_CONTROL(chr) != 0) // (Beta 4: not a hurt or dead character, or one under the level's control)
                 continue;
             if (self->routine == FanRoutine_Horizontal)
                 Fan_PushUp(self, chr);

@@ -1474,10 +1474,11 @@ static void OOZ_TheFanSpinsUpForAWhileThenBlows(void) {
 
 // --- 4A (Oil Ocean's Octus) ---
 
-static void OOZ_TheOctusWaitsRisesAndFiresAShotAndAPuff(void) {
+static void OOZ_TheOctusWaitsReadiesLeapsAndFiresAShot(void) {
     Reset(ZoneId_OOZ);
     Sst *octus = Spawn(0x4A, 0, 300, 400);
     octus->routine = 2; // (landed)
+    ((int16_t *)octus->own.u8)[3] = 400; // (its home height, at $2E: where it landed)
     player->x_pos.f.u = 300 + 0x200;
     player->y_pos.f.u = 400;
     Obj_Octus(octus);
@@ -1485,15 +1486,16 @@ static void OOZ_TheOctusWaitsRisesAndFiresAShotAndAPuff(void) {
     CHECK_EQ(octus->routine_secondary, 0); // (Sonic is far: it waits)
     player->x_pos.f.u = 300 + 0x40;
     Obj_Octus(octus);
-    CHECK_EQ(octus->routine_secondary, 2); // (he is near: it rises)
-    CHECK_EQ(octus->anim, 1);
-    ((int16_t *)octus->own.u8)[3] = 400; // (its home height, at $2E: where it landed)
-    for (int i = 0; i < 40 && octus->routine_secondary == 2; i++)
+    CHECK_EQ(octus->routine_secondary, 2); // (he is near: it readies)
+    CHECK_EQ(octus->anim, 3);
+    for (int i = 0; i < 0x30 && octus->routine_secondary == 2; i++)
         Obj_Octus(octus);
-    CHECK_EQ(octus->routine_secondary, 4);
-    Obj_Octus(octus); // it fires
-    CHECK_EQ(CountOf(0x4A, 4), 1);    // the puff
-    CHECK_EQ(CountOf(0x4A, 6), 1);    // the shot
+    CHECK_EQ(octus->routine_secondary, 4); // (and leaps at $200)
+    CHECK_EQ(octus->anim, 4);
+    for (int i = 0; i < 0x40 && octus->routine_secondary == 4; i++)
+        Obj_Octus(octus);
+    CHECK_EQ(octus->routine_secondary, 6); // (the top: it shoots)
+    CHECK_EQ(CountOf(0x4A, 6), 1);
     Sst *shot = NULL;
     for (int i = 0x20; i < 0x60; i++)
         if (sst[i].code == sst_object_codes[0x4A] && sst[i].routine == 6)
@@ -1501,44 +1503,53 @@ static void OOZ_TheOctusWaitsRisesAndFiresAShotAndAPuff(void) {
     CHECK(shot != NULL);
     if (shot == NULL)
         return;
-    CHECK_EQ(shot->x_vel, -0x580);
-    CHECK_EQ(shot->collision_flags, 0); // (the pre-beta gives it none)
+    CHECK_EQ(shot->collision_flags, 0x98); // (Beta 4's shot hurts)
+    CHECK_EQ(shot->anim, 2);
+    for (int i = 0; i < 0x80 && octus->routine_secondary != 0; i++)
+        Obj_Octus(octus);
+    CHECK_EQ(octus->routine_secondary, 0); // (it hangs, falls and lands where it was)
+    CHECK_EQ(octus->y_pos.f.u, 400);
 }
 
 // --- 50 (Oil Ocean's Aquis) ---
 
-static void OOZ_TheAquisPatrolsLeapsAtSonicAndSpitsAHarmlessShot(void) {
+static void OOZ_TheAquisHoversChasesStopsAndSpitsAShotDown(void) {
     Reset(ZoneId_OOZ);
-    const int16_t saved_water = wtr_pos1; // (the level's water: other tests read it)
-    wtr_pos1 = 400;
     Sst *aquis = Spawn(0x50, 0x1F, 300, 400);
     Obj_Aquis(aquis);
     CHECK_EQ(aquis->collision_flags, 0x0A);
     CHECK_EQ(CountOf(0x50, 4), 1); // the fin
-    CHECK(aquis->x_vel != 0);
-    // at the surface, facing right, with Sonic above it and in front
-    ((uint8_t *)aquis->own.u8)[0x2C - 0x28] = 0xFF; // (at the surface)
-    aquis->status |= SST_STATUS_X_FLIP;
+    CHECK_EQ(aquis->x_vel, -0x100);
+    CHECK_EQ(aquis->routine_secondary, 0); // (it waits until it is on the screen)
+    aquis->render_flags |= SST_RENDER_ON_SCREEN;
     player->x_pos.f.u = 300 + 0x40;
-    player->y_pos.f.u = 400 - 0x20;
+    player->y_pos.f.u = 400 + 0x40; // (below it, and to the right)
     Obj_Aquis(aquis);
+    CHECK_EQ(aquis->routine_secondary, 2);
+    aquis->render_flags |= SST_RENDER_ON_SCREEN;
+    Obj_Aquis(aquis); // (the first time the timer is spent: it stops at once)
     CHECK_EQ(aquis->routine_secondary, 4);
-    CHECK_EQ(aquis->anim, 1);
-    for (int i = 0; i < 60 && CountOf(0x50, 6) == 0; i++)
+    CHECK_EQ(aquis->x_vel, 0);
+    for (int i = 0; i < 4 && CountOf(0x50, 6) == 0; i++)
         Obj_Aquis(aquis);
-    CHECK_EQ(CountOf(0x50, 6), 1);
+    CHECK_EQ(CountOf(0x50, 6), 1); // (a shot, since Sonic is below)
     Sst *shot = NULL;
     for (int i = 0x20; i < 0x60; i++)
         if (sst[i].code == sst_object_codes[0x50] && sst[i].routine == 6)
             shot = &sst[i];
     CHECK(shot != NULL);
-    if (shot == NULL) {
-        wtr_pos1 = saved_water;
+    if (shot == NULL)
         return;
+    CHECK_EQ(shot->collision_flags, 0x98); // (Beta 4's shot hurts)
+    CHECK_EQ(shot->y_vel, 0x200);
+    CHECK_EQ(shot->x_vel, -0x300); // (it faces left)
+    // after the stop it chases again, up a little
+    for (int i = 0; i < 0x30 && aquis->routine_secondary == 4; i++) {
+        aquis->render_flags |= SST_RENDER_ON_SCREEN;
+        Obj_Aquis(aquis);
     }
-    CHECK_EQ(shot->x_vel, 0x300);
-    CHECK_EQ(shot->collision_flags, 0xE5); // (a type nothing in the pre-beta handles: it hurts nobody)
-    wtr_pos1 = saved_water;
+    CHECK_EQ(aquis->routine_secondary, 2);
+    CHECK_EQ(aquis->y_vel, -0x100);
 }
 
 // --- the monitors, through the object loader ---
@@ -1673,8 +1684,8 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(DHZ_SpikesHurtTailsWhileSonicIsInvincibleExceptInSandShower);
     RUN_TEST(OOZ_ABlockBreaksUnderARollingCharacterAndCarriesHimAlong);
     RUN_TEST(OOZ_TheVerticalBlockSendsHimUp);
-    RUN_TEST(OOZ_TheOctusWaitsRisesAndFiresAShotAndAPuff);
-    RUN_TEST(OOZ_TheAquisPatrolsLeapsAtSonicAndSpitsAHarmlessShot);
+    RUN_TEST(OOZ_TheOctusWaitsReadiesLeapsAndFiresAShot);
+    RUN_TEST(OOZ_TheAquisHoversChasesStopsAndSpitsAShotDown);
     RUN_TEST(OOZ_AVerticalFanPushesACharacterSidewaysWhileItBlows);
     RUN_TEST(OOZ_AHorizontalFanLiftsAndTumblesACharacter);
     RUN_TEST(OOZ_TheFanSpinsUpForAWhileThenBlows);
