@@ -248,6 +248,19 @@ static void Music_EveryFinalTrackHasASongAndZonesFollowTheAlphasPlaylist(void) {
             CHECK_EQ(Level_Music(LEVEL_ID(zone, 0)), alpha_music_list[zone] - 0x80);
     }
     CHECK_EQ(Level_Music(LEVEL_ID(ZoneId_SCZ, 0)), mus_WFZ); // Sky Chase plays $8F in the pre-beta (the alpha's $8D entry is Sky Chase's own song, not used now)
+    // Beta 4's PlayList_2P: Emerald Hill, Mystic Cave and Casino Night have versus themes, whatever the split screen is
+    const bool was_true_two_player = true_two_player, was_split = camera_split;
+    true_two_player = true;
+    camera_split = false;
+    CHECK_EQ(Level_Music(LEVEL_ID(ZoneId_EHZ, 0)), mus_EHZ2P);
+    CHECK_EQ(Level_Music(LEVEL_ID(ZoneId_MCZ, 0)), mus_MCZ2P);
+    CHECK_EQ(Level_Music(LEVEL_ID(ZoneId_CNZ, 0)), mus_CNZ2P);
+    CHECK_EQ(Level_Music(LEVEL_ID(ZoneId_MTZ, 0)), mus_MTZ);
+    true_two_player = false;
+    camera_split = true;
+    CHECK_EQ(Level_Music(LEVEL_ID(ZoneId_EHZ, 0)), mus_EHZ); // (the split screen alone does not change it)
+    true_two_player = was_true_two_player;
+    camera_split = was_split;
 }
 
 

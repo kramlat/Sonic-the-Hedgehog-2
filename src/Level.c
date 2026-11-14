@@ -708,7 +708,17 @@ uint8_t Level_Music(uint16_t level) {
         // (the alpha's list has Sky Chase's song at $09 and Cyber City's, the Marble swap, at $0E: each follows its zone to its new slot)
     };
     unsigned zone = LEVEL_ZONE(level);
-    return zone < ZoneId_Num ? zone_music[zone] : 0;
+    if (zone >= ZoneId_Num)
+        return 0;
+    if (true_two_player) { // Beta 4's PlayList_2P (the final game's too): three zones have their own versus themes. Only the true 2 player mode matters, not whether the screen is split
+        if (zone == ZoneId_EHZ)
+            return mus_EHZ2P;
+        if (zone == ZoneId_MCZ)
+            return mus_MCZ2P;
+        if (zone == ZoneId_CNZ)
+            return mus_CNZ2P;
+    }
+    return zone_music[zone];
 }
 
 // ---- The level editor loads another zone's terrain (Game_EditorImportTerrain): its tiles, blocks, chunks, palette and collision indices, as the zone's level load block has them, in place of the level's own.
