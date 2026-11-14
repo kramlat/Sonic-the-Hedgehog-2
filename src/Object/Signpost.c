@@ -42,6 +42,12 @@ void Obj_Signpost(Sst *self) {
 
     switch (self->routine) {
     case 0: // Initialization
+        // Beta 4: in the one player play the end panel is only there in the first act (and Metropolis' second): in the others the act ends at its boss and the egg prison, and a panel that the layout has
+        // (Emerald Hill 2 has one beyond the arena) takes itself away
+        if (!two_player_mode && level_id != LEVEL_ID(ZoneId_MTZ, 1) && LEVEL_ACT(level_id) != 0) {
+            Sst_Delete(self);
+            break;
+        }
         // Increment routine
         self->routine += 2;
 

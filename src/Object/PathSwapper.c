@@ -42,8 +42,7 @@ static void Swapper_Cross(const Sst *self, Sst *chr, bool forward) {
     chr->art_tile &= ~0x8000;
     if (subtype & (forward ? 0x20 : 0x40))
         chr->art_tile |= 0x8000;
-    if (debug_cheat)
-        PlaySound(sfx_Lamppost);
+    // (the pre-beta plays the checkpoint sound here when its debug flag is on; Beta 4 does not)
 }
 
 // Both of the characters against the line (Offset_0x01A828 for the vertical one, Offset_0x01A942 for the horizontal)
