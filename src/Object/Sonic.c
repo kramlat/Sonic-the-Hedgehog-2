@@ -850,6 +850,7 @@ static signed int React_Monitor(Sst *self, Sst *hit) {
         // Break monitor (once: a monitor that is breaking already is not broken again by the other character)
         self->y_vel = -self->y_vel;
         hit->routine += 2;
+        hit->status_tertiary = 0; // (who broke it: the versus play counts its item and gives its rings to him)
     }
     return 0; // d0 not set
 }

@@ -16,4 +16,10 @@ void VsStats_ItemBroken(void);                  // an item box
 void VsStats_Read(VsPlayerStats out[2]);        // both, for the results
 void VsStats_StopClock(int player);             // the player has passed the end: his time stops
 
+// The versus end panel: each player passes it on his own. Update looks at both and is true on the frame the first of them has; BothPassed when the second has too; `vs_act_over` is set by the panel a moment after.
+struct Sst;
+bool VsEndPanel_Update(struct Sst *panel);
+bool VsEndPanel_BothPassed(void);
+extern bool vs_act_over;
+
 #endif //_VERSUSSTATS_H

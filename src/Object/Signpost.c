@@ -10,6 +10,7 @@ void Obj_Ring(Sst *self);
 #include "Sound.h"
 #include "SplitScreen.h"
 #include "Object/Tails.h"
+#include "VersusStats.h"
 #include "Resource/Mappings/Signpost.h"
 #include "Resource/Animation/Signpost.h"
 
@@ -52,6 +53,14 @@ void Obj_Signpost(Sst *self) {
         self->priority = 4 * 0x80;
         // Fallthrough
     case 2: // Wait for contact
+        if (vs_stats_active) { // the versus play: each player passes it on his own, the first one sets it spinning
+            if (VsEndPanel_Update(self)) {
+                PlaySound(sfx_Signpost);
+                SplitScreen_LockCameras(self->x_pos.f.u, self->width_pixels);
+                self->routine = 4;
+            }
+            break;
+        }
         // Check if player is touching signpost
         if ((uint16_t)(player->x_pos.f.u - self->x_pos.f.u) < 0x20) {
             // Start spinning
@@ -62,6 +71,8 @@ void Obj_Signpost(Sst *self) {
         }
         break;
     case 4: // Spinning
+        if (vs_stats_active)
+            VsEndPanel_Update(self); // (the other player may pass it while it spins)
         // Handle spinning animation
         if (--own->spin_time < 0) {
             // Do next animation and increment routine when stopped spinning
@@ -99,6 +110,13 @@ void Obj_Signpost(Sst *self) {
         }
         break;
     case 6: // Player run
+        if (vs_stats_active) { // the versus play: the act is over when both have passed it (and a moment after the last)
+            if (VsEndPanel_Update(self))
+                break;
+            if (VsEndPanel_BothPassed() && ++own->spin_time > 180)
+                vs_act_over = true;
+            break;
+        }
         // Lock player controls
         if (debug_use)
             break;

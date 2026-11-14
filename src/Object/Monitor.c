@@ -1,6 +1,7 @@
 // Monitors for Sonic 2 (Nick Arcade's objects 26 and 2E): Sonic 1's Monitor.c with Nick Arcade's changes: its items are numbered 1 Sonic, 2 Tails, 4 rings, 5 shoes, 6 shield, 7 invincibility, 3 Eggman (hurts), and 8 and 9, which do nothing as in
 // the prototype (8 shows a "?": the final game's versus monitor that hides and randomizes its item; 9 a spring, where the final's teleporter goes), the icons are mapping frame subtype + 1, and a broken monitor plays animation 10.
 #include "Object/Monitor.h"
+#include "VersusStats.h"
 void Obj_ObjectHit(Sst *self);
 #include "Resource/Mappings/Monitor.h"
 #include "Resource/Animation/Monitor.h"
@@ -187,6 +188,7 @@ void Obj_Monitor(Sst *self) {
             item->x_pos.f.u = self->x_pos.f.u;
             item->y_pos.f.u = self->y_pos.f.u;
             item->anim = self->anim;
+            item->status_tertiary = self->status_tertiary; // (who broke it)
         }
 
         // Create explosion object
@@ -246,8 +248,12 @@ void Obj_MonitorItem(Sst *self) {
             self->routine += 2;
             self->anim_frame_timer = 29;
 
-            // Give item
+            // Give item (in the versus play the counters are the breaker's: the second player's set is swapped in for it)
             Scratch_Sonic* scratch = (Scratch_Sonic *)player->own.u8;
+            const bool second = vs_stats_active && self->status_tertiary == 1;
+            if (second)
+                VsStats_Swap();
+            VsStats_ItemBroken();
 
             switch (self->anim) {
             case 1: // Sonic
@@ -300,6 +306,8 @@ void Obj_MonitorItem(Sst *self) {
             default: // 0, 8 (the "?"), 9 (the spring): nothing, as in the prototype
                 break;
             }
+            if (second)
+                VsStats_Swap();
         }
         break;
     case 4: // Delete
