@@ -153,8 +153,11 @@ static void Tails_Water(Sst *self) {
     }
 }
 
+uint8_t Player_FrontInView(bool miles); // (SplitScreen.c)
+
 static void Tails_Display(Sst *self) {
     Scratch_Sonic *scratch = (Scratch_Sonic *)self->own.u8;
+    self->front_in_view = Player_FrontInView(true);
 
     // Handle invulnerability blinking
     uint16_t blink;
@@ -2257,6 +2260,7 @@ void Obj_TailsTails(Sst *self) {
         last_frame_tail = 0xFF;
         // Fallthrough
     case 2:
+        self->front_in_view = tails->front_in_view; // (his tails are in front where he is)
         self->angle = tails->angle;
         self->status = tails->status;
         self->x_pos.f.u = tails->x_pos.f.u;

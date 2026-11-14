@@ -368,8 +368,11 @@ static void PlayLevel(bool new_game) {
 
 // Sonic 2's title Start: the level select cheat is on from the start (hold A and press Start, no code to enter), and a plain Start begins in Neo Green Hill (the prototype's title sets
 // Current_ZoneAndAct to neo_green_hill_zone_act_1: zone slot $0F, Aquatic Ruin in the final game).
+extern bool hud_player_two; // (Object/HUD.c)
+
 static void Tit_ChkLevSel(bool level_select_cheat) {
     (void)level_select_cheat;
+    hud_player_two = false; // (a game of this machine alone, unless the versus menus say it is the guest's)
     // The alpha asks for A and Start together and nothing else held (its pad byte is exactly $C0); the prototype only looks at A
     if ((jpad1_hold1 & 0xFF) == (JPAD_A | JPAD_START)) {
         LevelSelect();

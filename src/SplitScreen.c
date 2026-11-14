@@ -19,6 +19,17 @@ extern bool hud_lives_lower_left; // (Object/HUD.c)
 #include "Video.h"
 
 uint8_t two_player_mode;
+extern uint8_t true_two_player; // (Game.h)
+extern bool hud_player_two; // (Object/HUD.c) the picture is the second player's (online)
+
+// The views each player is in front of the other sprites in (Sst.front_in_view): in the split screen Sonic in the first and Miles in the second; online, with its one picture, the player of this machine
+uint8_t Player_FrontInView(bool miles) {
+    if (two_player_mode)
+        return miles ? 2 : 1;
+    if (true_two_player)
+        return (miles == hud_player_two) ? 1 : 0;
+    return 0;
+}
 
 // (LevelScroll.c: the zone's background deformation run for the second camera)
 void DeformLayersP2_Init(void);

@@ -12,6 +12,7 @@
 
 // HUD assets
 #include "Resource/Art/HUDLifeTails.h"
+#include "Resource/Art/HUDLifeMiles.h"
 #include "Resource/Art/HUDNum.h"
 #include "Resource/Art/LifeNum.h"
 
@@ -108,11 +109,15 @@ void HUD_WriteHex(size_t offset, uint32_t value) {
 
 // HUD functions
 extern uint8_t two_player_mode; // (SplitScreen.c)
+extern bool hud_player_two;     // (Object/HUD.c)
+#define MILES_DIGITS_VRAM 0xFD20 // (the lives digits in Miles' name: the tiles after its icon, 0x7E4 + 5)
 
 void HUD_Lives(void) {
-    if (two_player_mode) { // the second view's lives counter has Tails' icon: its tiles, next to the counter's (the HUD draws it with the SONIC of the first)
+    const bool miles_counter = two_player_mode || hud_player_two;
+    if (miles_counter) { // Miles' lives counter (the second view, or the second player's picture online): his icon and his name MILES, as tiles of its own after the counter's (the digits are copied into the name's)
         VDP_SeekVRAM(0x7E0 * 32);
-        VDP_WriteVRAM(Art_HUDLifeTails, sizeof(Art_HUDLifeTails));
+        VDP_WriteVRAM(Art_HUDLifeTails, 4 * 32); // (not sizeof: the resources have 8 bytes of padding after them)
+        VDP_WriteVRAM(Art_HUDLifeMiles, 8 * 32);
     }
     size_t offset = 0xFBA0;
 
@@ -131,13 +136,16 @@ void HUD_Lives(void) {
         // Write digit
         if (digit)
             digit_write = true;
-        if (digit_write || decs == 0) {
-            const uint8_t* art = Art_LifeNum + (digit <<= 5);
-            VDP_SeekVRAM(offset);
-            VDP_WriteVRAM(art, 32);
-        } else {
-            VDP_SeekVRAM(offset);
-            VDP_FillVRAM(0, 32);
+        for (int copy = 0; copy < (miles_counter ? 2 : 1); copy++) {
+            const size_t at = copy == 0 ? offset : offset - 0xFBA0 + MILES_DIGITS_VRAM; // (the second copy: in Miles' name)
+            if (digit_write || decs == 0) {
+                const uint8_t* art = Art_LifeNum + ((size_t)digit << 5);
+                VDP_SeekVRAM(at);
+                VDP_WriteVRAM(art, 32);
+            } else {
+                VDP_SeekVRAM(at);
+                VDP_FillVRAM(0, 32);
+            }
         }
 
         // Increment offset and decimal

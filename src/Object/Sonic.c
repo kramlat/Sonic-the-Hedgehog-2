@@ -60,8 +60,11 @@ static uint16_t spindash_count;
 uint8_t dbg_ang0, dbg_ang1, dbg_ang2, dbg_ang3; // 0xFFEC-0xFFEF
 
 // General Sonic state stuff
+uint8_t Player_FrontInView(bool miles); // (SplitScreen.c)
+
 static void Sonic_Display(Sst *self) {
     Scratch_Sonic *scratch = (Scratch_Sonic *)self->own.u8;
+    self->front_in_view = Player_FrontInView(false);
 
     // Handle invulnerability blinking
     uint16_t blink;

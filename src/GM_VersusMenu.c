@@ -427,14 +427,18 @@ bool VersusMenu_ChoseSpecialStage(void) {
     return chose_special_stage;
 }
 
+extern bool hud_player_two; // (Object/HUD.c)
+
 bool VersusMenu_Run(void) {
     chose_special_stage = false;
+    hud_player_two = false;
     EnterScreens();
     PlayMusic(mus_Menu);
     PaletteFadeIn();
     bool result = false;
     for (;;) {
         const SessionChoice choice = SessionMenu();
+        hud_player_two = false;
         if (choice == Session_Back)
             break;
         if (choice == Session_Local) {
@@ -465,6 +469,7 @@ bool VersusMenu_Run(void) {
                 continue;
             }
             wait = WaitFor(net, NETPLAY_READY, SEARCH_FRAMES + CONNECT_FRAMES, S2Menu_TwoPGuestWait, NULL);
+            hud_player_two = true; // (the guest is the second player: his picture has Miles' counter)
         }
         if (wait == Wait_Done && choice == Session_Host) {
             // connected: the host picks the zone, the guest waits for it (the start message), then both load

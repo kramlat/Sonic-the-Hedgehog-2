@@ -104,6 +104,7 @@ resources:
   - "Art/HUD"
   - "Art/HUDLife"
   - "Art/HUDLifeTails"
+  - "Art/HUDLifeMiles"   # the name MILES for the second player's lives counter (the SONIC of the first, in the same letters; drawn for it)
   - "Art/HUDNum"
   - "Art/Tails"
   - "Animation/Tails"
