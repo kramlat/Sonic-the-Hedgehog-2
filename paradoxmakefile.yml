@@ -717,6 +717,7 @@ sources:
   - "src/Sonic2Screens.c"
   - "src/GM_Sega.c"
   - "src/GM_Title.c"
+  - "src/GM_VersusMenu.c"
   - "src/Sonic2Collision.c"
   - "src/Sonic2Sound.c"
   - "src/SplitScreen.c"

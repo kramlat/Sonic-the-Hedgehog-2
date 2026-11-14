@@ -110,14 +110,14 @@ static bool LevSelZoneBuilt(uint16_t level) {
 static int levsel_sound = 0;
 static int levsel_item = 0;
 
-// What the sound test plays for the id $80+value: the music ($81-$9D, the final game's) and effects ($A0-$E9, the alpha's) are the sounds of this port's ids; the rest is silence
+// What the sound test plays for the id $80+value: the music ($81-$9F, the final game's) and effects ($A0-$F3, the final game's and Tails' flight) are the sounds of this port's ids; the rest is silence
 static uint8_t LevSelSoundId(int value) {
     int id = 0x80 + value;
     if (id >= 0x81 && id <= 0x9F)
         return (uint8_t)(mus_VsResults + (id - 0x81));
-    if (id >= 0xA0 && id <= 0xE9)
+    if (id >= 0xA0 && id <= 0xF3) // (the final game's effects to $F0, then Tails' flight: $F1-$F3)
         return (uint8_t)(sfx_Jump + (id - 0xA0));
-    if (id == 0xEA)
+    if (id == 0xF4)
         return mus_MzSwap; // (the port's own song, after the effects)
     return 0;
 }
@@ -334,6 +334,7 @@ static const uint16_t title_demos[] = {
 #include "Resource/Art/TitleSonic.h"
 #include "Resource/Art/TitleMenu.h"
 #include "Object/TitleMenu.h"
+#include "GM_VersusMenu.h"
 void Obj_TitleCharacters(Sst *self); // (Object/TitleCharacters.c)
 #include "Resource/Art/TitleTM.h"
 #include "Resource/Tilemap/TitleFG.h"
@@ -376,6 +377,10 @@ static void Tit_ChkLevSel(bool level_select_cheat) {
         two_player_mode = TitleMenu_TwoPlayers(); // (the menu's choice: Up and Down turn it over, Start takes it)
         true_two_player = two_player_mode;
         level_id = LEVEL_ID(ZoneId_ARZ, 0);
+        if (two_player_mode && !VersusMenu_Run()) { // (the session and zone menus; B on the first goes back to the title)
+            two_player_mode = true_two_player = false;
+            return;
+        }
         PlayLevel(true);
     }
 }
