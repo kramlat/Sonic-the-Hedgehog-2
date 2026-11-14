@@ -108,6 +108,7 @@ void HUD_WriteHex(size_t offset, uint32_t value) {
 }
 
 // HUD functions
+extern uint16_t endact_total; // (Object/TitleCard.c)
 extern uint8_t two_player_mode; // (SplitScreen.c)
 extern bool hud_player_two;     // (Object/HUD.c)
 #define MILES_DIGITS_VRAM 0xFD20 // (the lives digits in Miles' name: the tiles after its icon, 0x7E4 + 5)
@@ -260,7 +261,8 @@ void HUD_Update(void) {
     // Update the time and ring bonus numbers of the end-of-act and special stage results cards
     if (endact_bonus) {
         endact_bonus = false;
-        VDP_SeekVRAM(ArtTile_Bonuses * TILE_SIZE);
+        VDP_SeekVRAM(0x520 * TILE_SIZE); // (Beta 4's end of act card: the total, the time bonus and the ring bonus, four digits each)
+        HUD_WriteBonus(endact_total);
         HUD_WriteBonus(time_bonus);
         HUD_WriteBonus(ring_bonus);
     }

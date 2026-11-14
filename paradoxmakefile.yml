@@ -403,6 +403,10 @@ resources:
   # the pre-beta's title cards (tools/import_s2prebeta_titlecards.pl)
   - "Art/TitleCardZone"
   - "Art/TitleCardLetters"
+  # Beta 4's cards (tools/import_s2b4_cards.pl): the end of act card's art
+  - "Art/B4CardZone"
+  - "Art/B4CardResults"
+  - "Art/B4MiniSonic"
   - "Art/SegaSonic" # (tiles $2B6-$301 of the pre-beta's Sonic art: the SEGA screen's running Sonic)
   - "Art/TitleMenu" # (the title screen's 1 PLAYER / 2 PLAYER VS, the pre-beta's 1p2pVs.nem)
   - "Art/BossEHZ"
@@ -839,6 +843,7 @@ mappings_SonicTheHedgehog2:
   - "Mappings/Sonic"
   - "Mappings/SegaSprites"
   - "Mappings/TitleCardNames"
+  - "Mappings/LevelResults"
   - "Mappings/TitleMenu"
   - "Mappings/Tails"
   - "Mappings/SuperSonicStars"
@@ -1052,6 +1057,7 @@ assemble:
   - "Mappings/NAWaterSurface"
   - "Mappings/HTZSeesaw"
   - "Mappings/TitleCardNames" # (the pre-beta's title cards: tools/import_s2prebeta_titlecards.pl)
+  - "Mappings/LevelResults" # (Beta 4's end of act card: tools/import_s2b4_cards.pl)
   - "Mappings/TitleMenu"
   - "Mappings/SegaSprites" # (the SEGA screen's sprites: the pre-beta's $B0 and $B1)
 cmake: paradoxmake.cmake

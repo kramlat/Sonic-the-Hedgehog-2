@@ -105,6 +105,9 @@
 #include "Resource/Art/AnimalTurtle.h"
 #include "Resource/Art/AnimalBear.h"
 #include "Resource/Art/TitleCard.h"
+#include "Resource/Art/B4CardZone.h"
+#include "Resource/Art/B4CardResults.h"
+#include "Resource/Art/B4MiniSonic.h"
 #include "Resource/Art/BigFlash.h"
 #include "Resource/Art/Bumper.h"
 #include "Resource/Art/BuzzBomber.h"
@@ -551,12 +554,15 @@ static const PLCList PLC_SBZ2 = { // Hill_Top_Sprites_2: the zip-line platform, 
 // ---------------------------------------------------------------------------
 // Pattern load cues - title card
 // ---------------------------------------------------------------------------
+// (the end of act card's: Beta 4's PLC_26 less its first entry, the ZONE art and the fixed letters, which the card loads itself: the art goes over the results' tiles from $5B0 on if it comes first)
 static const PLCList PLC_TitleCard = {
-   1,
+   2,
     (const PLC[]) {
-        { Art_TitleCard,     ART_VRAM(ArtTile_Title_Card) },
+        { Art_B4CardResults, ART_VRAM(0x5B0) },
+        { Art_B4MiniSonic,   ART_VRAM(0x5F4) },
     }
 };
+const uint8_t *EndCard_ZoneArt(void) { return Art_B4CardZone; }
 // ---------------------------------------------------------------------------
 // Pattern load cues - act 3 boss
 // ---------------------------------------------------------------------------

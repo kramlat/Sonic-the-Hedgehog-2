@@ -19,7 +19,7 @@
 #include "SplitScreen.h"
 #include <string.h>
 #include "Mappings.h"
-#include "Resource/Mappings/GotThrough.h"
+#include "Resource/Mappings/LevelResults.h"
 #include "Resource/Mappings/SpecialResult.h"
 
 // Title card configuration. The positions depend on the width and height of the picture, which are chosen at run time, so
@@ -31,21 +31,6 @@ struct TitleCard_Item {
 
 struct TitleCard_Config {
     int16_t x0, x1;
-};
-
-// "Got through" (end of act) card item data, transcribed from Got_ItemData
-static const struct GotCard_Item {
-    int16_t x0, x1; // start / target x-position
-    int16_t y;
-    uint8_t routine, frame;
-} gotcard_item[7] = {
-    { 0x0004, 0x0124, 0x00BC, 2, 0 }, // "SONIC HAS"
-    { -0x0120, 0x0120, 0x00D0, 2, 1 }, // "PASSED"
-    { 0x040C, 0x014C, 0x00D6, 2, 6 }, // "ACT" 1/2/3 (dynamic frame, see below)
-    { 0x0520, 0x0120, 0x00EC, 2, 2 }, // Score tally
-    { 0x0540, 0x0120, 0x00FC, 2, 3 }, // Time Bonus tally
-    { 0x0560, 0x0120, 0x010C, 2, 4 }, // Ring Bonus tally
-    { 0x020C, 0x014C, 0x00CC, 2, 5 }, // Blue oval
 };
 
 // What each act leads to: the pre-beta's Level_Sequence_List (and Level_Sequence_List_2P, for the versus play), one pair of entries for each of its zone numbers (the first act's, then the second's); the high byte of an entry
@@ -75,115 +60,120 @@ uint16_t TitleCard_NextLevel(void) {
     return level_order[two_player_mode != 0][zone][act & 1];
 }
 
-// The pre-beta draws neither the end of act card nor anything of it: its object (Obj_0x3A_Level_Results) has an `rts` in front of every `bra DisplaySprite`, so the elements move, the bonuses are added up
-// and the next level comes, with nothing on the screen (the user, 2026-11-06: as the ROM). Set to 1 to have the card shown again (the later builds have it).
-#define GOTTHROUGH_CARD_DRAWN 0
+const uint8_t *EndCard_ZoneArt(void); // (Sonic2PLC.c, which has the art)
 
-// SBZ2 post-level cutscene: has the Ring Bonus element (the one that drives the tally) reached its slide-out
-// routine? (real: cmpi.b #$E,(v_endcardring+obRoutine))
-static bool GotCard_SlideOutStarted(void) {
-    for (int i = 0; i < SST_COUNT; i++) {
-        const Sst *o = &sst[i];
-        if (o->code != NULL && o->code == Obj_GotThroughCard && o->mapping_frame == 4)
-            return o->routine == 0xE;
-    }
-    return false;
+// ---- The end of act card: object $3A of Beta 4 (End_Level_Results_Mappings by tools/import_s2b4_cards.pl; art: the ZONE letters at $580, the words at $5B0, the continue icon at $5F4) ----
+// Seven elements slide in (the first, this object, runs the rest: it waits, tallies the bonuses into the score, waits, and goes to the next level), and when the bonuses add up to 1000 or more
+// a flashing icon of Sonic gives a continue. The numbers are the HUD's art (HUD_Update draws the total, the time bonus and the ring bonus into tiles $520 on).
+enum { GOT_FIRST = 0, GOT_PASSED = 3, GOT_ZONE = 5, GOT_ACT1 = 6, GOT_TIME = 9, GOT_RING = 10, GOT_TOTAL = 11, GOT_CONTINUE = 12 };
+#define GOT_TOTAL_LIMIT 1000 // (bonuses that add up to this or more give a continue)
+uint16_t endact_total;       // the bonuses added to the score so far
+
+static const struct GotCard_Item {
+    int16_t x0, x1, y;
+    uint8_t routine, frame;
+} gotcard_item[7] = { // Level_Results_Screen_Pos
+    { 0x0020, 0x0120, 0x00B8, 2, 0 },           // the first line (the master)
+    { 0x0200, 0x0100, 0x00CA, 4, GOT_PASSED },  // the second line
+    { 0x0240, 0x0140, 0x00CA, 6, 4 },           // (the word before the act: ZONE, or nothing in the zones without acts)
+    { 0x0280, 0x0180, 0x00BE, 8, GOT_ACT1 },    // the act number (dynamic frame)
+    { 0x0320, 0x0120, 0x0114, 4, GOT_TIME },    // TIME BONUS
+    { 0x0330, 0x0120, 0x00F0, 4, GOT_RING },    // RING BONUS
+    { 0x0340, 0x0120, 0x0100, 4, GOT_TOTAL },   // the total
+};
+
+// (the zones that are not played in acts: Sky Chase, Wing Fortress and Death Egg have no act number)
+static bool GotCard_NoAct(void) {
+    const int zone = LEVEL_ZONE(level_id);
+    return zone == ZoneId_SCZ || zone == ZoneId_SFZ || zone == ZoneId_DEZ;
 }
 
-// Got_SBZ2_MoveOut: every element slides back to where it started, twice as fast as it came in. The Ring Bonus
-// element then hands control back to the player and starts the Final Zone music; the rest delete themselves.
-static void GotCard_SBZ2_MoveOut(Sst *self, Own_TitleCard *own) {
-    int16_t speed = 0x20;
-    if (self->x_pos.f.u == own->final_x) {
-        if (self->mapping_frame != 4) {
-            Sst_Delete(self);
+// loc_10DDC: 16 pixels a frame towards where it stops; drawn unless it is past the right edge
+static void GotCard_Slide(Sst *self, Own_TitleCard *own) {
+    if (self->x_pos.f.u != own->main_x) {
+        if (self->x_pos.f.u > own->main_x)
+            self->x_pos.f.u -= 16;
+        else
+            self->x_pos.f.u += 16;
+        if ((uint16_t)self->x_pos.f.u > 0x200 + SCREEN_WIDEADD)
             return;
-        }
-        self->routine += 2; // Got_SBZ2_Boundary
-        lock_ctrl = false; // unlock controls
-        QueueSound1(bgm_FZ);
-        return;
     }
-    if (self->x_pos.f.u > own->final_x)
-        speed = -speed;
-    self->x_pos.f.u += speed;
-    if (GOTTHROUGH_CARD_DRAWN && self->x_pos.f.u >= 0 && self->x_pos.f.u < (0x200 + SCREEN_WIDEADD))
-        Sst_Draw(self);
+    Sst_Draw(self);
 }
 
-// "Got through" (end of act) card object
+// The end of act card's object (and its elements)
 void Obj_GotThroughCard(Sst *self) {
     Own_TitleCard *own = (Own_TitleCard *)self->own.u8;
 
     switch (self->routine) {
-    case 0: // Wait for title card patterns to finish decompressing
+    case 0: { // Waits for the card's art, then makes the seven elements (this object is the first)
         if (plc_buffer[0].art != NULL)
             return;
-
-        // Fallthrough
-    {
-        // Spawn the 7 card elements (this object plus the next 6 in sequence)
+        endact_total = 0;
+        { // the ZONE art and the fixed letters, the first 48 tiles of it: the rest is the title card's banner, which would cover the results' words
+            static uint8_t zone_art[0x60 * TILE_SIZE];
+            NemDecToRAM(EndCard_ZoneArt(), zone_art);
+            VDP_SeekVRAM(ART_VRAM(ArtTile_Title_Card));
+            VDP_WriteVRAM(zone_art, 0x30 * TILE_SIZE);
+        }
+        const int16_t to_add = SCREEN_WIDEADD2;
+        const int16_t from_add = to_add + ((SCREEN_WIDEADD2 + 0xF) & ~0xF);
+        const int16_t from_sub = (0x10 - to_add) & 0xF;
         Sst *a1 = self;
-        const struct GotCard_Item *item = gotcard_item;
-        for (int i = 0; i < 7; i++, item++) {
+        for (int i = 0; i < 7; i++) {
             if (i > 0) {
                 a1 = Sst_AllocateAfter(a1);
                 if (a1 == NULL)
                     break;
             }
-            Own_TitleCard *scratch_a1 = (Own_TitleCard *)a1->own.u8;
+            const struct GotCard_Item *item = &gotcard_item[i];
+            Own_TitleCard *scratch = (Own_TitleCard *)a1->own.u8;
             a1->code = Obj_GotThroughCard;
-            a1->x_pos.f.u = item->x0;
-            scratch_a1->final_x = item->x0;
-            scratch_a1->main_x = item->x1;
-            a1->y_pos.f.u = item->y;
+            a1->x_pos.f.u = (int16_t)(item->x0 + (item->x0 > item->x1 ? from_add : -from_sub));
+            scratch->main_x = (int16_t)(item->x1 + to_add);
+            a1->y_pos.f.u = (int16_t)(item->y + SCREEN_TALLADD2);
             a1->routine = item->routine;
-
-            uint8_t frame = item->frame;
-            if (frame == 6) // "ACT" element: add the current act number
-                frame += LEVEL_ACT(level_id);
-            a1->mapping_frame = frame;
-            a1->mappings = Mappings_GotThrough;
-            a1->art_tile = TILE_MAP(1, 0, 0, 0, ArtTile_Title_Card);
-            a1->width_pixels = 0;
+            a1->mapping_frame = item->frame;
+            a1->mappings = Mappings_LevelResults;
+            a1->art_tile = TILE_MAP(1, 0, 0, 0, 0); // (priority; the pieces hold their tiles)
             a1->render_flags = 0;
             a1->priority = 0 * 0x80;
-            a1->anim_frame_timer = 60;
         }
         return;
     }
-    case 2: { // Moving to on-screen position
-        int16_t speed = 0x10;
+    case 2: // the first line: slides in, then the bonuses wait a second and a half
+        GotCard_Slide(self, own);
         if (self->x_pos.f.u == own->main_x) {
-            // Reached target position. In SBZ2 the card doesn't lead to the next act: once the Ring Bonus element
-            // (which runs the tally) gets to its slide-out routine, every element slides back out.
-            if (GotCard_SlideOutStarted()) {
-                self->routine = 0xE; // Got_SBZ2_MoveOut
-                GotCard_SBZ2_MoveOut(self, own);
-                return; // (it displays itself)
-            }
-
-            if (self->mapping_frame != 4) // Only the Ring Bonus element controls this
-                break;
-
-            self->routine += 2; // -> Got_Wait
-            own->timer = 3 * 60; // 3 second delay before tally
-            break;
-        } else if (self->x_pos.f.u > own->main_x) {
-            speed = -speed;
+            self->routine = 0xA;
+            own->timer = 0xB4;
         }
-        self->x_pos.f.u += speed;
-        break;
-    }
-    case 4: // Wait routines: hold for a timer, then advance
-    case 8:
-    case 0xC: // (SBZ2: the post-tally wait, before sliding out)
+        return;
+    case 4:
+        GotCard_Slide(self, own);
+        return;
+    case 6:
+        if (GotCard_NoAct())
+            self->mapping_frame = GOT_ZONE;
+        GotCard_Slide(self, own);
+        return;
+    case 8: // the act number
+        if (GotCard_NoAct()) {
+            Sst_Delete(self);
+            return;
+        }
+        self->mapping_frame = (uint8_t)(LEVEL_ZONE(level_id) == ZoneId_MTZ && LEVEL_ACT(level_id) == 2 ? 8 : GOT_ACT1 + LEVEL_ACT(level_id));
+        GotCard_Slide(self, own);
+        return;
+    case 0xA: // waits before the tally
+    case 0xE: // waits after it
         if (--own->timer == 0)
             self->routine += 2;
-        break;
-    case 6: { // Score tally
+        Sst_Draw(self);
+        return;
+    case 0xC: { // the tally: ten points a frame from each bonus into the score
+        Sst_Draw(self);
+        endact_bonus = true;
         uint16_t ticked = 0;
-
         if (time_bonus) {
             ticked += 10;
             time_bonus -= 10;
@@ -192,47 +182,69 @@ void Obj_GotThroughCard(Sst *self) {
             ticked += 10;
             ring_bonus -= 10;
         }
-
-        if (ticked) {
-            AddPoints(ticked);
-            if ((frame_count & 3) == 0) // (the blip is every 4th frame, as in Nick Arcade)
-                PlaySound(sfx_Switch);
-        } else {
+        endact_total += ticked;
+        if (ticked == 0) {
             PlaySound(sfx_Cash);
-            self->routine += 2; // -> Got_Wait, before Got_NextLevel
-            own->timer = 3 * 60; // 3 second post-tally delay
+            self->routine += 2;
+            own->timer = 0xB4;
+            if (endact_total >= GOT_TOTAL_LIMIT) { // a continue: its icon comes, flashing
+                own->timer = 0x12C;
+                Sst *icon = Sst_Allocate();
+                if (icon != NULL) {
+                    Own_TitleCard *scratch = (Own_TitleCard *)icon->own.u8;
+                    icon->code = Obj_GotThroughCard;
+                    icon->routine = 0x12;
+                    icon->x_pos.f.u = (int16_t)(0x188 + SCREEN_WIDEADD2);
+                    icon->y_pos.f.u = (int16_t)(0x10C + SCREEN_TALLADD2);
+                    icon->mappings = Mappings_LevelResults;
+                    icon->mapping_frame = 0;
+                    icon->art_tile = TILE_MAP(1, 0, 0, 0, 0);
+                    icon->render_flags = 0;
+                    icon->priority = 0 * 0x80;
+                    scratch->timer = 0x3C;
+                    scratch->final_x = 0; // (the icon's blink)
+                    continues++;
+                }
+            }
+            return;
         }
-        break;
+        AddPoints(ticked);
+        if ((frame_count & 3) == 0)
+            PlaySound(sfx_Switch);
+        return;
     }
-    case 0xA: { // Advance to the next act
+    case 0x10: { // on to the next level
         const uint16_t next = TitleCard_NextLevel();
         last_lamp = 0;
         if (next == 0xFFFF) { // (the end of the game: the Sega screen)
             gamemode = GameMode_Sega;
-            break;
+            return;
         }
         level_id = next;
-
-        // Sonic jumped into a giant ring (Obj_RingFlash set big_ring): the next screen is a special stage
-        if (big_ring)
+        if (big_ring) // (Sonic jumped into a giant ring: the next screen is a special stage)
             gamemode = GameMode_Special;
         else
             restart = 1;
-        break;
-    }
-    case 0xE: // Got_SBZ2_MoveOut
-        GotCard_SBZ2_MoveOut(self, own);
-        return;
-    case 0x10: // Got_SBZ2_Boundary: the Ring Bonus element opens the screen's right boundary for the cutscene room
-        limit_right2 += 2;
-        if (limit_right2 == 0x2050 + 0xB0) // boss_sbz2_x+$B0
-            Sst_Delete(self);
         return;
     }
-
-    // Draw (card stays fully on-screen throughout this whole sequence)
-    if (GOTTHROUGH_CARD_DRAWN && self->x_pos.f.u >= 0 && self->x_pos.f.u < (0x200 + SCREEN_WIDEADD))
-        Sst_Draw(self);
+    case 0x12: // the continue icon: waits, then the sound
+        if (own->timer) {
+            own->timer--;
+            return;
+        }
+        self->routine += 2;
+        PlaySound(sfx_Continue);
+        // Fallthrough
+    case 0x14: // and flashes (two frames, switching every 20 frames; shown on half the frames)
+        if ((int16_t)--own->timer < 0) {
+            own->timer = 0x13;
+            own->final_x = (int16_t)(own->final_x ^ 1);
+        }
+        self->mapping_frame = (uint8_t)(GOT_CONTINUE + own->final_x);
+        if (frame_count & 0x10)
+            Sst_Draw(self);
+        return;
+    }
 }
 
 // The elements of the level's title card, in the order they were made: the name, ZONE and the act number (NULL where the card is not there)
