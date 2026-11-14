@@ -7,6 +7,7 @@
 #include "Constants.h"
 
 #include "Level.h"
+#include "Object/Tails.h"
 #include "Macros.h"
 
 #include "Resource/Animation/Flasher.h"
@@ -38,8 +39,8 @@ static void Crawlton_MakeBody(Sst *head) {
     body->render_flags = head->render_flags | 0x40; // (the sub-sprites)
     body->mappings = head->mappings;
     body->art_tile = head->art_tile;
-    body->width_pixels = 0x40; // ($0E and Obj_Inertia: how wide and how high the body counts as for being on screen)
-    body->height_pixels = 0x40;
+    body->width_pixels = 0x80; // ($0E and Obj_Inertia: how wide and how high the body counts as for being on screen; the pre-beta's were $40)
+    body->height_pixels = 0x80;
     body->mapping_frame = 0; // (no sprite of its own)
     body->child_count = 7;
     body->priority = 5 * 0x80;
@@ -69,13 +70,18 @@ void Obj_Crawlton(Sst *self) {
         Crawlton_MakeBody(self);
         break;
 
-    case Crawl_Wait: { // waits until Sonic is within $80 pixels each way: then turns to him (and takes the speed towards him: a quarter of how far, a frame)
-        const int16_t dx = (int16_t)(self->x_pos.f.u - player->x_pos.f.u);
-        const int16_t dy = (int16_t)(self->y_pos.f.u - player->y_pos.f.u);
+    case Crawl_Wait: { // waits until a character is within $80 pixels each way (Beta 4's loc_328AA looks at one of the two a frame: Sonic on the even frames, Tails on the odd): then turns to him (and takes the speed towards him: a quarter of how far, a frame)
+        Sst *chr = (frame_count & 1) ? (TAILS_OBJ->code != NULL ? TAILS_OBJ : NULL) : player;
+        if (chr == NULL) {
+            SstOnScreenTest(self);
+            break;
+        }
+        const int16_t dx = (int16_t)(self->x_pos.f.u - chr->x_pos.f.u);
+        const int16_t dy = (int16_t)(self->y_pos.f.u - chr->y_pos.f.u);
         if ((uint16_t)(dx + 0x80) < 0x100 && (uint16_t)(dy + 0x80) < 0x100) {
             own->state += 2;
             own->counter = 0x10;
-            SST_RENDER_SET(self, SST_RENDER_X_FLIP, (uint16_t)self->x_pos.f.u < (uint16_t)player->x_pos.f.u);
+            SST_RENDER_SET(self, SST_RENDER_X_FLIP, (uint16_t)self->x_pos.f.u < (uint16_t)chr->x_pos.f.u);
             self->x_vel = (int16_t)(((-dx) << 3) & 0xFF00);
             self->y_vel = (int16_t)(((-dy) << 3) & 0xFF00);
         }

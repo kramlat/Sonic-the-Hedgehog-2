@@ -96,7 +96,7 @@ static void Roots_Character(Sst *self, Own_Roots *own, Sst *chr, int who) {
         return;
     if ((uint16_t)(chr->y_pos.f.u - self->y_pos.f.u - 0x28) >= 0x10)
         return;
-    if ((int8_t)OBJ_CONTROL(chr) < 0 || chr->routine >= 6 || debug_use) // (held by something else, dead, or in debug mode)
+    if ((int8_t)OBJ_CONTROL(chr) < 0 || chr->routine >= 4 || debug_use) // (held by something else, hurt or dead (Beta 4: the pre-beta let a hurt one take hold), or in debug mode)
         return;
     chr->x_vel = 0;
     chr->y_vel = 0;
@@ -134,6 +134,12 @@ void Obj_DHZVinesSwitch(Sst *self) {
 static void Vines_Character(Sst *self, Own_Roots *own, Sst *chr, int who) {
     const Pad pad = PadOf(who);
     if (own->hanging[who]) {
+        if (!(chr->render_flags & SST_RENDER_ON_SCREEN) || chr->routine >= 4) { // (Beta 4: off the screen, or hurt: he lets go, and cannot take hold for a second)
+            OBJ_CONTROL(chr) = 0;
+            own->hanging[who] = 0;
+            own->cooldown[who] = 0x3C;
+            return;
+        }
         if (!(pad.pressed & 0x70)) { // hangs on: he goes with the roots
             chr->y_pos.f.u = (int16_t)(self->y_pos.f.u + 0x94);
             return;
@@ -157,7 +163,7 @@ static void Vines_Character(Sst *self, Own_Roots *own, Sst *chr, int who) {
         return;
     if ((uint16_t)(chr->y_pos.f.u - self->y_pos.f.u - 0x88) >= 0x18)
         return;
-    if ((int8_t)OBJ_CONTROL(chr) < 0 || chr->routine >= 6 || debug_use)
+    if ((int8_t)OBJ_CONTROL(chr) < 0 || chr->routine >= 4 || debug_use)
         return;
     chr->x_vel = 0;
     chr->y_vel = 0;
@@ -167,8 +173,10 @@ static void Vines_Character(Sst *self, Own_Roots *own, Sst *chr, int who) {
     chr->anim = VINE_ANIM;
     OBJ_CONTROL(chr) = 1;
     own->hanging[who] = 1;
-    SwitchSet(self, true);
-    PlaySound(sfx_Switch);
+    if (own->linked) { // (Beta 4: only the roots that are a switch press it, and sound)
+        SwitchSet(self, true);
+        PlaySound(sfx_Switch);
+    }
 }
 
 void Obj_DHZVines(Sst *self) {
@@ -180,6 +188,8 @@ void Obj_DHZVines(Sst *self) {
         self->mappings = hook ? Mappings_SFZHookChain : Mappings_DHZVines;
         self->art_tile = hook ? TILE_MAP(0, 1, 0, 0, 0x3FE) : TILE_MAP(0, 3, 0, 0, 0x41E);
         own->max_length = hook ? 0xA0 : 0xB0;
+        if (hook && (self->subtype & 0xF))
+            own->max_length = 0x60; // (Beta 4: the chains with a switch number are short)
         self->render_flags = SPRITE_CAM_FIELD | 0x10; // (bit 4: the height is its own: y_rad)
         self->width_pixels = 0x10;
         self->priority = 4 * 0x80;

@@ -1223,7 +1223,7 @@ static void CNZ_TheBumperKnowsWhichCharacterTouchedIt(void) {
 
 // --- the pre-beta's differences from the alpha (2026-11-06) ---
 
-// the roots (7F) take hold of a character who is 40 pixels under them, if nothing else holds him (object control bit 7), he is not dead (routine 6; a hurt one, 4, can take hold) and not in debug mode
+// the roots (7F) take hold of a character who is 40 pixels under them, if nothing else holds him (object control bit 7), he is not hurt or dead (routine 4 and up: Beta 4's; the pre-beta let a hurt one take hold) and not in debug mode
 static bool RootsHold(uint8_t routine, uint8_t control, bool debug) {
     Reset(ZoneId_MCZ);
     Sst *obj = Spawn(0x7F, 2, 300, 400);
@@ -1239,7 +1239,7 @@ static bool RootsHold(uint8_t routine, uint8_t control, bool debug) {
 
 static void DHZ_TheRootsHoldAHurtCharacterButNotADeadOneOrOneHeldOrInDebugMode(void) {
     CHECK(RootsHold(2, 0, false));
-    CHECK(RootsHold(4, 0, false));
+    CHECK(!RootsHold(4, 0, false));
     CHECK(!RootsHold(6, 0, false));
     CHECK(!RootsHold(2, 0x80, false));
     CHECK(!RootsHold(2, 0, true));
@@ -1309,8 +1309,8 @@ static void DHZ_TheCrawltonsBodyIsAsBigAsTheChainsAndGoesWhereTheHeadGoes(void) 
     player->y_pos.f.u = 400;
     Obj_Crawlton(head);
     Sst *body = &sst[0x21];
-    CHECK_EQ(body->width_pixels, 0x40);
-    CHECK_EQ(body->height_pixels, 0x40);
+    CHECK_EQ(body->width_pixels, 0x80);
+    CHECK_EQ(body->height_pixels, 0x80);
     head->x_pos.f.u = 230;
     head->y_pos.f.u = 410;
     Obj_Crawlton(body);
