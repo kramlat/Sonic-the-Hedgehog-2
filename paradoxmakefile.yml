@@ -624,6 +624,22 @@ resources:
   - "Art/SpecialStageVerticalShadow"
   - "Art/SpecialStageWingsHand"
   - "S2Palette/SpecialStage"
+  - "S2Palette/VersusMenu"   # the 2P versus menu's palette (s2b4: palette $26)
+  - "S2Palette/LevelIcons"   # the zone icons' palettes, 14 lines of 16 colours (s2b4 LvsIcons.pal)
+  - "S2Menu/MenuFont"        # (s2b4) the menu font, Nemesis: $1E-$37 are A-Z, $10-$19 the digits
+  - "S2Menu/MenuFrame"
+  - "S2Menu/LevelIcons"
+  - "S2Menu/SonicMiles"      # the Sonic and Miles animation (6 frames of 10 tiles, uncompressed)
+  - "S2Menu/VsMenuBg"        # the background plane every menu uses (40x28, Enigma)
+  - "S2Menu/VsMenu"          # the zone menu's plane (s2b4)
+  - "S2Menu/VsMenu2"
+  - "S2Menu/TwoPMenu"        # the session menus (the user's, 2026-11-13): LOCAL SPLITSCREEN / HOST SESSION / JOIN SESSION
+  - "S2Menu/TwoPCode"        # ENTER CODE: the field and the 8x5 letter grid
+  - "S2Menu/TwoPHostWait"    # SESSION CODE and PLEASE WAIT
+  - "S2Menu/TwoPGuestWait"   # LOOKING FOR SESSION
+  - "S2Menu/TwoPLoading"
+  - "S2Menu/TwoPRefused"     # CONNECTION REFUSED, PRESS ANYTHING TO CONTINUE
+  - "S2Menu/TwoPTimeOut"     # SESSION TIME OUT, PRESS ANYTHING TO CONTINUE
   - "SSData/Segment00"
   - "SSData/Segment01"
   - "SSData/Segment02"
