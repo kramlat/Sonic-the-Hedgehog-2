@@ -1,5 +1,5 @@
 // The letters each title card name needs from the alphabet art (Art_TitleCardLetters), as pairs of first tile and tiles, in the order they are copied to tile $5DE on, ended by $FF:
-// Load_Title_Cards_Art of the Sonic 2 pre-beta. Written by tools/import_s2prebeta_titlecards.pl (the frames are those of asm/Mappings/TitleCardNames.asm).
+// Beta 4's Load_Title_Cards_Art. Written by tools/import_s2b4_cards.pl (the frames are those of asm/Mappings/TitleCardNames.asm).
 #include <stdint.h>
 
 #define TITLECARD_NAMES 15 // (the frames of the names)

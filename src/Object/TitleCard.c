@@ -20,6 +20,8 @@
 #include <string.h>
 #include "Mappings.h"
 #include "Resource/Mappings/LevelResults.h"
+#include "Object/HUD.h"
+#include "Palette.h"
 #include "Resource/Mappings/SpecialResult.h"
 
 // Title card configuration. The positions depend on the width and height of the picture, which are chosen at run time, so
@@ -135,7 +137,7 @@ void Obj_GotThroughCard(Sst *self) {
             a1->routine = item->routine;
             a1->mapping_frame = item->frame;
             a1->mappings = Mappings_LevelResults;
-            a1->art_tile = TILE_MAP(1, 0, 0, 0, 0); // (priority; the pieces hold their tiles)
+            a1->art_tile = 0; // (the pieces hold their tiles and their priority)
             a1->render_flags = 0;
             a1->priority = 0 * 0x80;
         }
@@ -198,7 +200,7 @@ void Obj_GotThroughCard(Sst *self) {
                     icon->y_pos.f.u = (int16_t)(0x10C + SCREEN_TALLADD2);
                     icon->mappings = Mappings_LevelResults;
                     icon->mapping_frame = 0;
-                    icon->art_tile = TILE_MAP(1, 0, 0, 0, 0);
+                    icon->art_tile = 0;
                     icon->render_flags = 0;
                     icon->priority = 0 * 0x80;
                     scratch->timer = 0x3C;
@@ -247,25 +249,34 @@ void Obj_GotThroughCard(Sst *self) {
     }
 }
 
-// The elements of the level's title card, in the order they were made: the name, ZONE and the act number (NULL where the card is not there)
+// The elements of the level's title card (Beta 4's object $34): the name, ZONE, the act number, the curtain (the bars on the window plane), the banner and the zigzag edge; found by their subtype
+enum { TCE_NAME, TCE_ZONE, TCE_ACT, TCE_CURTAIN, TCE_BANNER, TCE_STRIPES, TCE_COUNT };
 static Sst *TitleCard_Element(int n) {
     for (int i = 0; i < SST_COUNT; i++)
-        if (sst[i].code != NULL && sst[i].code == Obj_TitleCard && n-- == 0)
+        if (sst[i].code != NULL && sst[i].code == Obj_TitleCard && sst[i].subtype == n)
             return &sst[i];
     return NULL;
 }
 
 bool TitleCard_Arrived(void) {
-    const Sst *zone = TitleCard_Element(0); // (the level waits for the name: the pre-beta's `cmp.w ($FFFFB0B0).w,D0`)
+    const Sst *zone = TitleCard_Element(TCE_NAME); // (the level waits for the name: `cmp.w ($FFFFB0B0).w,D0`)
     return zone == NULL || zone->x_pos.f.u == ((const Own_TitleCard *)zone->own.u8)->main_x;
 }
 
+static int tc_wipe = -1; // frames since the level asked the card to go (-1: not yet)
+
 void TitleCard_Leave(void) {
-    static const uint8_t add[3] = { 2, 4, 4 }; // (the name loads the animals' art as it goes: routine 4; the others 6)
-    for (int i = 0; i < 3; i++) {
+    Sst *curtain = TitleCard_Element(TCE_CURTAIN);
+    if (curtain != NULL) { // the bars come off, then the names wait and go
+        tc_wipe = 0;
+        return;
+    }
+    for (int i = 0; i < 3; i++) { // (the split screen's: the three names, which wait and go)
         Sst *e = TitleCard_Element(i);
-        if (e != NULL)
-            e->routine = (uint8_t)(e->routine + add[i]);
+        if (e != NULL) {
+            e->routine = 6;
+            ((Own_TitleCard *)e->own.u8)->timer = 60;
+        }
     }
 }
 
@@ -437,6 +448,62 @@ static void TitleCard_FitSplit(void) {
     }
 }
 
+// ---- the bars: Beta 4 draws them on plane A with the VBlank's list writers; here they are the window plane, which does not scroll and can be taken off from the top down (the level wipes in under it) ----
+#define TC_BLUE   0x85DA // (the solid tiles of the card's art: blue on line 0, yellow on line 1, red on line 0)
+#define TC_YELLOW 0xA5DC
+#define TC_RED    0x85D8
+
+static int tc_age; // frames the card has been there
+
+// The picture's cells: the card's columns are the 320-wide picture's, in the middle of a wider one
+static void TitleCard_DrawBars(int yellow_from, int blue_until, int red_columns, int covered_px) {
+    const int ox = PLANE_WIDEADD / 2, oy = PLANE_TALLADD / PLANE_ROW_BYTES;
+    for (int row = 0; row < (int)PLANE_HEIGHT; row++) {
+        for (int col = 0; col < PLANE_WIDTH; col++) {
+            const int lr = row - oy, lc = col - ox;
+            uint16_t word = TC_BLUE;
+            if (lr >= 20 && lc >= yellow_from && lc >= blue_until)
+                word = TC_YELLOW;
+            if (lc < red_columns)
+                word = TC_RED;
+            Plane_Put(&screen1p.window, (size_t)row * PLANE_ROW_BYTES + (size_t)col * 2, word);
+        }
+    }
+    if (covered_px >= SCREEN_HEIGHT) {
+        Viewport_SetWindow(&screen1p, (window_region_t){ .use_x = true, .x = 0, .right = true });
+    } else if (covered_px > 0) {
+        Viewport_SetWindow(&screen1p, (window_region_t){ .use_y = true, .y = (uint16_t)covered_px, .below = false });
+    } else {
+        Viewport_ClearWindow(&screen1p);
+    }
+}
+
+// The element's slide: 16 pixels a frame (32 on the way out) towards `target`; drawn unless it is past the right edge
+static bool TitleCard_Slide(Sst *self, int16_t target, int16_t speed, bool out) {
+    if (self->x_pos.f.u != target) {
+        self->x_pos.f.u += self->x_pos.f.u > target ? -speed : speed;
+        if ((uint16_t)self->x_pos.f.u > 0x200 + SCREEN_WIDEADD)
+            return false;
+        if (out && self->x_pos.f.u == target)
+            return false; // (back where it started: not drawn)
+    }
+    Sst_Draw(self);
+    return true;
+}
+
+// Line 1 of Beta 4's Sonic and Miles palette: the yellow of the card's band is its colour 12. The level's own line 1 fades in at the same time, so the card keeps this one until the yellow is gone
+static const uint16_t tc_line1[16] = { 0x0C20, 0x0000, 0x0E62, 0x0A86, 0x0E86, 0x0044, 0x0EEE, 0x0AAA, 0x0888, 0x0444, 0x0666, 0x0E86, 0x00EE, 0x0088, 0x0EA8, 0x0ECA };
+
+// The elements' timings (Beta 4's table at loc_10C94): where each starts and stops, and how many frames it waits before it moves
+static const struct { int16_t x0, x1, y; uint8_t frame; uint8_t delay; bool wide_aligned; } tc_element[TCE_COUNT] = {
+    { 0x0240, 0x0120, 0x00B8, 0, 0x1B, false },                     // the name (frame: by the zone)
+    { 0x0028, 0x0148, 0x00D0, 15, 0x1C, false },                    // ZONE
+    { 0x0068, 0x0188, 0x00D0, 16, 0x1C, false },                    // the act number (frame: by the act)
+    { 0, 0, 0, 0, 0, false },                                       // the curtain
+    { 0x02A8, 0x0168, 0x0120, 19, 8, true },                        // the banner (SONIC THE HEDGEHOG), on the yellow
+    { 0x0080, 0x00F0, 0x00F0, 20, 0x15, true },                     // the zigzag edge of the red
+};
+
 // Title card object
 void Obj_TitleCard(Sst *self) {
     Own_TitleCard *own = (Own_TitleCard *)self->own.u8;
@@ -446,46 +513,57 @@ void Obj_TitleCard(Sst *self) {
         const int zone = LEVEL_ZONE(level_id);
         const uint8_t name = TitleCard_NameFrame(zone);
         titlecard_art_loaded = false; // (the art goes in once the level's first pattern load cues are done: see routine 2)
+        tc_age = 0;
+        tc_wipe = -1;
+        const bool bars = !two_player_mode; // (the split screen's card is the three names, squeezed into the views: no bars)
+        hud_hold_back = bars; // (the HUD comes when the level is shown)
 
-        // Get configuration (built now: it depends on the size of the picture): where each element starts and where it stops
         const int16_t to_add = SCREEN_WIDEADD2;
         const int16_t from_add = to_add + ((SCREEN_WIDEADD2 + 0xF) & ~0xF);
         const int16_t from_sub = (0x10 - to_add) & 0xF;
-        const struct { int16_t x0, x1; int16_t y; uint8_t frame; } card[3] = {
-            { 0x0240 + from_add, 0x0120 + to_add, 0x00B8 + SCREEN_TALLADD2, name },
-            { 0x0028 - from_sub, 0x0148 + to_add, 0x00D0 + SCREEN_TALLADD2, TC_FRAME_ZONE },
-            { 0x0068 - from_sub, 0x0188 + to_add, 0x00D0 + SCREEN_TALLADD2, (uint8_t)(TC_FRAME_ACT1 + LEVEL_ACT(level_id)) },
-        };
-        // (Sky Chase, Sky Fortress and Death Egg are not played in acts: their card has no number)
-        const int count = (zone == ZoneId_SCZ || zone == 6 || zone == 0x0E) ? 2 : 3;
-
+        const int16_t cells_add = (int16_t)((PLANE_WIDEADD / 2) * 8); // (the bars are whole cells: what is put against them moves by the same)
         Sst *a1 = self;
-        for (int i = 0; i < count; i++) {
+        for (int i = 0; i < (bars ? TCE_COUNT : 3); i++) {
             if (i > 0) {
                 a1 = Sst_AllocateAfter(a1);
                 if (a1 == NULL)
                     break;
             }
-            Own_TitleCard *scratch_a1 = (Own_TitleCard *)a1->own.u8;
+            const int16_t add = tc_element[i].wide_aligned ? cells_add : to_add;
+            const bool from_right = tc_element[i].x0 > tc_element[i].x1;
+            Own_TitleCard *scratch = (Own_TitleCard *)a1->own.u8;
             a1->code = Obj_TitleCard;
-            a1->x_pos.f.u = card[i].x0;
-            scratch_a1->final_x = card[i].x0;
-            scratch_a1->main_x = card[i].x1;
-            a1->y_pos.f.u = card[i].y;
+            a1->subtype = (uint8_t)i;
+            a1->x_pos.f.u = (int16_t)(tc_element[i].x0 + (tc_element[i].wide_aligned ? cells_add : (from_right ? from_add : -from_sub)));
+            scratch->final_x = a1->x_pos.f.u;
+            scratch->main_x = (int16_t)(tc_element[i].x1 + add);
+            scratch->timer = tc_element[i].delay;
+            a1->y_pos.f.u = (int16_t)(tc_element[i].y + SCREEN_TALLADD2);
             a1->routine = 2;
-            a1->mapping_frame = card[i].frame;
-            a1->status_secondary = card[i].frame; // (the unscaled frame, for the split screen)
+            uint8_t frame = tc_element[i].frame;
+            if (i == TCE_NAME)
+                frame = name;
+            else if (i == TCE_ACT)
+                frame = (uint8_t)(TC_FRAME_ACT1 + LEVEL_ACT(level_id));
+            a1->mapping_frame = frame;
+            a1->status_secondary = frame; // (the unscaled frame, for the split screen)
             a1->routine_secondary = 0;
             a1->mappings = Mappings_TitleCardNames;
-            a1->art_tile = TILE_MAP(1, 0, 0, 0, 0); // (priority; the pieces hold their tiles: $580 on)
+            a1->art_tile = 0; // (the pieces hold their tiles and their priority: $580 on)
             a1->width_pixels = 0x60;
             a1->render_flags = 0;
             a1->priority = 0 * 0x80;
-            a1->anim_frame_timer = 60;
         }
     }
         // Fallthrough
-    case 2: // Moving to on-screen position, 16 pixels a frame
+    case 2: // each element: waits its frames, then slides in; the curtain draws the bars
+        if (self->subtype == TCE_ACT) {
+            const int z = LEVEL_ZONE(level_id);
+            if (z == ZoneId_SCZ || z == ZoneId_SFZ || z == ZoneId_DEZ) { // (the zones that are not played in acts have no number)
+                Sst_Delete(self);
+                return;
+            }
+        }
         if (TitleCard_SplitWanted())
             TitleCard_FitSplit();
         if (!titlecard_art_loaded) {
@@ -494,35 +572,96 @@ void Obj_TitleCard(Sst *self) {
             TitleCard_LoadArt(TitleCard_NameFrame(LEVEL_ZONE(level_id)));
             titlecard_art_loaded = true;
         }
-        if (self->x_pos.f.u > own->main_x)
-            self->x_pos.f.u -= 16;
-        else if (self->x_pos.f.u < own->main_x)
-            self->x_pos.f.u += 16;
-        if (self->x_pos.f.u >= 0 && self->x_pos.f.u < (0x200 + SCREEN_WIDEADD))
-            Sst_Draw(self);
+        if (self->subtype == TCE_CURTAIN) {
+            const int age = tc_age++;
+            if (tc_wipe < 14)
+                memcpy(dry_palette[1], tc_line1, sizeof(tc_line1));
+            else if (tc_wipe == 14)
+                memcpy(dry_palette[1], dry_palette_dup[1], sizeof(tc_line1)); // (the yellow is gone: the level's colours)
+            // growing: the blue comes down two rows a frame, the yellow comes in from the right two columns a frame (after 8 frames), the red out from the left two columns a frame (after 21)
+            const int rows = 2 * (age + 1);
+            const int yellow = age < 7 ? 99 : (38 - 2 * (age - 7) < 8 ? 8 : 38 - 2 * (age - 7));
+            const int red = age < 20 ? 0 : (2 * (age - 20 + 1) > 14 ? 14 : 2 * (age - 20 + 1));
+            if (tc_wipe < 0) {
+                TitleCard_DrawBars(yellow, 0, red, rows >= 32 ? SCREEN_HEIGHT : rows * 8 + (int)(PLANE_TALLADD / PLANE_ROW_BYTES) * 8);
+                break;
+            }
+            // wiping (Beta 4's phase B): the red comes off from the right four columns a frame, then the yellow is painted blue from the left four columns a frame, then the level shows from the bottom up in bands of 32 pixels
+            const int f = tc_wipe++;
+            static const int red_keep[4] = { 10, 6, 2, 0 };
+            const int red_now = f < 4 ? red_keep[f] : 0;
+            const int yellow_from = f < 4 ? (red_keep[f] < 8 ? red_keep[f] : 8) : 0;
+            const int blue_until = f < 5 ? 0 : (f < 14 ? 4 * (f - 4) : 1000);
+            int covered = SCREEN_HEIGHT;
+            if (f >= 16)
+                covered = (208 - 32 * (f - 16)) + (int)(PLANE_TALLADD / PLANE_ROW_BYTES) * 8;
+            if (f == 5) {
+                Sst *banner = TitleCard_Element(TCE_BANNER);
+                if (banner != NULL)
+                    banner->routine = 4; // (the banner goes as the yellow is painted over)
+            }
+            if (f == 0) {
+                Sst *stripes = TitleCard_Element(TCE_STRIPES);
+                if (stripes != NULL)
+                    stripes->routine = 4;
+            }
+            if (f == 4 || f == 15) { // (the red is off, and the yellow: the elements that were drawing them are done, wherever they have got to)
+                Sst *gone = TitleCard_Element(f == 4 ? TCE_STRIPES : TCE_BANNER);
+                if (gone != NULL)
+                    Sst_Delete(gone);
+            }
+            if (f >= 16 + 8) { // (the level is all there: the names wait and go)
+                Viewport_ClearWindow(&screen1p);
+                hud_hold_back = false;
+                for (int i = 0; i < 3; i++) {
+                    Sst *e = TitleCard_Element(i);
+                    if (e != NULL) {
+                        e->routine = 6;
+                        ((Own_TitleCard *)e->own.u8)->timer = 60;
+                    }
+                }
+                Sst_Delete(self);
+                break;
+            }
+            TitleCard_DrawBars(yellow_from, blue_until, red_now, covered);
+            break;
+        }
+        if (own->timer > 1) {
+            own->timer--;
+            break;
+        }
+        TitleCard_Slide(self, own->main_x, 16, false);
         break;
-    case 4: // Waits, then moves off-screen, 32 pixels a frame
-    case 6:
+    case 4: // the banner and the zigzag edge going out (the names hold: routine 5)
+        if (self->subtype == TCE_BANNER || self->subtype == TCE_STRIPES) {
+            if (self->x_pos.f.u == own->final_x) {
+                Sst_Delete(self);
+                break;
+            }
+            TitleCard_Slide(self, own->final_x, 32, true);
+            break;
+        }
+        // (the names hold on the card until the wipe is done)
         if (TitleCard_SplitWanted())
             TitleCard_FitSplit();
-        if (self->anim_frame_timer) {
-            self->anim_frame_timer--;
+        Sst_Draw(self);
+        break;
+    case 6: // the names: wait a second, then slide out, 32 pixels a frame
+        if (TitleCard_SplitWanted())
+            TitleCard_FitSplit();
+        if (own->timer) {
+            own->timer--;
             Sst_Draw(self);
             break;
         }
         if (self->render_flags & SST_RENDER_ON_SCREEN) {
             if (self->x_pos.f.u != own->final_x) {
-                if (self->x_pos.f.u > own->final_x)
-                    self->x_pos.f.u -= 32;
-                else
-                    self->x_pos.f.u += 32;
-                if (self->x_pos.f.u >= 0 && self->x_pos.f.u < (0x200 + SCREEN_WIDEADD))
-                    Sst_Draw(self);
+                TitleCard_Slide(self, own->final_x, 32, true);
                 break;
             }
         }
         // (gone, or back where it started) the name's end loads the explosions' and the animals' art
-        if (self->routine == 4) {
+        if (self->subtype == TCE_NAME) {
             const PlcId plc2 = LEVEL_LOAD_BLOCK(level_id)->plc2;
             if (plc2 != 0 && TitleCard_ArtClashes(plc2))
                 AddPLC(plc2); // (the zone's second list, which LevelDataLoad leaves for here when it has art in the card's tiles: first, as it would be queued already otherwise)
