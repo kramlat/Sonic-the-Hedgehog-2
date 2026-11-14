@@ -145,7 +145,7 @@ typedef enum { Session_Local, Session_Host, Session_Join, Session_Back } Session
 
 // LOCAL SPLITSCREEN / HOST SESSION / JOIN SESSION: Up and Down, Start, A or C to choose, B to go back
 static SessionChoice SessionMenu(void) {
-    static const int rows[3] = { 7, 10, 13 };
+    static const int rows[3] = { 6, 9, 12 };
     DrawPage(S2Menu_TwoPMenu);
     int item = 0;
     for (;;) {
