@@ -168,6 +168,7 @@ void Obj_Whisp(Sst *self);
 #include "Object/ObjectHit.h"
 #include "Object/HUD.h"
 #include "Object/PrisonCapsule.h"
+#include "Object/EggPrison.h"
 #include "Object/Ring.h"
 #include "Object/GameOverCard.h"
 #include "Object/Credits.h"
@@ -368,7 +369,7 @@ const SstCode sst_object_codes[0x100] = {
 	[ObjId_Animal] = Obj_FlickyAnimals,
 	[ObjId_MonitorItem] = Obj_MonitorItem,
 	[ObjId_Monitor] = Obj_Monitor,
-	[ObjId_PrisonCapsule] = Obj_PrisonCapsule,
+	[ObjId_PrisonCapsule] = Obj_EggPrison, // (Beta 4's: Sonic 1's capsule is the other game's)
 	[ObjId_RingLoss] = Obj_RingLoss,
 	[ObjId_Ring] = Obj_Ring,
 	[ObjId_Signpost] = Obj_Signpost,
