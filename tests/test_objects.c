@@ -242,6 +242,8 @@ static void Music_EveryFinalTrackHasASongAndZonesFollowTheAlphasPlaylist(void) {
             CHECK_EQ(Level_Music(LEVEL_ID(zone, 0)), mus_MzSwap); // Cyber City (it was in the alpha's Genocide City slot, $0E, and moved to $09) has the Metropolis theme with major and minor swapped (id $20), where the alpha has Chemical Plant's
         else if (zone == 14)
             CHECK_EQ(Level_Music(LEVEL_ID(zone, 0)), mus_WFZ); // Death Egg (the slot Cyber City left): the pre-beta's list has $8F for it
+        else if (zone == 10)
+            CHECK_EQ(Level_Music(LEVEL_ID(zone, 0)), mus_OOZ); // Oil Ocean has its final music (the alpha's list has Casino Night's 2P theme there; Sky Chase's slot, $03, has the same song until it gets its own)
         else if (zone == 6)
             CHECK_EQ(Level_Music(LEVEL_ID(zone, 0)), mus_WFZ); // Sky Fortress (the pre-beta's zone $06: its music list has $8F there; the alpha's slot has the Emerald Hill 2P theme)
         else
