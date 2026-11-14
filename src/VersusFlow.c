@@ -24,6 +24,18 @@ uint16_t VsFlow_ActEntry(const VsPlayerStats *p1, const VsPlayerStats *p2) {
     return (uint16_t)((a << 8) | b);
 }
 
+uint16_t VsFlow_SpecialEntry(const uint16_t p1[3], const uint16_t p2[3]) {
+    unsigned a = 0, b = 0;
+    for (int i = 0; i < 3; i++) {
+        const VsWinner w = Higher(p1[i], p2[i]);
+        if (w == VS_P1)
+            a++;
+        else if (w == VS_P2)
+            b++;
+    }
+    return (uint16_t)((a << 8) | b);
+}
+
 VsWinner VsFlow_EntryWinner(uint16_t entry) {
     if (entry == VS_UNPLAYED || entry == VS_GAME_OVER)
         return VS_TIE;

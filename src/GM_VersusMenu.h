@@ -10,4 +10,10 @@ bool VersusMenu_Run(void);
 // After a true VersusMenu_Run: the special stage box was chosen (level_id is not a level then)
 bool VersusMenu_ChoseSpecialStage(void);
 
+#include "VersusFlow.h"
+
+// One of the five results pages of a match (Beta 4's Versus_Mode_Results): the stats of the act just played for `p1` and `p2` (page VS_PAGE_ACT), the three numbers each of the special stage for `ss1` and `ss2`
+// (VS_PAGE_SPECIAL: `round` its number), the rest from `f`. Shows it with the banner, plays the results theme and waits for Start
+void VersusResults_Show(const VsFlow *f, VsPage page, const VsPlayerStats *p1, const VsPlayerStats *p2, const uint16_t ss1[3], const uint16_t ss2[3], int round);
+
 #endif //_GM_VERSUSMENU_H

@@ -645,6 +645,12 @@ resources:
   - "S2Menu/TwoPLoading"
   - "S2Menu/TwoPRefused"     # CONNECTION REFUSED, PRESS ANYTHING TO CONTINUE
   - "S2Menu/TwoPTimeOut"     # SESSION TIME OUT, PRESS ANYTHING TO CONTINUE
+  - "S2Menu/VsResultFont"    # (s2b4) the versus results' lettering, Nemesis, at tile $60
+  - "S2Menu/VsActRes"        # the five results pages (Enigma)
+  - "S2Menu/VsLvlRes"
+  - "S2Menu/VsGblRes"
+  - "S2Menu/VsSSRes"
+  - "S2Menu/VsAllSS"
   - "SSData/Segment00"
   - "SSData/Segment01"
   - "SSData/Segment02"
@@ -845,6 +851,7 @@ mappings_SonicTheHedgehog2:
   - "Mappings/SegaSprites"
   - "Mappings/TitleCardNames"
   - "Mappings/LevelResults"
+  - "Mappings/VsBanner"
   - "Mappings/TitleMenu"
   - "Mappings/Tails"
   - "Mappings/SuperSonicStars"
@@ -1059,6 +1066,7 @@ assemble:
   - "Mappings/HTZSeesaw"
   - "Mappings/TitleCardNames" # (the pre-beta's title cards: tools/import_s2prebeta_titlecards.pl)
   - "Mappings/LevelResults" # (Beta 4's end of act card: tools/import_s2b4_cards.pl)
+  - "Mappings/VsBanner" # (the versus results banner)
   - "Mappings/TitleMenu"
   - "Mappings/SegaSprites" # (the SEGA screen's sprites: the pre-beta's $B0 and $B1)
 cmake: paradoxmake.cmake

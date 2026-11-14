@@ -11,6 +11,11 @@
 #include "Video.h"
 #include "Backend/VDP.h"
 #include "Backend/NetPlay.h"
+#include "VersusFlow.h"
+#include "SstLoad.h"
+#include "ObjectSst.h"
+#include "Object.h"
+#include "Mappings.h"
 
 #include "Resource/S2Menu/MenuFont.h"
 #include "Resource/S2Menu/MenuFrame.h"
@@ -24,6 +29,13 @@
 #include "Resource/S2Menu/TwoPRefused.h"
 #include "Resource/S2Menu/TwoPTimeOut.h"
 #include "Resource/S2Palette/VersusMenu.h"
+#include "Resource/S2Menu/VsResultFont.h"
+#include "Resource/S2Menu/VsActRes.h"
+#include "Resource/S2Menu/VsLvlRes.h"
+#include "Resource/S2Menu/VsGblRes.h"
+#include "Resource/S2Menu/VsSSRes.h"
+#include "Resource/S2Menu/VsAllSS.h"
+#include "Resource/Mappings/VsBanner.h"
 #include "Resource/S2Palette/LevelIcons.h"
 #include "Resource/S2Menu/VsMenu.h"
 #include "Resource/S2Menu/VsMenu2.h"
@@ -502,4 +514,225 @@ bool VersusMenu_Run(void) {
     PaletteFadeOut();
     VDP_SetBackgroundColour(0x20); // (the title's again)
     return result;
+}
+
+
+// ---- the results pages (Beta 4's Versus_Mode_Results: the five maps, the numbers and the words written into the map before it is shown) ----
+
+static uint16_t rbuf[MAP_W * MAP_H];
+
+static const uint8_t *RTiles(const char *text, int *count) {
+    static uint8_t tiles[16];
+    int n = 0;
+    for (const char *c = text; *c != 0 && n < 16; c++)
+        tiles[n++] = *c == ' ' ? 0 : SymbolTile(*c);
+    *count = n;
+    return tiles;
+}
+
+// loc_9124: a word of letters written into the map at a byte offset, on a palette line
+static void RText(int offset, const char *text, uint16_t line) {
+    int n;
+    const uint8_t *t = RTiles(text, &n);
+    for (int i = 0; i < n; i++)
+        rbuf[offset / 2 + i] = (uint16_t)(line | t[i]);
+}
+
+// loc_913C: three digits, the leading zeros left blank (the last one always shows)
+static void RNum3(int offset, unsigned value, uint16_t line) {
+    static const unsigned div[3] = { 100, 10, 1 };
+    bool shown = false;
+    for (int i = 0; i < 3; i++) {
+        const unsigned d = value / div[i];
+        value -= d * div[i];
+        if (d != 0)
+            shown = true;
+        if (shown || i == 2)
+            rbuf[offset / 2 + i] = (uint16_t)(line | (0x10 + d));
+    }
+}
+
+// loc_9182: six digits, every leading zero blank (a 0 is blank)
+static void RNum6(int offset, uint32_t value, uint16_t line) {
+    static const uint32_t div[6] = { 100000, 10000, 1000, 100, 10, 1 };
+    bool shown = false;
+    for (int i = 0; i < 6; i++) {
+        const unsigned d = (unsigned)(value / div[i]);
+        value -= d * div[i];
+        if (d != 0)
+            shown = true;
+        if (shown)
+            rbuf[offset / 2 + i] = (uint16_t)(line | (0x10 + d));
+    }
+}
+
+// loc_90DE: TIED, 1P or 2P (on the yellow line) from a difference, and the tally of the page
+static void RWinner(int offset, int diff, int tally[2]) {
+    if (diff == 0)
+        RText(offset, "TIED", WORD_YELLOW);
+    else if (diff > 0) {
+        RText(offset, " 1P", WORD_YELLOW);
+        tally[0]++;
+    } else {
+        RText(offset, " 2P", WORD_YELLOW);
+        tally[1]++;
+    }
+}
+
+static const char *const zone_names[4] = { "EMERALD HILL", " MYSTIC CAVE", "CASINO NIGHT", "SPECIAL STAGE" };
+
+static int Cmp(uint32_t a, uint32_t b) {
+    return a == b ? 0 : a > b ? 1 : -1;
+}
+
+static void RTime(int offset, uint32_t frames) { // min, sec, hundredths (the frames are 60ths: times 1.6875)
+    RNum3(offset, frames / 3600, 0);
+    RNum3(offset + 6, (frames / 60) % 60, 0);
+    RNum3(offset + 12, ((frames % 60) * 0x1B0) >> 8, 0);
+}
+
+// loc_8FD8, loc_8F52 and loc_905C: a row of a zone's results: the categories each won and who won, or NO GAME / GAME OVER. `gap` is where the second number is, `win` where the winner
+static void REntry(int offset, uint16_t entry, int second, int win, int none_win, int neg_shift, int tally[2]) {
+    if (entry == VS_UNPLAYED || entry == VS_GAME_OVER)
+        offset += neg_shift;
+    if (entry == VS_UNPLAYED) {
+        RText(offset, "NO GAME", 0);
+        RText(offset + none_win, "    ", 0);
+    } else if (entry == VS_GAME_OVER) {
+        RText(offset, "GAME OVER", 0);
+        RWinner(offset + none_win, (int)(entry >> 8) - (int)(entry & 0xFF), tally);
+    } else {
+        RNum3(offset, entry >> 8, 0);
+        RNum3(offset + second, entry & 0xFF, 0);
+        RWinner(offset + second + win, (int)(entry >> 8) - (int)(entry & 0xFF), tally);
+    }
+}
+
+typedef struct {
+    int tally[2];
+} RTallies;
+
+// Writes a page into `rbuf` (after its map) and gives the tallies the banner is chosen by
+static void FillPage(const VsFlow *f, VsPage page, const VsPlayerStats *a, const VsPlayerStats *b, const uint16_t ss1[3], const uint16_t ss2[3], int round, int tally[2]) {
+    switch (page) {
+    case VS_PAGE_ACT: {
+        RText(0x1F2, zone_names[f->zone], 0);
+        RNum3(0x216, (unsigned)f->play + 1, 0);
+        RNum6(0x33E, a->score, 0);
+        RNum6(0x352, b->score, 0);
+        RTime(0x3DA, a->time);
+        RTime(0x3EE, b->time);
+        RNum3(0x486, a->rings, 0);
+        RNum3(0x49A, b->rings, 0);
+        RNum3(0x526, a->total_rings, 0); // (the rows are TOTAL RING, then ITEM BOX)
+        RNum3(0x53A, b->total_rings, 0);
+        RNum3(0x5C6, a->items, 0);
+        RNum3(0x5DA, b->items, 0);
+        RWinner(0x364, Cmp(a->score, b->score), tally);
+        RWinner(0x404, Cmp(b->time, a->time), tally);
+        RWinner(0x4A4, Cmp(a->rings, b->rings), tally);
+        RWinner(0x544, Cmp(a->total_rings, b->total_rings), tally);
+        RWinner(0x5E4, Cmp(a->items, b->items), tally);
+        RNum3(0x706, (unsigned)tally[0], 0);
+        RNum3(0x70E, (unsigned)tally[1], 0);
+        break;
+    }
+    case VS_PAGE_LEVEL: {
+        RText(0x242, zone_names[f->zone], 0);
+        static const int rows[3] = { 0x398, 0x488, 0x618 };
+        for (int i = 0; i < 3; i++)
+            REntry(rows[i], f->results[f->zone][i], 8, 0xC, 0x14, 0, tally);
+        break;
+    }
+    case VS_PAGE_GLOBAL: {
+        static const int rows[12] = { 0x208, 0x258, 0x2A8, 0x348, 0x398, 0x3E8, 0x488, 0x4D8, 0x528, 0x5C8, 0x618, 0x668 };
+        for (int i = 0; i < 12; i++)
+            REntry(rows[i], f->results[i / 3][i % 3], 8, 0x12, 0x16, 4, tally);
+        RNum3(0x70A, (unsigned)tally[0], 0);
+        RNum3(0x710, (unsigned)tally[1], 0);
+        break;
+    }
+    case VS_PAGE_SPECIAL: {
+        RNum3(0x266, (unsigned)round + 1, 0);
+        static const int rows[3][2] = { { 0x4D6, 0x4E6 }, { 0x576, 0x586 }, { 0x616, 0x626 } };
+        for (int i = 0; i < 3; i++) {
+            RNum3(rows[i][0], ss1[i], 0);
+            RNum3(rows[i][1], ss2[i], 0);
+            RWinner(rows[i][0] + 0x1A, Cmp(ss1[i], ss2[i]), tally);
+        }
+        break;
+    }
+    case VS_PAGE_ALL_SPECIAL: {
+        static const int rows[3] = { 0x4D4, 0x574, 0x614 };
+        for (int i = 0; i < 3; i++)
+            REntry(rows[i], f->results[3][i], 0xC, 0x10, 0x14, 0, tally);
+        break;
+    }
+    }
+}
+
+// Object $21: the banner (1P WINS, 2P WINS, TIED), at a place for each page, flashing between two palette lines every 8 frames
+static int banner_frame;
+static const int16_t banner_pos[5][2] = { { 0xF0, 0x148 }, { 0xF0, 0x130 }, { 0xE0, 0x148 }, { 0xF0, 0x148 }, { 0xF0, 0x148 } };
+static VsPage banner_page;
+
+static void Obj_VsBanner(Sst *self) {
+    if (self->routine == 0) {
+        self->routine = 2;
+        self->x_pos.f.u = (int16_t)(banner_pos[banner_page][0] + SCREEN_WIDEADD2);
+        self->y_pos.f.u = (int16_t)(banner_pos[banner_page][1] + SCREEN_TALLADD2);
+        self->mappings = Mappings_VsBanner;
+        self->render_flags = 0;
+        self->priority = 0;
+    }
+    self->mapping_frame = (uint8_t)banner_frame;
+    self->art_tile = (uint16_t)(0x60 | ((frame_count & 8) ? 0x2000 : 0));
+    Sst_Draw(self);
+}
+
+void VersusResults_Show(const VsFlow *f, VsPage page, const VsPlayerStats *p1, const VsPlayerStats *p2, const uint16_t ss1[3], const uint16_t ss2[3], int round) {
+    static const uint8_t *const maps[5] = { S2Menu_VsActRes, S2Menu_VsLvlRes, S2Menu_VsGblRes, S2Menu_VsSSRes, S2Menu_VsAllSS };
+    ClearScreen();
+    memset(dry_palette_dup, 0, sizeof(dry_palette_dup));
+    VDP_SetBackgroundColour(0);
+    VDP_SeekVRAM(0x0200);
+    NemDec(S2Menu_MenuFont);
+    VDP_SeekVRAM(0x0C00);
+    NemDec(S2Menu_VsResultFont); // (tile $60 on)
+    for (int i = 0; i < 4 * 16; i++) {
+        const uint8_t *p = S2Palette_VersusMenu + (size_t)i * 2;
+        dry_palette_dup[i / 16][i % 16] = (uint16_t)((p[0] << 8) | p[1]);
+    }
+    anim_index = 0;
+    anim_time = 0;
+    VDP_SeekVRAM(1 * 32);
+    VDP_WriteVRAM(S2Menu_SonicMiles, 10 * 32);
+    DrawBackground();
+    static uint8_t map[MAP_W * MAP_H * 2];
+    EniDec(maps[page], map, 0);
+    for (int i = 0; i < MAP_W * MAP_H; i++)
+        rbuf[i] = Word(map, (size_t)i);
+    int tally[2] = { 0, 0 };
+    FillPage(f, page, p1, p2, ss1, ss2, round, tally);
+    for (int y = 0; y < MAP_H; y++)
+        for (int x = 0; x < MAP_W; x++)
+            Plane_Put(&screen1p.plane_a, Cell(y, x), rbuf[y * MAP_W + x]);
+    Sst_ResetAll();
+    banner_page = page;
+    banner_frame = tally[0] == tally[1] ? 2 : tally[0] < tally[1] ? 1 : 0;
+    Sst *banner = Sst_Allocate();
+    if (banner != NULL)
+        banner->code = Obj_VsBanner;
+    PlayMusic(mus_VsResults);
+    PaletteFadeIn();
+    for (;;) {
+        vbla_routine = 0x0C;
+        WaitForVBla();
+        AnimateBackground();
+        ExecuteObjects();
+        BuildSprites(NULL);
+        if (jpad1_press1 & JPAD_START)
+            break;
+    }
+    PaletteFadeOut();
 }

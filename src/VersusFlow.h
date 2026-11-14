@@ -30,6 +30,8 @@ typedef enum { VS_TIE, VS_P1, VS_P2 } VsWinner;
 
 // The five categories (score, time, rings, items, total rings): how many each player won, as the byte pair of a results entry
 uint16_t VsFlow_ActEntry(const VsPlayerStats *p1, const VsPlayerStats *p2);
+// The special stage's three categories (the higher wins each)
+uint16_t VsFlow_SpecialEntry(const uint16_t p1[3], const uint16_t p2[3]);
 VsWinner VsFlow_EntryWinner(uint16_t entry);
 
 typedef struct {

@@ -8,13 +8,23 @@ use warnings;
 
 my $src = $ENV{S2B4} // "$ENV{HOME}/Projects/s2b4-disasm";
 my $asm = do { open my $f, '<', "$src/Sonic2B4.asm" or die "$src/Sonic2B4.asm: $!\n"; local $/; <$f> };
+$asm .= do { open my $f, '<', "$src/objects/obj_0x21.asm" or die "obj_0x21.asm: $!\n"; local $/; "\n" . <$f> };   # (the versus banner's mappings are in its object's file)
 
 # the pieces of a frame, by label: [ [4 words] ... ]
 sub frame_of {
     my ($label) = @_;
     $asm =~ /^\Q$label\E:[^\n]*\n\s*dc\.w\s+\$([0-9A-Fa-f]+)[^\n]*\n((?:\s*dc\.l\s+[^\n]*\n)+)/m or die "no frame $label\n";
     my ($count, $body) = (hex $1, $2);
-    my @longs = map { hex } ($body =~ /\$([0-9A-Fa-f]+)/g);
+    my @longs;
+    for my $line (split /\n/, $body) {
+        $line =~ s/^\s*dc\.l\s+//;
+        $line =~ s/;.*//;
+        for my $t (split /\s*,\s*/, $line) {
+            $t =~ s/\s+$//;
+            next if $t eq '';
+            push @longs, $t =~ /^\$([0-9A-Fa-f]+)$/ ? hex($1) : $t + 0;
+        }
+    }
     die "$label: $count pieces but " . scalar(@longs) . " longs\n" unless @longs == 2 * $count;
     my @pieces;
     while (@longs) {
@@ -46,12 +56,14 @@ sub write_mappings {
     printf "%s: %d frames\n", $file, scalar(@$labels);
 }
 
+write_mappings('asm/Mappings/VsBanner.asm', '_2P_Versus_Results_Mappings', 'The versus results banner (object $21)', 'Frames: 0 1P WINS, 1 2P WINS, 2 TIED');
 write_mappings('asm/Mappings/LevelResults.asm', 'End_Level_Results_Mappings', 'The end of act card (object $3A)',
     'Frames: 0-2 the first line, 3 and 4 the second line, 5 ZONE, 6-8 the act numbers, 9 TIME BONUS, 10 RING BONUS, 11 the total, 12 and 13 the continue icon (flashing)');
 
-for my $x (['artnem/TC_ZONE.nem', 'B4CardZone'], ['artnem/TC_Res.nem', 'B4CardResults'], ['artnem/M_Sonic.nem', 'B4MiniSonic']) {
+for my $x (['artnem/VsResFnt.nem', 'S2Menu/VsResultFont'], ['mapeni/VsActRes.eni', 'S2Menu/VsActRes'], ['mapeni/VsLvlRes.eni', 'S2Menu/VsLvlRes'], ['mapeni/VsGblRes.eni', 'S2Menu/VsGblRes'], ['mapeni/Vs_SSRes.eni', 'S2Menu/VsSSRes'], ['mapeni/VsAll_SS.eni', 'S2Menu/VsAllSS'], ['artnem/TC_ZONE.nem', 'B4CardZone'], ['artnem/TC_Res.nem', 'B4CardResults'], ['artnem/M_Sonic.nem', 'B4MiniSonic']) {
     open my $in, '<:raw', "$src/$x->[0]" or die "$x->[0]: $!\n"; local $/; my $d = <$in>; close $in;
-    open my $out, '>:raw', "res/Art/$x->[1]" or die; print $out $d; close $out;
+    my $dest = $x->[1] =~ m{/} ? "res/$x->[1]" : "res/Art/$x->[1]";
+    open my $out, '>:raw', $dest or die "$dest: $!\n"; print $out $d; close $out;
 }
 
 # ---- the title cards: the names, ZONE, the act numbers, the banner and the stripes (Title_Cards_Mappings) ----
