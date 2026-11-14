@@ -34,6 +34,7 @@ const GameInfo game_info = {
     .credits = credits,
     .settings_file = "Sonic2Settings.cfg",
     .settings_title = "Sonic 2 PC settings",
+    .demo_death_to_sega = true, // (Beta 4 and the prototypes: a death in the demo leaves it for the Sega screen)
     .no_title_card = false, // the pre-beta has title cards (its object $34: TitleCard.c)
     .title_card_own_art = true,
     .split_screen = true,
