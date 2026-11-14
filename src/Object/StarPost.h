@@ -4,7 +4,7 @@
 #include "Sst.h"
 
 // Object $79 of Sonic 2 Beta 4: the star post (the checkpoint). Its art is 16 tiles at ArtTile_StarPost.
-#define ArtTile_StarPost 0x6B0
+#define ArtTile_StarPost 0x47C // (Beta 4's own place: the monitor art, 60 tiles from $680, reaches $6BC, so $6B0 was overwritten by its last icons)
 
 void Obj_StarPost(Sst *self);
 

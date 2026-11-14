@@ -334,7 +334,7 @@
 static const PLCList PLC_Main = {
     5,
     (const PLC[]) {
-        { Art_StarPost,      ART_VRAM(ArtTile_StarPost) }, // (Beta 4's star post: 16 tiles, from $6B0 so that the HUD is left alone)
+        { Art_StarPost,      ART_VRAM(ArtTile_StarPost) }, // (Beta 4's star post: 16 tiles, at $47C as in Beta 4: the monitor art covers $680-$6BB)
         // (Sonic 1's lamppost art was here: { Art_Lamppost, ART_VRAM(ArtTile_Lamppost) }, moved from $F400 to make room for the Spin Dash dust) // moved from ART_VRAM(ArtTile_Lamppost) to make room for the Spin Dash dust (see Splash.h)
         { Art_HUD,           ART_VRAM(ArtTile_HUD) },
         { Art_HUDLife,       ART_VRAM(ArtTile_Lives_Counter) },
