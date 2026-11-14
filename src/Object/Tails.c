@@ -1471,6 +1471,9 @@ static signed int ReactToItem(Sst *self) {
                     return React_Enemy(self, hit);
                 }
                 switch (hit->collision_flags & 0x3F) { // the alpha's Touch_Special (the final's too): the object's own routine reads and clears col_property each frame, a bit for each character
+                case 0x18: // (the star post's bonus star, flags $D8)
+                    hit->collision_property += 2;
+                    return 0;
                 case 6: case 0x0A: case 0x14: case 0x15: case 0x16: case 0x17: // (the round bumper, the blue bumper ($D7, flags $CA), the auto spin: bit 0 is Sonic's, bit 1 Tails')
                     hit->collision_property += 2;
                     return 0;

@@ -405,6 +405,7 @@ resources:
   - "Art/TitleCardLetters"
   # Beta 4's cards (tools/import_s2b4_cards.pl): the end of act card's art
   - "Art/B4CardZone"
+  - "Art/StarPost"      # (Beta 4's star post)
   - "Art/EggPrison"      # (Beta 4's egg prison, tools/import_s2b4_cards.pl)
   - "Art/B4CardResults"
   - "Art/B4MiniSonic"
@@ -752,6 +753,7 @@ sources:
   - "src/VersusFlow.c"
   - "src/VersusStats.c"
   - "src/Object/EggPrison.c"
+  - "src/Object/StarPost.c"
   - "src/Object/SpecialStageObjects.c"
   - "src/SpecialStageWide.c"
   - "src/GM_SpecialTrack.c"
@@ -855,6 +857,8 @@ mappings_SonicTheHedgehog2:
   - "Mappings/TitleCardNames"
   - "Mappings/LevelResults"
   - "Mappings/EggPrison"
+  - "Mappings/StarPost"
+  - "Mappings/StarPostStars"
   - "Mappings/VsBanner"
   - "Mappings/TitleMenu"
   - "Mappings/Tails"
@@ -1071,6 +1075,8 @@ assemble:
   - "Mappings/TitleCardNames" # (the pre-beta's title cards: tools/import_s2prebeta_titlecards.pl)
   - "Mappings/LevelResults" # (Beta 4's end of act card: tools/import_s2b4_cards.pl)
   - "Mappings/EggPrison" # (the egg prison)
+  - "Mappings/StarPost" # (the star post and its bonus stars)
+  - "Mappings/StarPostStars"
   - "Mappings/VsBanner" # (the versus results banner)
   - "Mappings/TitleMenu"
   - "Mappings/SegaSprites" # (the SEGA screen's sprites: the pre-beta's $B0 and $B1)

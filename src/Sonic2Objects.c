@@ -174,6 +174,7 @@ void Obj_Whisp(Sst *self);
 #include "Object/Credits.h"
 #include "Object/HiddenBonus.h"
 #include "Object/Checkpoint.h"
+#include "Object/StarPost.h"
 #include "Object/ShieldInvincibility.h"
 #include "Object/SuperSonicStars.h"
 #include "Object/SpecialSonic.h"
@@ -377,7 +378,7 @@ const SstCode sst_object_codes[0x100] = {
 	[ObjId_Credits] = Obj_Credits,
 	[ObjId_HiddenBonus] = Obj_HiddenBonus,
 	[ObjId_PathSwapper] = Obj_PathSwapper,
-	[ObjId_Checkpoint] = Obj_Checkpoint,
+	[ObjId_Checkpoint] = Obj_StarPost, // (Beta 4's star post: Sonic 1's lamppost is the other game's)
 	[ObjId_Sonic] = Obj_Sonic,
 	[ObjId_ShieldInvincibility] = Obj_ShieldInvincibility,
 	[ObjId_SSResult] = Obj_SuperSonicStars,

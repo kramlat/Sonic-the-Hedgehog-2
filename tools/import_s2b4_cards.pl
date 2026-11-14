@@ -8,7 +8,7 @@ use warnings;
 
 my $src = $ENV{S2B4} // "$ENV{HOME}/Projects/reference/s2b4-disasm";
 my $asm = do { open my $f, '<', "$src/Sonic2B4.asm" or die "$src/Sonic2B4.asm: $!\n"; local $/; <$f> };
-for my $o ('obj_0x21', 'obj_0x3E') {   # (the versus banner's and the egg prison's mappings are in their objects' files)
+for my $o ('obj_0x21', 'obj_0x3E', 'obj_0x79') {   # (the versus banner's and the egg prison's mappings are in their objects' files)
     $asm .= do { open my $f, '<', "$src/objects/$o.asm" or die "$o.asm: $!\n"; local $/; "\n" . <$f> };
 }
 
@@ -60,10 +60,12 @@ sub write_mappings {
 
 write_mappings('asm/Mappings/VsBanner.asm', '_2P_Versus_Results_Mappings', 'The versus results banner (object $21)', 'Frames: 0 1P WINS, 1 2P WINS, 2 TIED');
 write_mappings('asm/Mappings/EggPrison.asm', 'Egg_Prison_Mappings', 'The egg prison (object $3E)', 'Frames: 0-3 the capsule closed to open, 4 the button, 5 the lid');
+write_mappings('asm/Mappings/StarPost.asm', 'Star_Post_Mappings', 'The star post (object $79)', 'Frames: 0 the post and its ball, 1 without the ball, 2 the ball, 3 the ball (the other palette), 4 the post with the other palette ball');
+write_mappings('asm/Mappings/StarPostStars.asm', 'Star_Post_Stars_Mappings', 'The bonus stars of the star post', 'Frames: 0 a big star, 1 and 2 small ones');
 write_mappings('asm/Mappings/LevelResults.asm', 'End_Level_Results_Mappings', 'The end of act card (object $3A)',
     'Frames: 0-2 the first line, 3 and 4 the second line, 5 ZONE, 6-8 the act numbers, 9 TIME BONUS, 10 RING BONUS, 11 the total, 12 and 13 the continue icon (flashing)');
 
-for my $x (['artnem/VsResFnt.nem', 'S2Menu/VsResultFont'], ['mapeni/VsActRes.eni', 'S2Menu/VsActRes'], ['mapeni/VsLvlRes.eni', 'S2Menu/VsLvlRes'], ['mapeni/VsGblRes.eni', 'S2Menu/VsGblRes'], ['mapeni/Vs_SSRes.eni', 'S2Menu/VsSSRes'], ['mapeni/VsAll_SS.eni', 'S2Menu/VsAllSS'], ['artnem/EggPrisn.nem', 'EggPrison'], ['artnem/TC_ZONE.nem', 'B4CardZone'], ['artnem/TC_Res.nem', 'B4CardResults'], ['artnem/M_Sonic.nem', 'B4MiniSonic']) {
+for my $x (['artnem/VsResFnt.nem', 'S2Menu/VsResultFont'], ['mapeni/VsActRes.eni', 'S2Menu/VsActRes'], ['mapeni/VsLvlRes.eni', 'S2Menu/VsLvlRes'], ['mapeni/VsGblRes.eni', 'S2Menu/VsGblRes'], ['mapeni/Vs_SSRes.eni', 'S2Menu/VsSSRes'], ['mapeni/VsAll_SS.eni', 'S2Menu/VsAllSS'], ['artnem/EggPrisn.nem', 'EggPrison'], ['artnem/StarPost.nem', 'StarPost'], ['artnem/TC_ZONE.nem', 'B4CardZone'], ['artnem/TC_Res.nem', 'B4CardResults'], ['artnem/M_Sonic.nem', 'B4MiniSonic']) {
     open my $in, '<:raw', "$src/$x->[0]" or die "$x->[0]: $!\n"; local $/; my $d = <$in>; close $in;
     my $dest = $x->[1] =~ m{/} ? "res/$x->[1]" : "res/Art/$x->[1]";
     open my $out, '>:raw', $dest or die "$dest: $!\n"; print $out $d; close $out;
