@@ -1112,8 +1112,8 @@ static void Music_ExtraLifeJingleGivesTheLevelSongBack(void) {
     CHECK(sound_music.fadein_active);
 }
 
-// $9F, an empty song, silences what was playing, and $9E plays Hidden Palace's song as $90 does
-static void Music_BlankSongSilencesAndNineEIsHiddenPalace(void) {
+// $9F is the drowning countdown (the final game's; it was an empty song until it came in) and plays on the chips, and $9E plays Hidden Palace's song as $90 does
+static void Music_DrowningPlaysAndNineEIsHiddenPalace(void) {
     Sound_Init();
     memset(sound_music.queue, 0, sizeof(sound_music.queue));
     memset(sound_sfx.queue, 0, sizeof(sound_sfx.queue));
@@ -1121,14 +1121,14 @@ static void Music_BlankSongSilencesAndNineEIsHiddenPalace(void) {
     PlayMusic(mus_EHZ);
     for (int f = 0; f < 60; f++)
         Sound_Frame();
-    PlayMusic(mus_Blank);
+    PlayMusic(mus_Drowning);
     Sound_Frame();
     Sound_Frame();
-    CHECK_EQ(sound_music.current_music_id, mus_Blank);
+    CHECK_EQ(sound_music.current_music_id, mus_Drowning);
     int active = 0;
     for (int i = 0; i < SOUND_CHANNELS; i++)
         active += sound_music.channels[i].active;
-    CHECK_EQ(active, 0);
+    CHECK(active > 0);
     PlayMusic(mus_Credits);
     Sound_Frame();
     Sound_Frame();
@@ -1426,7 +1426,7 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(Music_ExtraLifeJingleGivesTheLevelSongBack);
     RUN_TEST(Music_SongKeepsItsNoiseAndVoicesAfterTheExtraLifeJingle);
     RUN_TEST(Music_SongChangeLeavesNothingOfThePreviousSong);
-    RUN_TEST(Music_BlankSongSilencesAndNineEIsHiddenPalace);
+    RUN_TEST(Music_DrowningPlaysAndNineEIsHiddenPalace);
     RUN_TEST(Rexon_RearsUpIntoFiveHeads);
     RUN_TEST(Sol_MakesFourFireballs);
     RUN_TEST(Slicer_RaisesItsBladesAndSendsTwoPincers);

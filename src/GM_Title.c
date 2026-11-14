@@ -246,7 +246,7 @@ static void LevelSelect(void) {
             if (jpad1_press1 & JPAD_A)
                 continue; // (A only changes the number)
             uint8_t id = LevSelSoundId(levsel_sound);
-            if (id >= mus_VsResults && id <= mus_Blank || id == mus_MzSwap)
+            if (id >= mus_VsResults && id <= mus_Drowning || id == mus_MzSwap)
                 PlayMusic(id);
             else if (id != 0)
                 PlaySound(id);

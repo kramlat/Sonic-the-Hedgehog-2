@@ -35,7 +35,7 @@ enum SoundID {
 	mus_Continue, // $9C (Continue)
 	mus_Emerald, // $9D (Got an Emerald)
 	mus_Credits, // $9E: the credits theme (the final game's; a copy of $90 in the prototype and the alpha, which have none, and in this port until M4)
-	mus_Blank, // $9F (an empty song there)
+	mus_Drowning, // $9F (the drowning countdown: it was an empty song until the final game's came in)
 	mus_MzSwap, // $20 here, past the final game's music ids: Metropolis with major and minor swapped (Cyber City's)
 
 	sfx_Jump, // $A0
@@ -151,7 +151,7 @@ enum SoundID {
 	bgm_GameOver = mus_GameOver,
 	bgm_Continue = mus_Continue,
 	bgm_Credits = mus_Credits,
-	bgm_Drowning = mus_Menu,
+	bgm_Drowning = mus_Drowning, // (Sonic 1's drowning music: the final game's $9F)
 	bgm_Emerald = mus_Emerald,
 	bgm_SSRG = mus_Emerald,
 	sfx_Waterfall = sfx_CNZBossZap, // (Sonic 1's waterfall is not in Sonic 2)

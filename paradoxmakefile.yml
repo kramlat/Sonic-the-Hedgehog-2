@@ -1071,7 +1071,7 @@ songs:
   - {file: "music/Cont_9C.jsonc", name: S2Mus_Cont_9C}
   - {file: "music/Emrld_9D.jsonc", name: S2Mus_Emrld_9D}
   - {file: "music/Credt_9E.jsonc", name: S2Mus_Credt_9E}
-  - {file: "music/Blank_9F.jsonc", name: S2Mus_Blank_9F}
+  - {file: "music/Drowning_9F.jsonc", name: S2Mus_Drowning_9F}
   - {file: "sfx/A0 - Final.jsonc", name: S2Sfx_A0}
   - {file: "sfx/A1 - Final.jsonc", name: S2Sfx_A1}
   - {file: "sfx/A2 - Final.jsonc", name: S2Sfx_A2}
