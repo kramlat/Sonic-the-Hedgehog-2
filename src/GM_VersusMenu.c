@@ -24,6 +24,10 @@
 #include "Resource/S2Menu/TwoPRefused.h"
 #include "Resource/S2Menu/TwoPTimeOut.h"
 #include "Resource/S2Palette/VersusMenu.h"
+#include "Resource/S2Palette/LevelIcons.h"
+#include "Resource/S2Menu/VsMenu.h"
+#include "Resource/S2Menu/VsMenu2.h"
+#include "Resource/S2Menu/LevelIcons.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -88,12 +92,13 @@ static void AnimateBackground(void) {
 }
 
 // Draws one of the menu maps on plane A (the page): the map's own words, the blank ones included
-static void DrawPage(const uint8_t *eni) {
+static void DrawScreen(const uint8_t *eni) {
     EniDec(eni, page_map, 0);
     for (int y = 0; y < MAP_H; y++)
         for (int x = 0; x < MAP_W; x++) {
             const uint8_t *m = page_map + ((size_t)y * MAP_W + (size_t)x) * 2;
-            Plane_Put(&screen1p.plane_a, Cell(y, x), (uint16_t)((m[0] << 8) | m[1]));
+            // (the maps' bottom block, from row 20, is a leftover of the level select they were made from: not drawn)
+            Plane_Put(&screen1p.plane_a, Cell(y, x), y >= 20 ? 0 : (uint16_t)((m[0] << 8) | m[1]));
         }
 }
 
@@ -146,7 +151,7 @@ typedef enum { Session_Local, Session_Host, Session_Join, Session_Back } Session
 // LOCAL SPLITSCREEN / HOST SESSION / JOIN SESSION: Up and Down, Start, A or C to choose, B to go back
 static SessionChoice SessionMenu(void) {
     static const int rows[3] = { 6, 9, 12 };
-    DrawPage(S2Menu_TwoPMenu);
+    DrawScreen(S2Menu_TwoPMenu);
     int item = 0;
     for (;;) {
         for (int i = 0; i < 3; i++)
@@ -187,7 +192,7 @@ static bool WasRefused(NetPlay *net) {
 
 // A screen that waits for the session to reach `wanted` (or to be over): B cancels
 static WaitResult WaitFor(NetPlay *net, NetPlayStatus wanted, int limit, const uint8_t *eni, const char *code) {
-    DrawPage(eni);
+    DrawScreen(eni);
     if (code != NULL)
         PutCode(code);
     for (int frames = 0; frames < limit; frames++) {
@@ -206,7 +211,7 @@ static WaitResult WaitFor(NetPlay *net, NetPlayStatus wanted, int limit, const u
 
 // CONNECTION REFUSED or SESSION TIME OUT: any button goes back to the session menu
 static void ErrorScreen(bool refused) {
-    DrawPage(refused ? S2Menu_TwoPRefused : S2Menu_TwoPTimeOut);
+    DrawScreen(refused ? S2Menu_TwoPRefused : S2Menu_TwoPTimeOut);
     PlaySound(sfx_Bonus);
     do
         Frame();
@@ -215,7 +220,7 @@ static void ErrorScreen(bool refused) {
 
 // ENTER CODE: the 8 by 5 grid of letters and digits, A or C puts one in the field, B takes the last one out (or goes back), Start joins when all 20 are in. Returns false when it went back
 static bool CodeScreen(char code[21]) {
-    DrawPage(S2Menu_TwoPCode);
+    DrawScreen(S2Menu_TwoPCode);
     int length = 0, row = 0, col = 0;
     memset(code, 0, 21);
     for (;;) {
@@ -256,13 +261,139 @@ static bool CodeScreen(char code[21]) {
     }
 }
 
-// The zone menu (to come: s2b4's four boxes, with a second page later): for now the first zone
+// ---- the zone menu: boxes of 17 by 12 cells, four to a page (Beta 4's, made data-driven: a second page is more rows of the table) ----
+
+#define BOX_W 17
+#define BOX_H 12
+#define PER_PAGE 4
+#define ICON_WORDS 12     // an icon is 4 by 3 cells
+#define PLAYED_ICON 156   // (the icon word where the blank "played" one is in VsMenu2's map)
+
+typedef struct {
+    const char *name;     // 12 cells: ' ' is the empty cell
+    const char *kind;     // ZONE or STAGE
+    int icon;             // the word of VsMenu2's map where its icon starts
+    int palette;          // its line of the level icons' palettes
+    uint16_t level;       // LEVEL_ID, or SPECIAL_STAGE
+} ZoneBox;
+
+#define SPECIAL_STAGE 0xFFFF
+
+static const ZoneBox zone_boxes[] = {
+    { "EMERALD HILL", "ZONE ", 0,   0,  LEVEL_ID(ZoneId_EHZ, 0) },
+    { " MYSTIC CAVE", "ZONE ", 60,  5,  LEVEL_ID(ZoneId_MCZ, 0) },
+    { "CASINO NIGHT", "ZONE ", 72,  6,  LEVEL_ID(ZoneId_CNZ, 0) },
+    { "   SPECIAL   ", "STAGE", 144, 12, SPECIAL_STAGE },
+};
+#define BOX_COUNT ((int)(sizeof(zone_boxes) / sizeof(zone_boxes[0])))
+#define PAGE_COUNT ((BOX_COUNT + PER_PAGE - 1) / PER_PAGE)
+
+// What each box has been played to: the two scores' sum, negative when it has not been played (a played one cannot be picked again). The 2 player results are not kept yet.
+static int16_t zone_played[BOX_COUNT];
+
+static uint16_t card_selected[BOX_W * BOX_H], card_dim[BOX_W * BOX_H], icon_map[200];
+
+static uint16_t Word(const uint8_t *m, size_t i) {
+    return (uint16_t)((m[i * 2] << 8) | m[i * 2 + 1]);
+}
+
+static uint8_t WordTile(char c) {
+    if (c == ' ')
+        return 0;
+    return SymbolTile(c);
+}
+
+static void DrawBox(int box, int slot, bool selected) {
+    static const int origin_row[PER_PAGE] = { 2, 2, 15, 15 }, origin_col[PER_PAGE] = { 2, 22, 2, 22 };
+    const ZoneBox *z = &zone_boxes[box];
+    uint16_t cells[BOX_W * BOX_H];
+    memcpy(cells, selected ? card_selected : card_dim, sizeof(cells));
+    const uint16_t line = selected ? 0x6000 : 0; // (the text of the one chosen is yellow)
+    for (int i = 0; i < 12; i++)
+        cells[2 * BOX_W + 2 + i] = (uint16_t)(line | WordTile(z->name[i]));
+    for (int i = 0; i < 5; i++)
+        cells[4 * BOX_W + 6 + i] = (uint16_t)(line | WordTile(z->kind[i]));
+    const int icon = zone_played[box] < 0 ? z->icon : PLAYED_ICON;
+    for (int i = 0; i < ICON_WORDS; i++)
+        cells[(6 + i / 4) * BOX_W + 6 + i % 4] = icon_map[icon + i];
+    for (int y = 0; y < BOX_H; y++)
+        for (int x = 0; x < BOX_W; x++)
+            Plane_Put(&screen1p.plane_a, Cell(origin_row[slot] + y, origin_col[slot] + x), cells[y * BOX_W + x]);
+}
+
+static void SetIconPalette(int line) {
+    for (int i = 0; i < 16; i++) {
+        const uint16_t c = Word(S2Palette_LevelIcons, (size_t)line * 16 + i);
+        dry_palette[2][i] = dry_palette_dup[2][i] = c;
+    }
+}
+
+static void DrawPage(int page, int current) {
+    for (int slot = 0; slot < PER_PAGE; slot++)
+        if (page * PER_PAGE + slot < BOX_COUNT)
+            DrawBox(page * PER_PAGE + slot, slot, page * PER_PAGE + slot == current);
+}
+
+// Returns true when a zone (or the special stage) was chosen: `level_id` is set (the special stage is SPECIAL_STAGE in it), false when the player backed out (B)
 static bool ZoneMenu(void) {
-    level_id = LEVEL_ID(ZoneId_EHZ, 0);
-    return true;
+    static uint8_t map[BOX_W * BOX_H * 2];
+    EniDec(S2Menu_VsMenu, map, 0x60);
+    for (int i = 0; i < BOX_W * BOX_H; i++)
+        card_selected[i] = Word(map, (size_t)i);
+    EniDec(S2Menu_VsMenu, map, 0x2060);
+    for (int i = 0; i < BOX_W * BOX_H; i++)
+        card_dim[i] = Word(map, (size_t)i);
+    static uint8_t icons[200 * 2];
+    EniDec(S2Menu_VsMenu2, icons, 0x80);
+    for (int i = 0; i < 200; i++)
+        icon_map[i] = Word(icons, (size_t)i);
+    VDP_SeekVRAM(0x1000);
+    NemDec(S2Menu_LevelIcons); // (tile $80 on)
+    for (int i = 0; i < BOX_COUNT; i++)
+        zone_played[i] = -1;
+
+    for (int y = 0; y < MAP_H; y++) // (the session screens' words go)
+        for (int x = 0; x < MAP_W; x++)
+            Plane_Put(&screen1p.plane_a, Cell(y, x), 0);
+    int current = 0, shown = -1;
+    for (;;) {
+        const int page = current / PER_PAGE;
+        if (shown != current) {
+            SetIconPalette(zone_boxes[current].palette);
+            DrawPage(page, current);
+            shown = current;
+        }
+        Frame();
+        const uint8_t press = (uint8_t)(jpad1_press1 | jpad2_press);
+        int next = current;
+        const int slot = current % PER_PAGE;
+        if (press & (JPAD_UP | JPAD_DOWN))
+            next = page * PER_PAGE + (slot ^ 2);   // (Up and Down: the box above or below)
+        if (press & (JPAD_LEFT | JPAD_RIGHT))
+            next = page * PER_PAGE + (slot ^ 1);   // (Left and Right: the box beside)
+        if (next < BOX_COUNT && next != current)
+            current = next;
+        if (press & JPAD_B)
+            return false;
+        if (press & JPAD_START) {
+            if (zone_played[current] >= 0) {
+                PlaySound(sfx_Bonus); // (played: it cannot be picked again)
+                continue;
+            }
+            level_id = zone_boxes[current].level;
+            return true;
+        }
+    }
+}
+
+static bool chose_special_stage;
+
+bool VersusMenu_ChoseSpecialStage(void) {
+    return chose_special_stage;
 }
 
 bool VersusMenu_Run(void) {
+    chose_special_stage = false;
     EnterScreens();
     PlayMusic(mus_Menu);
     PaletteFadeIn();
@@ -272,8 +403,11 @@ bool VersusMenu_Run(void) {
         if (choice == Session_Back)
             break;
         if (choice == Session_Local) {
-            result = ZoneMenu();
-            break;
+            if (ZoneMenu()) {
+                result = true;
+                break;
+            }
+            continue;
         }
         NetPlay *net = NetPlay_Create();
         WaitResult wait;
@@ -323,6 +457,8 @@ bool VersusMenu_Run(void) {
         if (wait == Wait_Refused || wait == Wait_TimedOut)
             ErrorScreen(wait == Wait_Refused);
     }
+    if (result && level_id == SPECIAL_STAGE)
+        chose_special_stage = true;
     PaletteFadeOut();
     return result;
 }

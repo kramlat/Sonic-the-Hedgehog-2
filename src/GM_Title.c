@@ -381,6 +381,12 @@ static void Tit_ChkLevSel(bool level_select_cheat) {
             two_player_mode = true_two_player = false;
             return;
         }
+        if (two_player_mode && VersusMenu_ChoseSpecialStage()) { // (its box: the special stage with the two players)
+            PlayLevel(true);
+            gamemode = GameMode_Special;
+            level_id = 0;
+            return;
+        }
         PlayLevel(true);
     }
 }
