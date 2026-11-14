@@ -1110,7 +1110,7 @@ songs:
   - {file: "sfx/B2 - Final.jsonc", name: S2Sfx_B2}
   - {file: "sfx/B3 - Final.jsonc", name: S2Sfx_B3}
   - {file: "sfx/B4 - Final.jsonc", name: S2Sfx_B4}
-  - {file: "sfx/B5 - Final.jsonc", name: S2Sfx_B5}
+  - {file: "sfx/B5 - S1.jsonc", name: S2Sfx_B5}
   - {file: "sfx/B6 - Final.jsonc", name: S2Sfx_B6}
   - {file: "sfx/B7 - Final.jsonc", name: S2Sfx_B7}
   - {file: "sfx/B8 - Final.jsonc", name: S2Sfx_B8}
@@ -1121,13 +1121,13 @@ songs:
   - {file: "sfx/BD - Final.jsonc", name: S2Sfx_BD}
   - {file: "sfx/BE - Final.jsonc", name: S2Sfx_BE}
   - {file: "sfx/BF - Final.jsonc", name: S2Sfx_BF}
-  - {file: "sfx/C0 - Final.jsonc", name: S2Sfx_C0}
+  - {file: "sfx/C0 - S1.jsonc", name: S2Sfx_C0}
   - {file: "sfx/C1 - Final.jsonc", name: S2Sfx_C1}
   - {file: "sfx/C2 - Final.jsonc", name: S2Sfx_C2}
   - {file: "sfx/C3 - Final.jsonc", name: S2Sfx_C3}
   - {file: "sfx/C4 - Final.jsonc", name: S2Sfx_C4}
   - {file: "sfx/C5 - Final.jsonc", name: S2Sfx_C5}
-  - {file: "sfx/C6 - Final.jsonc", name: S2Sfx_C6}
+  - {file: "sfx/C6 - S1.jsonc", name: S2Sfx_C6}
   - {file: "sfx/C7 - Final.jsonc", name: S2Sfx_C7}
   - {file: "sfx/C8 - Final.jsonc", name: S2Sfx_C8}
   - {file: "sfx/C9 - Final.jsonc", name: S2Sfx_C9}
@@ -1135,7 +1135,7 @@ songs:
   - {file: "sfx/CB - Final.jsonc", name: S2Sfx_CB}
   - {file: "sfx/CC - Final.jsonc", name: S2Sfx_CC}
   - {file: "sfx/CD - Final.jsonc", name: S2Sfx_CD}
-  - {file: "sfx/CE - Final.jsonc", name: S2Sfx_CE}
+  - {file: "sfx/CE - S1.jsonc", name: S2Sfx_CE}
   - {file: "sfx/CF - Final.jsonc", name: S2Sfx_CF}
   - {file: "sfx/D0 - Final.jsonc", name: S2Sfx_D0}
   - {file: "sfx/D1 - Final.jsonc", name: S2Sfx_D1}
