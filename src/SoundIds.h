@@ -103,22 +103,28 @@ enum SoundID {
 	sfx_Helicopter, // $DE
 	sfx_SuperTransform, // $DF (the monitor's)
 	sfx_SpindashRev, // $E0
-	sfx_AlphaE1, // $E1 (the alpha's own from here: this one is played by its level select)
-	sfx_AlphaE2, // $E2
-	sfx_AlphaE3, // $E3
+	sfx_Rumbling2, // $E1 (played by the Hill Top quake and the level select)
+	sfx_CNZLaunch, // $E2
+	sfx_Flipper, // $E3
 	sfx_HTZLift, // $E4 (the cable car of Hill Top)
 	sfx_NGHZLeaves, // $E5 (the loose leaves of Neo Green Hill)
-	sfx_AlphaE6, // $E6
+	sfx_MegaMackDrop, // $E6
 	sfx_DHZRoots, // $E7 (the bridge of Dust Hill that opens when its roots are pulled)
-	sfx_AlphaE8, // $E8
+	sfx_QuickDoorSlam, // $E8
 	sfx_DHZRoots2, // $E9 (the same bridge's)
-	sfx_LaserBurst, // $EA (the final game's: the pre-beta has it)
-	sfx_Scatter, // $EB (the final game's: the pre-beta has it)
-	sfx_Grab, // $EC (Tails grabs Sonic: Sonic 3 & Knuckles' $4A, for his flight)
-	sfx_Flying, // $ED (Tails flying: Sonic 3 & Knuckles' $BA)
-	sfx_FlyingTired, // $EE (Tails flying, tired: Sonic 3 & Knuckles' $BB)
+	sfx_LaserBurst, // $EA
+	sfx_Scatter, // $EB
+	sfx_EffectTeleport, // $EC (the final game's Teleport; $BC, sfx_Teleport, is its Spin Dash Release)
+	sfx_Error, // $ED
+	sfx_MechaSonicBuzz, // $EE
+	sfx_LargeLaser, // $EF
+	sfx_OilSlide, // $F0: the last of the final game's effects
+	// Tails' flight, kept after all of them (Sonic 3 & Knuckles' sounds):
+	sfx_Grab, // $F1 (Tails grabs Sonic: $4A)
+	sfx_Flying, // $F2 (Tails flying: $BA)
+	sfx_FlyingTired, // $F3 (Tails flying, tired: $BB)
 
-	bgm_Fade = 0xF0,
+	bgm_Fade = 0xF4,
 	sfx_Sega,
 	bgm_Speedup,
 	bgm_Slowdown,

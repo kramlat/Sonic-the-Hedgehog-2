@@ -1,0 +1,49 @@
+{
+  "header": [
+    {
+      "smpsHeaderStartSong": [
+        "0x2"
+      ]
+    },
+    {
+      "smpsHeaderVoice": [
+        "Sound3F_40_42_Voices"
+      ]
+    },
+    {
+      "smpsHeaderTempoSFX": [
+        "0x1"
+      ]
+    },
+    {
+      "smpsHeaderChanSFX": [
+        "0x1"
+      ]
+    },
+    {
+      "smpsHeaderSFXChannel": [
+        "cFM5",
+        "Sound42_WaterWarning_FM5",
+        "0xC",
+        "0x8"
+      ]
+    }
+  ],
+  "voices": [],
+  "SMPSplaylist": {
+    "Sound42_WaterWarning_FM5": [
+      {
+        "smpsSetvoice": "0x0"
+      },
+      {
+        "note": "A4",
+        "duration": "0x8"
+      },
+      {
+        "note": "A4",
+        "duration": "0x25"
+      },
+      "smpsStop"
+    ]
+  }
+}

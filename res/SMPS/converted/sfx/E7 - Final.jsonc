@@ -1,0 +1,80 @@
+{
+  "header": [
+    {
+      "smpsHeaderStartSong": [
+        "0x2"
+      ]
+    },
+    {
+      "smpsHeaderVoice": [
+        "Sound67_DrawbridgeMove_Voices"
+      ]
+    },
+    {
+      "smpsHeaderTempoSFX": [
+        "0x1"
+      ]
+    },
+    {
+      "smpsHeaderChanSFX": [
+        "0x1"
+      ]
+    },
+    {
+      "smpsHeaderSFXChannel": [
+        "cPSG3",
+        "Sound67_DrawbridgeMove_PSG3",
+        "0x0",
+        "0x0"
+      ]
+    }
+  ],
+  "voices": [],
+  "SMPSplaylist": {
+    "Sound67_DrawbridgeMove_PSG3": [
+      {
+        "smpsPSGvoice": "fTone_06"
+      },
+      {
+        "smpsPSGform": "0xE7"
+      },
+      {
+        "note": "Eb1",
+        "duration": "0xA"
+      },
+      {
+        "note": "G1",
+        "duration": "0xA"
+      },
+      {
+        "note": "B1",
+        "duration": "0xA"
+      },
+      {
+        "note": "Eb2",
+        "duration": "0xA"
+      },
+      {
+        "note": "G2",
+        "duration": "0xA"
+      },
+      {
+        "note": "B2",
+        "duration": "0x8"
+      },
+      {
+        "note": "Eb3",
+        "duration": "0x8"
+      },
+      {
+        "note": "G3",
+        "duration": "0x8"
+      },
+      {
+        "note": "B3",
+        "duration": "0x8"
+      },
+      "smpsStop"
+    ]
+  }
+}

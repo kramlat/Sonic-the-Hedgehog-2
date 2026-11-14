@@ -1,0 +1,148 @@
+{
+  "header": [
+    {
+      "smpsHeaderStartSong": [
+        "0x2"
+      ]
+    },
+    {
+      "smpsHeaderVoice": [
+        "Sound6A_6F_Laser_Voices"
+      ]
+    },
+    {
+      "smpsHeaderTempoSFX": [
+        "0x1"
+      ]
+    },
+    {
+      "smpsHeaderChanSFX": [
+        "0x3"
+      ]
+    },
+    {
+      "smpsHeaderSFXChannel": [
+        "cFM5",
+        "Sound6F_LargeLaser_FM5",
+        "0x0",
+        "0xB"
+      ]
+    },
+    {
+      "smpsHeaderSFXChannel": [
+        "cFM4",
+        "Sound6F_LargeLaser_FM4",
+        "0x0",
+        "0x12"
+      ]
+    },
+    {
+      "smpsHeaderSFXChannel": [
+        "cPSG3",
+        "Sound6F_LargeLaser_PSG3",
+        "0x0",
+        "0x0"
+      ]
+    }
+  ],
+  "voices": [],
+  "SMPSplaylist": {
+    "Sound6F_LargeLaser_FM4": [
+      {
+        "smpsAlterNote": "0x2"
+      },
+      {
+        "note": "Rst",
+        "duration": "0x2"
+      },
+      {
+        "jumpTo": "Sound6F_LargeLaser_FM5"
+      }
+    ],
+    "Sound6F_LargeLaser_FM5": [
+      {
+        "smpsSetvoice": "0x0"
+      },
+      {
+        "smpsAlterVol": "0xC"
+      },
+      {
+        "note": "Bb7",
+        "duration": "0x6"
+      },
+      "smpsNoAttack",
+      {
+        "smpsAlterVol": "0xF4"
+      },
+      {
+        "inheritedNote": true,
+        "duration": "0x6"
+      },
+      "smpsNoAttack",
+      {
+        "smpsAlterVol": "0xF4"
+      },
+      {
+        "inheritedNote": true,
+        "duration": "0x12"
+      },
+      "smpsNoAttack",
+      {
+        "smpsAlterVol": "0xC"
+      },
+      {
+        "inheritedNote": true,
+        "duration": "0x6"
+      },
+      "smpsNoAttack",
+      {
+        "smpsAlterVol": "0xC"
+      },
+      {
+        "inheritedNote": true,
+        "duration": "0x6"
+      },
+      "smpsStop"
+    ],
+    "Sound6F_LargeLaser_PSG3": [
+      {
+        "smpsPSGform": "0xE7"
+      },
+      {
+        "note": "MaxPSG",
+        "duration": "0x4"
+      },
+      {
+        "note": "Eb5"
+      },
+      {
+        "note": "A4"
+      },
+      {
+        "note": "Eb4"
+      },
+      {
+        "note": "A3"
+      },
+      {
+        "smpsAlterVol": "0x1"
+      },
+      {
+        "note": "A3"
+      },
+      {
+        "smpsAlterVol": "0x1"
+      },
+      {
+        "note": "A3"
+      },
+      {
+        "smpsAlterVol": "0x1"
+      },
+      {
+        "note": "A3"
+      },
+      "smpsStop"
+    ]
+  }
+}

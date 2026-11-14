@@ -139,7 +139,7 @@ static void Start(int16_t y_offset) {
 // of its sound driver, which is not known; the rumble is a short effect that stops by itself, so nothing is done for it)
 static void QuakeSound(uint8_t alpha_id) {
     if (alpha_id == 0xE1)
-        PlaySound(sfx_AlphaE1);
+        PlaySound(sfx_Rumbling2);
 }
 
 // The quake's stretch is left: the background goes back to its own resting place

@@ -89,7 +89,7 @@ static void Flipper_Throw(Sst *self, Own_Flipper *own, Sst *chr, int who) {
     OBJ_CONTROL(chr) = 0;
     self->anim = 1;
     own->state[who] = 0;
-    PlaySound(sfx_AlphaE3);
+    PlaySound(sfx_Flipper);
 }
 
 // Offset_0x025CFE: what a character on the flipper does each frame

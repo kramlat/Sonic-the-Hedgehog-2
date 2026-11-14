@@ -101,7 +101,7 @@ static void Plunger_Release(Sst *self, Own_Plunger *own, Sst *chr, int who, bool
     chr->status &= (uint8_t)~SST_PSTATUS_OBJECT_STAND;
     chr->routine = 2;
     OBJ_CONTROL(chr) = 0;
-    PlaySound(sfx_AlphaE2);
+    PlaySound(sfx_CNZLaunch);
 }
 
 // One character (Offset_0x02587C, and Offset_0x025A2A for the lying one)
