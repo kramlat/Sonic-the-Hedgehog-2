@@ -700,7 +700,7 @@ void Level_MakeWaterSurfaces(void) {
 }
 
 // The level's music, one song for each zone slot as the alpha's MusicList has it (the final game's tracks; its zone ids are these slots), except Hidden Palace (zone 8): the alpha plays the Mystic Cave 2P theme
-// for it, and Hidden Palace stays in this port (a deviation from the alpha), with the final game's own track, mus_HPZ. Oil Ocean (zone $0A) plays its final track, mus_OOZ (the alpha's list has Casino Night's 2P theme there); slot 3, which Sky Chase has now, keeps the same song for the moment
+// for it, and Hidden Palace stays in this port (a deviation from the alpha), with the final game's own track, mus_HPZ. Oil Ocean (zone $0A) plays its final track, mus_OOZ (the alpha's list has Casino Night's 2P theme there); slot 3, which is Sand Shower (SSZ), keeps the same song (id 4) until it gets its own
 uint8_t Level_Music(uint16_t level) {
     static const uint8_t zone_music[ZoneId_Num] = {
         [0x00] = mus_EHZ, [0x01] = mus_EHZ, [0x02] = mus_MTZ, [0x03] = mus_OOZ, [0x04] = mus_MTZ, [0x05] = mus_MTZ, [0x07] = mus_HTZ,
