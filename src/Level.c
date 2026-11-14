@@ -704,7 +704,7 @@ void Level_MakeWaterSurfaces(void) {
 uint8_t Level_Music(uint16_t level) {
     static const uint8_t zone_music[ZoneId_Num] = {
         [0x00] = mus_EHZ, [0x01] = mus_EHZ, [0x02] = mus_MTZ, [0x03] = mus_OOZ, [0x04] = mus_MTZ, [0x05] = mus_MTZ, [0x07] = mus_HTZ,
-        [0x06] = mus_WFZ, [0x08] = mus_HPZ, [0x09] = mus_MzSwap, [0x0A] = mus_OOZ, [0x0B] = mus_MCZ, [0x0C] = mus_CNZ, [0x0D] = mus_CPZ, [0x0E] = mus_WFZ, [0x0F] = mus_ARZ, [0x10] = mus_WFZ,
+        [0x06] = mus_WFZ, [0x08] = mus_HPZ, [0x09] = mus_MzSwap, [0x0A] = mus_OOZ, [0x0B] = mus_MCZ, [0x0C] = mus_CNZ, [0x0D] = mus_CPZ, [0x0E] = mus_DEZ, [0x0F] = mus_ARZ, [0x10] = mus_SCZ,
         // (the alpha's list has Sky Chase's song at $09 and Cyber City's, the Marble swap, at $0E: each follows its zone to its new slot)
     };
     unsigned zone = LEVEL_ZONE(level);
