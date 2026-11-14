@@ -555,6 +555,7 @@ void Obj_TitleCard(Sst *self) {
         titlecard_art_loaded = false; // (the art goes in once the level's first pattern load cues are done: see routine 2)
         tc_age = 0;
         tc_wipe = -1;
+        SplitScreen_ShowViews(); // (a versus level has its two views from the first frame of the card)
         const bool bars = true;
         hud_hold_back = bars; // (the HUD comes when the level is shown)
 
@@ -604,20 +605,24 @@ void Obj_TitleCard(Sst *self) {
                 return;
             }
         }
-        if (TitleCard_SplitWanted())
-            TitleCard_FitSplit();
+        if (self->subtype == TCE_CURTAIN) {
+            if (tc_wipe < 0 && !TitleCard_Arrived())
+                memcpy(dry_palette_dup[1], tc_line1, sizeof(tc_line1)); // (the colours the screen fades to: until the level's own are made the target, when the level is loaded)
+            if (tc_wipe < 14)
+                memcpy(dry_palette[1], tc_line1, sizeof(tc_line1)); // (from the start: the level's own line 1 is there before the card's art is)
+            else if (tc_wipe == 14)
+                memcpy(dry_palette[1], dry_palette_dup[1], sizeof(tc_line1)); // (the yellow is gone: the level's colours)
+        }
         if (!titlecard_art_loaded) {
             if (plc_buffer[0].art != NULL)
                 break; // (the queue is still being drained: nothing of the card shows yet)
             TitleCard_LoadArt(TitleCard_NameFrame(LEVEL_ZONE(level_id)));
             titlecard_art_loaded = true;
         }
+        if (TitleCard_SplitWanted())
+            TitleCard_FitSplit(); // (squeezes what is in video memory: the art is there)
         if (self->subtype == TCE_CURTAIN) {
             const int age = tc_age++;
-            if (tc_wipe < 14)
-                memcpy(dry_palette[1], tc_line1, sizeof(tc_line1));
-            else if (tc_wipe == 14)
-                memcpy(dry_palette[1], dry_palette_dup[1], sizeof(tc_line1)); // (the yellow is gone: the level's colours)
             // growing: the blue comes down two rows a frame, the yellow comes in from the right two columns a frame (after 8 frames), the red out from the left two columns a frame (after 21)
             const int rows = 2 * (age + 1);
             const int yellow = age < 7 ? 99 : (38 - 2 * (age - 7) < 8 ? 8 : 38 - 2 * (age - 7));

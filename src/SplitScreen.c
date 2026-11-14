@@ -116,6 +116,18 @@ void SplitScreen_LoadLevel(void) {
     screen2p.vsram.b = vid_bg_scrpos_y_dup;
 }
 
+// The views, before the level is: the title card is shown in them (SplitScreen_LoadLevel does the rest, from SplitOff, when the level is loaded)
+void SplitScreen_ShowViews(void) {
+    if (!two_player_mode)
+        return;
+    side_by_side = (SCREEN_WIDTH * 5 >= SCREEN_HEIGHT * 8);
+    view_width = side_by_side ? SCREEN_WIDTH / 2 : SCREEN_WIDTH;
+    camera_split = true;
+    sprite_split_screen = side_by_side ? SPRITE_SPLIT_SIDE : SPRITE_SPLIT_STACKED;
+    screen2p.palette = NULL;
+    VDP_SetSplitScreen(side_by_side ? VDP_SPLIT_SIDE : VDP_SPLIT_STACKED);
+}
+
 void SplitScreen_LockCameras(int16_t x, int16_t half_width) {
     if (!camera_split) {
         limit_left2 = limit_right2;
