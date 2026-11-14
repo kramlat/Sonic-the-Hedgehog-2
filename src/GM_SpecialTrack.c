@@ -108,11 +108,11 @@ void GM_SpecialTrack(void) {
     }
     for (int i = 0; i < SS_ITEM_SLOTS; i++) { // (the rings and bombs, and their shadows: each follows a place in the layout)
         Sst *item = Sst_Allocate();
-        Sst *shadow = Sst_Allocate();
-        if (item != NULL) {
+        if (item != NULL) { // (a slot is free until its code is set: the first is filled in before the next is asked for, or both would be the same slot)
             item->code = Obj_SpecialStageItem;
             item->subtype = (uint8_t)i;
         }
+        Sst *shadow = Sst_Allocate();
         if (shadow != NULL) {
             shadow->code = Obj_SpecialStageItemShadow;
             shadow->subtype = (uint8_t)i;

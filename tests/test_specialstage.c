@@ -601,6 +601,21 @@ static void SpecialStage_ATumbleWithRingsSpillsThemOnItsFirstStepOnly(void) {
     CHECK(!q.spill); // (with no rings there is nothing to spill)
 }
 
+static void SpecialStage_ATumbleOnlyUsesFramesOfItsTable(void) {
+    for (int start = 0; start < 256; start++) {
+        SSPlayer p;
+        SSPlayer_Init(&p);
+        p.angle = (uint8_t)start;
+        p.hit = 2;
+        p.tumble = p.angle;
+        SSTrackState track = { 12, 4 };
+        for (int step = 0; step < 40 && p.hit; step++) {
+            SSPlayer_Step(&p, &track, 0, 0);
+            CHECK(p.frame == 0 || p.frame == 4); // (the table's frames: a byte past it was $FF and flooded VRAM)
+        }
+    }
+}
+
 void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheMainListsArtDecodesAndGoesWherePreBetaPutsIt);
     RUN_TEST(SpecialStage_TheRingsListGoesOverTheTrafficLights);
@@ -628,4 +643,5 @@ void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_AnItemComesDownThePipeAndGoes);
     RUN_TEST(SpecialStage_TheCharacterTakesRingsAndIsHurtByBombs);
     RUN_TEST(SpecialStage_ATumbleWithRingsSpillsThemOnItsFirstStepOnly);
+    RUN_TEST(SpecialStage_ATumbleOnlyUsesFramesOfItsTable);
 }

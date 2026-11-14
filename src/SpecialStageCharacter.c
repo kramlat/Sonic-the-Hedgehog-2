@@ -232,7 +232,7 @@ static void Tumble(SSPlayer *p) {
         p->hit = 0;
     if ((uint8_t)(d0 - 8) == p->angle && p->touched != 0)
         p->spill = true;
-    d0 = (uint8_t)((d0 - 0x10) >> 5);
+    d0 = (uint8_t)((uint8_t)(d0 - 0x10) >> 5); // (byte arithmetic, as the pre-beta's subi.b and lsr.b: a plain int would go negative below $10 and pick a frame far outside the table)
     p->frame = frames[d0][0];
     p->flips = frames[d0][1] & 3;
 }
