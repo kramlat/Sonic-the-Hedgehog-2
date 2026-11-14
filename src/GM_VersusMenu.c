@@ -310,7 +310,7 @@ static bool CodeScreen(char code[21]) {
             col = row == 4 ? 3 : col;
         if ((jpad1_press1 & (JPAD_A | JPAD_C)) && length < 20) {
             code[length++] = symbols[row * 8 + col];
-            PlaySound(sfx_Spring);
+            PlaySound(sfx_Ring);
         }
         if (jpad1_press1 & JPAD_B) {
             if (length == 0)
