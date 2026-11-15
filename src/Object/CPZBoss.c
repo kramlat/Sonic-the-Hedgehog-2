@@ -16,6 +16,7 @@
 
 #include "EnginePalette.h"
 #include "Level.h"
+#include "Object/Tails.h"
 #include "LevelCollision.h"
 #include "MathUtil.h"
 #include "Object/Sonic.h"
@@ -134,12 +135,13 @@ static void Ship_Place(Sst *self, Own_CPZBoss *own) {
         AddPoints(100);
         self->routine_secondary = 8;
         own->wreck = 0xB3;
+        sst[own->link].anim = 4; // (Beta 4: the face on the ship shows the end of it)
         return;
     }
     if (self->collision_flags != 0)
         return;
     if (own->flash == 0) {
-        own->flash = 0x40;
+        own->flash = 0x20; // (Beta 4: $20 frames of hit flash; the pre-beta's $40)
         QueueSound2(sfx_HitBoss);
     }
     dry_palette[1][1] = (dry_palette[1][1] == 0) ? 0x0EEE : 0;
@@ -230,6 +232,8 @@ static void Ship_Run(Sst *self, Own_CPZBoss *own) {
             self->y_vel -= 8;
         } else if (own->wreck == 0x30) {
             self->y_vel = 0;
+            boss_status = 1; // (Beta 4's Boss_Defeated_Music_Restore: the boss is beaten and the level's music is back; the capsule ends the act)
+            QueueSound1(Level_Music(level_id));
         } else if ((uint16_t)own->wreck >= 0x38) {
             self->routine_secondary += 2;
         }
@@ -240,10 +244,11 @@ static void Ship_Run(Sst *self, Own_CPZBoss *own) {
         own->flags |= Flag_Leaving;
         self->x_vel = 0x400;
         self->y_vel = (int16_t)0xFFC0;
-        if (limit_right2 != 0x2CC0 + SCREEN_WIDEADD2) {
+        if (limit_right2 < 0x2C10 + SCREEN_WIDEADD2) { // (Beta 4: the camera is let out to $2C10, and when it is there and the ship is out of sight the ship and its face are gone)
             limit_right1 = limit_right2 = (uint16_t)(limit_right2 + 2);
-        } else if (!(self->render_flags & SST_RENDER_ON_SCREEN)) { // (out of sight: it is gone)
-            boss_status = 1;
+        } else if (!(self->render_flags & SST_RENDER_ON_SCREEN)) {
+            if (own->link != 0)
+                Sst_Delete(&sst[own->link]);
             Sst_Delete(self);
             return;
         }
@@ -258,7 +263,14 @@ static void Ship_Run(Sst *self, Own_CPZBoss *own) {
 
 // The part that follows the ship's place (the flame, and the one that Eggman's is made of)
 static void Flame_Run(Sst *self) {
-    Follow(self, Link(self));
+    Sst *ship = Link(self);
+    Follow(self, ship);
+    if (((Own_CPZBoss *)ship->own.u8)->flash == 0x1F) // (Beta 4: a hit shows, and a hurt character shows)
+        self->anim = 2;
+    if (player->routine == 4 || (TAILS_OBJ->code != NULL && TAILS_OBJ->routine == 4)) {
+        if (self->anim != 2)
+            self->anim = 3;
+    }
     Sst_Animate(self, Animation_CPZBoss1);
     Sst_Draw(self);
 }
@@ -634,6 +646,7 @@ static void Blob_Run(Sst *self, Own_CPZBoss *own) {
         if (distance < 0) { // it has reached the floor
             self->y_pos.f.u = (int16_t)(self->y_pos.f.u + distance);
             Blob_Finish(self);
+            PlaySound(sfx_MegaMackDrop); // (Beta 4: $E6 as it hits the floor)
             self->routine_secondary += 2;
             self->subtype = 0;
             Sst_Draw(self);
@@ -1060,9 +1073,8 @@ void CPZBoss_Events(void) {
         dle_routine += 2;
         QueueSound1(bgm_Boss);
         break;
-    case 6:
-        if (boss_status)
-            GotThroughAct();
+    case 6: // the camera cannot go back (the capsule in the layout ends the act: the pre-beta's did it here)
+        limit_left2 = scrpos_x.f.u;
         break;
     }
 }
