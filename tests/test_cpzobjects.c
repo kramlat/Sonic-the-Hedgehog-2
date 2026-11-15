@@ -461,7 +461,7 @@ static Sst *FindElevator(void) {
 static void SFZObjects_AnElevatorMakerMakesAnElevatorThatOpensCarriesAndGoes(void) {
     Reset();
     player->code = NULL;
-    Spawn(0xBD, 0x76, 500, 300);
+    Spawn(0xBD, 0x7E, 500, 300); // (Beta 4's subtype: $7E up, $80 down)
     Frames(3);
     Sst *lift = FindElevator();
     CHECK(lift != NULL);
@@ -604,14 +604,11 @@ static void SFZObjects_TheHorizontalHelixThatOnlyTurnsCatchesNobody(void) {
 static void SFZObjects_APlatformHelixIsAPlatformThatFoldsAwayAndComesBack(void) {
     Reset();
     player->code = NULL;
-    Sst *helix = Spawn(0xB6, 0x62, 500, 300);
+    Sst *helix = Spawn(0xB6, 0x00, 500, 300); // (Beta 4's: subtype 0 folds on the frame counter's high nibble being 0, and again every 256 frames)
     Frames(2);
     CHECK_EQ(helix->routine, 2);
-    CHECK_EQ(helix->routine_secondary, 2); // (a platform for a while: under $80 frames)
-    Frames(0x90);
-    CHECK(helix->routine_secondary == 4 || helix->routine_secondary == 6 || helix->routine_secondary == 2); // (it folds: and back to a platform after $C0)
     bool folded = false;
-    for (int i = 0; i < 0x200 && !folded; i++) {
+    for (int i = 0; i < 0x300 && !folded; i++) {
         Frames(1);
         folded = helix->routine_secondary == 4;
     }

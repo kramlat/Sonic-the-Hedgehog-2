@@ -777,7 +777,8 @@ void ScrollVertical(void) {
 // Start is held on pad 2 the horizontal one grows by 2 a frame to $800 while the camera is below $380, and when the camera is above it the horizontal one falls by 1 to -$200 and the vertical one grows by 1 to $380.
 // What the background scroll takes is the pre-beta's Horizontal_Scrolling_Sub and Vertical_Scrolling_Sub: the high byte of each is that difference and the low byte is the camera's own move's (a quirk: it moves
 // the background by a fraction more)
-static int16_t sfz_offset_x, sfz_offset_y;
+int16_t sfz_offset_x; // (the Rocket Boost object goes with it)
+static int16_t sfz_offset_y;
 static int16_t sfz_sub_x, sfz_sub_y;
 
 static int16_t SFZ_Chase(int16_t difference) {
@@ -797,6 +798,11 @@ static void SFZ_SetSubs(void) {
 	sfz_sub_y = (int16_t)(((uint16_t)(dy & 0xFF) << 8) | ((uint16_t)sfz_sub_y & 0xFF));
 }
 
+// Wing Fortress's events (Beta 4's DynResize_SFz; the boss's part of it, the arena at $2880 and its art, is deferred with the boss): the background's ship goes by on offsets of its own. From the camera's coming
+// to $2BC0 across and $580 down the offset in x runs up to $800 (by 2 a frame), and past $600 the offset in y grows by an ever larger step (a speed of up to $840: its high byte a frame). State 6, which the
+// Tornado's ending sets, brings the offsets back (x to -$2C0, y to $1B81). The pre-beta's waited for a button on the second pad in state 2 and for the camera's height in state 4
+static int16_t sfz_speed; // $F662
+
 void SFZ_Events(void)
 {
 	switch (dle_routine) {
@@ -808,25 +814,33 @@ void SFZ_Events(void)
 		dle_routine += 2;
 		break;
 	case 2:
-		if (jpad2_hold & 0x80)
+		if ((uint16_t)scrpos_x.f.u >= 0x2BC0 - SCREEN_WIDEADD2 && (uint16_t)scrpos_y.f.u >= 0x580 - SCREEN_TALLADD) {
 			dle_routine += 2;
+			sfz_speed = 0;
+		}
 		SFZ_SetSubs();
 		break;
 	case 4:
-		if ((uint16_t)scrpos_y.f.u <= (uint16_t)(0x380 - SCREEN_TALLADD)) {
-			dle_routine += 2;
-			goto offsets_fall;
-		}
 		if (sfz_offset_x != 0x800)
 			sfz_offset_x += 2;
+		if (sfz_offset_x >= 0x600) {
+			if ((uint16_t)sfz_speed < 0x840)
+				sfz_speed += 4;
+			sfz_offset_y = (int16_t)(sfz_offset_y + ((uint16_t)sfz_speed >> 8));
+		}
 		SFZ_SetSubs();
 		break;
 	case 6:
-	offsets_fall:
-		if (sfz_offset_x != -0x200) {
-			sfz_offset_x -= 1;
-			if (sfz_offset_y != 0x380)
-				sfz_offset_y += 1;
+		if (sfz_offset_x != -0x2C0) {
+			sfz_offset_x -= 2;
+			if (sfz_offset_y != 0x1B81) {
+				int16_t step = 0;
+				if (sfz_speed != 0) {
+					sfz_speed -= 4;
+					step = (int16_t)((uint16_t)sfz_speed >> 8);
+				}
+				sfz_offset_y = (int16_t)(sfz_offset_y + step + 1);
+			}
 		}
 		SFZ_SetSubs();
 		break;

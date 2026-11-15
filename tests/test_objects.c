@@ -639,30 +639,31 @@ static void SFZBoss_BodyMakesItsPartsAndTheBouncerStaysInItsBox(void) {
     CHECK(in_box);
 }
 
-// Sky Fortress' events (DynResize_SFz): the background starts as the camera; once Start is held on pad 2 the events move on, and when the camera is above $380 they go on to their last step
+// Wing Fortress' events (Beta 4's DynResize_SFz): the background starts as the camera; once the camera is at $2BC0 across and $580 down the events move on and the offset in x runs up, and past $600 the offset in y
+// with a growing step; state 6 (the Tornado's ending sets it) brings them back
 void SFZ_Events(void);
-static void SFZEvents_StartAsTheCameraAndMoveOnWithPadTwosStart(void) {
+extern int16_t sfz_offset_x;
+static void SFZEvents_StartAsTheCameraAndMoveOnWhenTheCameraIsFarEnough(void) {
     scrpos_x.v = 0x500 << 16;
     scrpos_y.v = 0x600 << 16;
     bg_scrpos_x.v = 0;
     bg_scrpos_y.v = 0;
     dle_routine = 0;
-    jpad2_hold = 0;
     SFZ_Events();
     CHECK_EQ(bg_scrpos_x.f.u, 0x500);
     CHECK_EQ(bg_scrpos_y.f.u, 0x600);
     CHECK_EQ(dle_routine, 2);
     SFZ_Events();
-    CHECK_EQ(dle_routine, 2); // (waiting for pad 2's Start)
-    jpad2_hold = 0x80;
+    CHECK_EQ(dle_routine, 2); // (the camera is not at $2BC0 yet)
+    scrpos_x.v = 0x2C00 << 16;
     SFZ_Events();
     CHECK_EQ(dle_routine, 4);
+    for (int i = 0; i < 0x20; i++)
+        SFZ_Events();
+    CHECK_EQ(sfz_offset_x, 0x40); // (up by 2 a frame)
+    dle_routine = 6;
     SFZ_Events();
-    CHECK_EQ(dle_routine, 4); // (the camera is below $380 still)
-    scrpos_y.v = 0x100 << 16;
-    SFZ_Events();
-    CHECK_EQ(dle_routine, 6);
-    jpad2_hold = 0;
+    CHECK_EQ(sfz_offset_x, 0x3E);
     dle_routine = 0;
 }
 
@@ -1450,7 +1451,7 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(DEZEvents_FollowTheCameraAndShutTheArena);
     RUN_TEST(DEZFinalBoss_MakesItsPartsAndRunsThePuppetOnceRobotnikHasHopped);
     RUN_TEST(DEZRunning_RunsThrowsAndOpensItsDoor);
-    RUN_TEST(SFZEvents_StartAsTheCameraAndMoveOnWithPadTwosStart);
+    RUN_TEST(SFZEvents_StartAsTheCameraAndMoveOnWhenTheCameraIsFarEnough);
     RUN_TEST(SFZBoss_BodyMakesItsPartsAndTheBouncerStaysInItsBox);
     RUN_TEST(ObjectHit_FollowsThePreBetasTimingAndArt);
     RUN_TEST(Sonic_DebugCheatDiesButBEntersPlacementModeFromHurtAndDead);

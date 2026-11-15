@@ -978,12 +978,12 @@ static const PLCList PLC_SFZ2 = { // Sky Fortress's secondary list, the pre-beta
         { Art_SFZHorizontalLaser, ART_VRAM(0x7860 >> 5) },
         { Art_SFZConveyorWheels, ART_VRAM(0x7D40 >> 5) },
         { Art_SFZChainHook, ART_VRAM(0x7F40 >> 5) },
-        { Art_SFZRocketFlame, ART_VRAM(0x81C0 >> 5) },
-        { Art_SFZElevators, ART_VRAM(0x82C0 >> 5) },
-        { Art_SFZHatchways, ART_VRAM(0x8440 >> 5) },
-        { Art_SFZEnginePart, ART_VRAM(0x8B00 >> 5) },
-        { Art_SFZSpeedBoost, ART_VRAM(0x8C80 >> 5) },
-        { Art_SFZBossSwitch, ART_VRAM(0x8D20 >> 5) },
+        { Art_SFZRocketFlame, ART_VRAM(0x8CA0 >> 5) }, // (Beta 4's places: the pre-beta's were $81C0, $82C0, $8440, $8B00, $8C80 and $8D20 for these)
+        { Art_SFZElevators, ART_VRAM(0x81C0 >> 5) },
+        { Art_SFZHatchways, ART_VRAM(0x8340 >> 5) },
+        { Art_SFZEnginePart, ART_VRAM(0x8A00 >> 5) },
+        { Art_SFZSpeedBoost, ART_VRAM(0x8B80 >> 5) },
+        { Art_SFZBossSwitch, ART_VRAM(0x8C20 >> 5) },
         { Art_SFZPlatform, ART_VRAM(0x8DA0 >> 5) },
     }
 };

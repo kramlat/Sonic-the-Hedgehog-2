@@ -545,6 +545,7 @@ void Obj_SFZElevator(Sst *self) {
                 lift->y_pos = self->y_pos;
                 lift->routine = ElevatorRoutine_Elevator;
                 lift->subtype = self->subtype;
+                lift->render_flags = self->render_flags;
             }
         }
         SstDeleteIfNotInRange(self);
@@ -553,14 +554,14 @@ void Obj_SFZElevator(Sst *self) {
     switch (self->routine_secondary) {
     case ElevatorState_Init:
         self->mappings = Mappings_SFZElevator;
-        self->art_tile = TILE_MAP(1, 3, 0, 0, 0x416);
+        self->art_tile = TILE_MAP(1, 3, 0, 0, 0x40E); // (Beta 4: $E40E)
         self->render_flags |= SST_RENDER_LEVEL;
         self->priority = 4 * 0x80;
         self->width_pixels = 0x18;
         self->collision_flags = 0;
         self->routine_secondary += 2;
-        own->timer = 0xC7;
-        self->y_vel = (self->subtype == 0x76) ? (int16_t)0xFF00 : 0x0100;
+        own->timer = (self->render_flags & SST_RENDER_X_FLIP) ? 0x1C7 : 0xC7; // (Beta 4: a flipped one goes $100 frames longer)
+        self->y_vel = (self->subtype == 0x7E) ? (int16_t)0xFF00 : 0x0100; // (Beta 4's subtypes: $7E up, $80 down; the pre-beta's $76 and $78)
         own->frame = 0;
         own->beat = 0;
         break;
@@ -633,7 +634,7 @@ void Obj_SFZSpeedBooster(Sst *self) {
     if (self->routine == 0) {
         self->routine += 2;
         self->mappings = Mappings_SFZSpeedBooster;
-        self->art_tile = TILE_MAP(1, 1, 0, 0, 0x464);
+        self->art_tile = TILE_MAP(0, 1, 0, 0, 0x45C); // (Beta 4: $245C)
         self->render_flags |= SST_RENDER_LEVEL;
         self->priority = 4 * 0x80;
         self->width_pixels = 0x10;
@@ -652,15 +653,18 @@ void Obj_SFZSpeedBooster(Sst *self) {
             if (!(self->status & SST_STATUS_X_FLIP)) {
                 self->x_vel = (int16_t)-self->x_vel;
                 own->accel = (int16_t)-own->accel;
-                Sst_MoveSprite2(self);
             }
+            Sst_MoveSprite2(self); // (Beta 4: it moves at once, whichever way)
             Booster_Riders(self, Booster_Attach);
         }
         break;
     case BoosterState_Go:
         self->x_vel = (int16_t)(self->x_vel + own->accel);
         Sst_MoveSprite2(self);
-        if ((uint16_t)own->target > (uint16_t)self->x_pos.f.u) { // it is there
+        int16_t left = (int16_t)(own->target - self->x_pos.f.u);
+        if (self->status & SST_STATUS_X_FLIP)
+            left = (int16_t)-left;
+        if (left >= 0) { // it is there (Beta 4's: the way it goes counts)
             self->routine_secondary += 2;
             self->x_pos.f.u = own->target;
             Booster_Riders(self, Booster_Throw);
@@ -739,7 +743,7 @@ void Obj_SFZLaser(Sst *self) {
 void Obj_SFZBossSwitch(Sst *self) {
     if (self->routine == 0) {
         self->mappings = Mappings_SFZBossSwitch;
-        self->art_tile = TILE_MAP(1, 1, 0, 0, 0x469);
+        self->art_tile = TILE_MAP(1, 1, 0, 0, 0x461); // (Beta 4: $A461)
         self->render_flags |= SST_RENDER_LEVEL;
         self->priority = 4 * 0x80;
         self->width_pixels = 0x10;
@@ -765,6 +769,7 @@ void Obj_SFZBossSwitch(Sst *self) {
     }
     self->code = Obj_ObjectHit;
     self->routine = 2;
+    limit_left2 = 0x2880; // (Beta 4: the camera is held at the boss's arena)
     player->status |= SST_PSTATUS_IN_AIR;
     player->status &= (uint8_t)~SST_PSTATUS_OBJECT_STAND;
     static const uint8_t above[6] = { 0x8A, 0x70, 0x71, 0x72, 0x73, 0x74 }, below[6] = { 0x6E, 0x78, 0x79, 0x78, 0x78, 0x7A };
@@ -926,7 +931,7 @@ void Obj_SFZPlatformHelix(Sst *self) {
         self->priority = 4 * 0x80;
         self->width_pixels = 0x10;
         self->collision_flags = 0;
-        self->routine = (uint8_t)(self->subtype - 0x60);
+        self->routine = (uint8_t)((self->subtype & 6) + 2); // (Beta 4: the kind is in the subtype's low bits, and its high nibble is when it folds)
         return;
     }
     switch (self->routine) {
@@ -934,11 +939,12 @@ void Obj_SFZPlatformHelix(Sst *self) {
         switch (self->routine_secondary) {
         case 0:
             self->routine_secondary += 2;
+            self->subtype &= 0xF0;
             Helix_RandomWait(self, own);
             break;
         case 2:
             PlatformHelix_Solid(self, 0x23, 4, 4);
-            if (--own->timer < 0) {
+            if (((uint8_t)frame_count & 0xF0) == self->subtype) { // (Beta 4: by the frame counter, so that the helices fold in turn; the pre-beta's wait was random)
                 self->routine_secondary += 2;
                 self->anim = 0;
                 PlatformHelix_Release(self);
@@ -1105,7 +1111,7 @@ void Obj_SFZCannon(Sst *self) {
             frame = (uint16_t)self->x_pos.f.u < (uint16_t)player->x_pos.f.u ? 2 : 1;
         self->mapping_frame = frame;
         if (--own->timer == 0) {
-            own->timer = 0x40;
+            own->timer = 0x60; // (Beta 4: every $60 frames; the pre-beta's $40)
             Cannon_Fire(self, own);
         }
         SstOnScreenTest(self);
@@ -1281,28 +1287,44 @@ void Obj_SFZChainHook(Sst *self) {
     SstOnScreenTest(self);
 }
 
-// $BC, the rocket boost (Obj_0xBC_Rocket_Boost): Object_Settings' entry (its mappings, art at $40E in front on palette line 3, render 4, priority 4, width $10) and it shows every other frame
+// $BC, the rocket boost (Beta 4's loc_37ACC): it goes with the background ship's offset in x ($EEE2, `sfz_offset_x`) from where it was put, and is gone when that has come to $380; it shows every other frame
+extern int16_t sfz_offset_x;
+
 void Obj_SFZRocketBoost(Sst *self) {
+    typedef struct {
+        uint8_t subtype;
+        uint8_t pad0;
+        uint8_t flicker; // 0x2A
+        uint8_t pad1;
+        int16_t home_x;  // 0x2C
+    } Own_Boost;
+    Own_Boost *own = (Own_Boost *)self->own.u8;
     if (self->routine == 0) {
         self->mappings = Mappings_SFZRocketBoost;
-        self->art_tile = TILE_MAP(1, 2, 0, 0, 0x40E);
+        self->art_tile = TILE_MAP(0, 2, 0, 0, 0x465); // (Beta 4: $4465)
         self->render_flags |= SST_RENDER_LEVEL;
         self->priority = 4 * 0x80;
         self->width_pixels = 0x10;
         self->collision_flags = 0;
+        own->home_x = self->x_pos.f.u;
         self->routine += 2;
         return;
     }
-    self->own.u8[0x2A - 0x28] ^= 1;
-    if (self->own.u8[0x2A - 0x28] & 1)
-        SstOnScreenTest(self);
+    if (sfz_offset_x >= 0x380) {
+        Sst_Delete(self);
+        return;
+    }
+    self->x_pos.f.u = (int16_t)(own->home_x + sfz_offset_x);
+    own->flicker ^= 1;
+    if (own->flicker & 1)
+        Sst_Draw(self); // (it is drawn, not kept by the screen: it goes when the offset has)
 }
 
 // $BF, the engine part (Obj_0xBF_Engine_Part): Object_Settings' entry (its mappings, art at $458 on palette line 4 in front, render 4, priority 4, width 4) and its three frames, two ticks each
 void Obj_SFZEnginePart(Sst *self) {
     if (self->routine == 0) {
         self->mappings = Mappings_SFZEnginePart;
-        self->art_tile = TILE_MAP(1, 3, 0, 0, 0x458);
+        self->art_tile = TILE_MAP(1, 3, 0, 0, 0x450); // (Beta 4: $E450)
         self->render_flags |= SST_RENDER_LEVEL;
         self->priority = 4 * 0x80;
         self->width_pixels = 4;
@@ -1318,25 +1340,33 @@ void Obj_SFZEnginePart(Sst *self) {
 // script says when: the routine counter goes on by 2 at its end), and while its frame is 3 or 4 (open) it is a platform ($23 wide, $19 high); shut, what stands on it is let go; and then $C0 frames to the next time
 void Obj_SFZHatchway(Sst *self) {
     Own_SFZHelix *own = (Own_SFZHelix *)self->own.u8;
+
     switch (self->routine) {
     case 0:
         self->mappings = Mappings_SFZHatchway;
-        self->art_tile = TILE_MAP(1, 3, 0, 0, 0x422);
+        self->art_tile = TILE_MAP(1, 3, 0, 0, 0x41A); // (Beta 4: $E41A)
         self->render_flags |= SST_RENDER_LEVEL;
         self->priority = 4 * 0x80;
         self->width_pixels = 0x18;
         self->collision_flags = 0;
-        Helix_RandomWait(self, own);
+        self->subtype &= 0xF0; // (Beta 4: it opens when the frame counter's high nibble is its subtype's, not after a random wait)
         self->routine += 2;
         return;
     case 2:
-        if (--own->timer < 0) {
+        if (((uint8_t)frame_count & 0xF0) == self->subtype) {
             self->routine += 2;
             self->anim = 0;
+            own->timer = 0x100;
         }
         break;
-    case 4:
-        if (self->mapping_frame == 3 || self->mapping_frame == 4) {
+    case 4: // (opening: its script moves the routine on)
+        Sst_Animate(self, Animation_SFZHatchway);
+        break;
+    case 6: // open for $100 frames, a platform while its frame is 3 or 4
+        if (--own->timer == 0) {
+            self->routine += 2;
+            self->anim = 1;
+        } else if (self->mapping_frame == 3 || self->mapping_frame == 4) {
             const int16_t x = self->x_pos.f.u;
             for (int who = SolidChar_Sonic; who <= SolidChar_Tails; who++) {
                 Sst *chr = who == SolidChar_Sonic ? player : (TAILS_OBJ->code != NULL ? TAILS_OBJ : NULL);
@@ -1346,11 +1376,12 @@ void Obj_SFZHatchway(Sst *self) {
         } else {
             PlatformHelix_Release(self);
         }
+        break;
+    case 8: // (closing)
         Sst_Animate(self, Animation_SFZHatchway);
         break;
-    case 6:
+    case 10:
         self->routine = 2;
-        own->timer = 0xC0;
         break;
     }
     SstOnScreenTest(self);
