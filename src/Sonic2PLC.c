@@ -569,12 +569,12 @@ const uint8_t *EndCard_ZoneArt(void) { return Art_B4CardZone; }
 // ---------------------------------------------------------------------------
 // Pattern load cues - act 3 boss
 // ---------------------------------------------------------------------------
-static const PLCList PLC_Boss = { // Emerald Hill's boss, as the alpha's list $29 has it: Eggman's ship ($7400), the drill car ($8000), its blades ($BD00) and the explosions ($B000, over the animals' first art)
+static const PLCList PLC_Boss = { // Emerald Hill's boss, as the alpha's list $29 has it: Eggman's ship ($7400), the drill car ($8000), its blades (Beta 4: $AD80; the alpha: $BD00) and the explosions ($B000, over the animals' first art)
     4,
     (const PLC[]) {
         { Art_BossShip,      ART_VRAM(0x7400 >> 5) },
         { Art_BossEHZ,       ART_VRAM(0x8000 >> 5) },
-        { Art_BossEHZBlades, ART_VRAM(0xBD00 >> 5) },
+        { Art_BossEHZBlades, ART_VRAM(0xAD80 >> 5) },
         { Art_BossExplosion, ART_VRAM(0xB000 >> 5) },
     }
 };

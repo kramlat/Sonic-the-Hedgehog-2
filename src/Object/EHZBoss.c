@@ -14,6 +14,7 @@
 #include "LevelCollision.h"
 #include "LevelScroll.h"
 #include "Object/Sonic.h"
+#include "Object/Tails.h"
 #include "Sound.h"
 
 #include "Macros.h"
@@ -30,10 +31,10 @@
 #define ObjId_EHZBossPart 0x5B
 #define ObjId_BossExplosion 0x58
 
-// Where the art goes (the boss' PLC, the alpha's $29): the ship at $3A0, the car at $400, its blades at $5E8 (and the explosions' at $580)
+// Where the art goes (the boss' PLC, Beta 4's $29): the ship at $3A0, the car at $400, its blades at $56C (the pre-beta's: $5E8) (and the explosions' at $580)
 #define ArtTile_BossShipEHZ  0x3A0
 #define ArtTile_BossCarEHZ   0x400
-#define ArtTile_BossBladesEHZ 0x5E8
+#define ArtTile_BossBladesEHZ 0x56C
 #define ArtTile_BossExplosion 0x580
 
 typedef struct {
@@ -134,9 +135,7 @@ static void Boss_Ship(Sst *self) {
     Own_Boss *own = (Own_Boss *)self->own.u8;
 
     switch (self->routine_secondary) {
-    case 0: // waits for the arena, then slides in from the right (and down)
-        if (!ArenaIsSet())
-            break;
+    case 0: // slides in from the right (and down): the level's events put it where the arena is (Beta 4's has no wait for the arena of its own)
         self->collision_flags = 0;
         if (self->x_pos.f.u > 0x29D0) {
             self->x_pos.f.u--;
@@ -205,6 +204,8 @@ static void Boss_Ship(Sst *self) {
                 ((Own_Boss *)lift->own.u8)->timer = 0x10;
                 own->timer = 0x32;
                 own->step += 2;
+                boss_status = 1; // (Boss_Defeated_Music_Restore: the boss is beaten, the level's music comes back)
+                QueueSound1(Level_Music(level_id));
             }
             break;
         }
@@ -217,19 +218,23 @@ static void Boss_Ship(Sst *self) {
             break;
         case 4:
             self->y_pos.f.u--;
-            if (--own->timer >= 0)
-                break;
-            SST_STATUS_SET(self, SST_STATUS_X_FLIP, true);
-            SST_RENDER_SET(self, SST_RENDER_X_FLIP, true);
-            self->y_pos.f.u++;
-            self->x_pos.f.u += 2;
-            if ((uint16_t)self->x_pos.f.u >= 0x2B08 && !boss_status)
-                boss_status = 1; // the boss is beaten (Boss_defeated_flag)
+            if (--own->timer < 0) {
+                SST_STATUS_SET(self, SST_STATUS_X_FLIP, true);
+                SST_RENDER_SET(self, SST_RENDER_X_FLIP, true);
+                self->y_pos.f.u++;
+                self->x_pos.f.u += 2;
+            }
+            // (Beta 4: the camera is let go to the right as it drives off, and when it has come to $2A90 and the car is off the screen the car and its face are gone)
+            if (limit_right2 < 0x2A90 + SCREEN_WIDEADD2) {
+                limit_right2 += 2;
+            } else if (!(self->render_flags & SST_RENDER_ON_SCREEN)) {
+                Sst *face = &sst[own->link];
+                if (own->link != 0)
+                    Sst_Delete(face);
+                Sst_Delete(self);
+                return;
+            }
             break;
-        }
-        if (boss_status) {
-            Sst_Delete(self);
-            return;
         }
         break;
     }
@@ -248,7 +253,7 @@ static void Boss_MakeWheels(Sst *self) {
             continue;
         wheel->y_radius = 0x10;
         wheel->x_radius = 0x10;
-        wheel->x_pos.f.u = (int16_t)(0x2AA0 + wheels[i].x);
+        wheel->x_pos.f.u = (int16_t)(0x2AF0 + wheels[i].x); // (Beta 4: $2AF0; the pre-beta's $2AA0)
         wheel->y_pos.f.u += 0xC;
         wheel->mapping_frame = wheels[i].frame;
         wheel->anim = wheels[i].anim;
@@ -259,7 +264,7 @@ static void Boss_MakeWheels(Sst *self) {
     // the spike on its front
     Sst *spike = MakePart(self, ObjId_EHZBossPart, 10, Mappings_BossEHZWheels, TILE_MAP(0, 1, 0, 0, ArtTile_BossCarEHZ), 0x10, 2);
     if (spike != NULL) {
-        spike->x_pos.f.u = 0x2AA0 - 0x36;
+        spike->x_pos.f.u = 0x2AF0 - 0x36;
         spike->y_pos.f.u += 8;
         spike->mapping_frame = 1;
         spike->anim = 0;
@@ -278,11 +283,11 @@ static void Boss_Start(Sst *self) {
     }
     Sst *body = MakePart(self, ObjId_EHZBossPart, 6, Mappings_BossEHZWheels, TILE_MAP(0, 0, 0, 0, ArtTile_BossCarEHZ), 0x20, 3);
     if (body != NULL)
-        body->x_pos.f.u = 0x2AA0;
+        body->x_pos.f.u = 0x2AF0;
     Boss_MakeWheels(self);
     own->home_y -= 8;
-    self->x_pos.f.u = 0x2AA0;
-    self->y_pos.f.u = 0x348;
+    self->x_pos.f.u = 0x2AF0;
+    self->y_pos.f.u = 0x2F8; // (Beta 4's: $2F8; the pre-beta's $348)
     Sst *blades = MakePart(self, ObjId_EHZBossPart, 4, Mappings_BossEHZParts, TILE_MAP(0, 1, 0, 0, ArtTile_BossBladesEHZ), 0x20, 3);
     if (blades != NULL)
         ((Own_Boss *)blades->own.u8)->timer = 0x1E;
@@ -336,6 +341,8 @@ static void Boss_Part(Sst *self) {
                 self->anim = 1;
                 own->timer = 0x18;
                 self->routine_secondary += 2;
+            } else if ((frame_count & 0x1F) == 0) {
+                PlaySound(sfx_Helicopter); // (Beta 4: the blades' sound every 32nd frame while it waits; its $F8, which stops it, as they slow, is the sound driver's)
             }
             self->x_pos.f.u = ship->x_pos.f.u;
             self->y_pos.f.u = ship->y_pos.f.u;
@@ -544,6 +551,12 @@ static void Boss_Part(Sst *self) {
         self->x_pos = ship->x_pos;
         self->y_pos = ship->y_pos;
         CopyLook(self, ship);
+        if (((Own_Boss *)ship->own.u8)->flash == 0x1F) // (Beta 4: a hit shows, and a hurt character shows)
+            self->anim = 2;
+        if (player->routine == 4 || (TAILS_OBJ->code != NULL && TAILS_OBJ->routine == 4)) {
+            if (self->anim != 2)
+                self->anim = 3;
+        }
         Sst_Animate(self, Animation_BossEHZ);
         Sst_Draw(self);
         break;

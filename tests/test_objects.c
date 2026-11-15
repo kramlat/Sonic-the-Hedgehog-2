@@ -836,19 +836,25 @@ static void SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType(void) {
 }
 
 
-// The pre-beta's Emerald Hill boss (the alpha's before it), from the level's event to its parts: in act 2, as the camera reaches $26E0, the event puts the ship (object 56, subtype $81) in the arena, locks the screen and starts the boss's music; the ship makes
-// its face and the car's parts (objects 5B), and the explosions of its wreck are object 58
-static void EHZBoss_TheEventPutsTheAlphasShipInTheArena(void) {
+// Beta 4's Emerald Hill boss, from the level's events to its parts: in act 2 the camera's coming to $2750, then $28F0 (the arena's walls, the boss's art and the music's fade), and then $5A frames later the events put the
+// ship (object 56, subtype $81, at $29D0,$426) in the arena and start the boss's music; the ship makes its face and the car's parts (objects 5B), and the explosions of its wreck are object 58
+static void EHZBoss_TheEventsPutTheShipInTheArena(void) {
     SstTestClear();
     level_id = LEVEL_ID(ZoneId_EHZ, 1);
     dle_routine = 0;
     boss_status = 0;
     lock_screen = false;
-    scrpos_x.f.u = 0x2700;
+    scrpos_x.f.u = 0x2760;
+    DynamicLevelEvents();
+    CHECK_EQ(dle_routine, 2); // ($2750 across: the camera cannot go back)
+    scrpos_x.f.u = 0x2900;
     DynamicLevelEvents();
     CHECK(lock_screen);
-    CHECK_EQ(dle_routine, 2);
+    CHECK_EQ(dle_routine, 4);
     CHECK_EQ(boss_flag, 2); // (Boss_Flag: Emerald Hill's boss is there)
+    for (int i = 0; i < 0x5C; i++)
+        DynamicLevelEvents();
+    CHECK_EQ(dle_routine, 6);
     Sst *ship = NULL;
     for (int i = 1; i < 0x80; i++)
         if (sst[i].code == sst_object_codes[0x56])
@@ -858,13 +864,13 @@ static void EHZBoss_TheEventPutsTheAlphasShipInTheArena(void) {
         return;
     CHECK_EQ(ship->x_pos.f.u, 0x29D0);
     Obj_EHZBoss(ship);
-    CHECK_EQ(ship->x_pos.f.u, 0x2AA0); // (the pre-beta puts the ship at $2AA0,$348, out of the arena, and it slides in from the right once the arena's edge is set)
-    CHECK_EQ(ship->y_pos.f.u, 0x348);
+    CHECK_EQ(ship->x_pos.f.u, 0x2AF0); // (Beta 4 puts the ship at $2AF0,$2F8, out of the arena, and it slides in from the right)
+    CHECK_EQ(ship->y_pos.f.u, 0x2F8);
     int parts = 0;
     for (int i = 1; i < 0x80; i++)
         if (sst[i].code == sst_object_codes[0x5B])
             parts++;
-    CHECK_EQ(parts, 7); // (Eggman's face, the car's body, its three wheels and spike, and the blades, as the pre-beta makes them)
+    CHECK_EQ(parts, 7); // (Eggman's face, the car's body, its three wheels and spike, and the blades)
 
     // the wreck's explosions are in front (art word $8580, priority 0)
     Sst *boom = &sst[0x60];
@@ -874,6 +880,8 @@ static void EHZBoss_TheEventPutsTheAlphasShipInTheArena(void) {
     Obj_BossExplosion(boom);
     CHECK_EQ(boom->priority, 0);
     CHECK((boom->art_tile & 0x8000) != 0);
+    dle_routine = 0;
+    lock_screen = false;
 }
 
 // The rotating cylinder of Metropolis (object 06 with bit 7 in its subtype): a character level with its middle is taken onto it and carried round (his height follows a cosine, his flip angle goes on by 4), and let go at its end
@@ -1434,7 +1442,7 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(Scroll_AWrappingLevelKeepsTheCameraWithACharacterOverTheWrap);
     RUN_TEST(Signpost_LevelEndDespawnsCharactersThatLeaveTheScreen);
     RUN_TEST(Cylinder_TakesACharacterAndLetsGoAtTheEnd);
-    RUN_TEST(EHZBoss_TheEventPutsTheAlphasShipInTheArena);
+    RUN_TEST(EHZBoss_TheEventsPutTheShipInTheArena);
     RUN_TEST(Spiker_FiresItsDrillOnceWhenSonicIsAbove);
     RUN_TEST(HTZBoss_FiresItsJetThenThrowsTwoLavaBalls);
     RUN_TEST(Rhinobot_SetsItselfUpAndWalksOff);

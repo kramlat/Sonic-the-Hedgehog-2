@@ -85,6 +85,7 @@ void Obj_Checkpoint_LoadInfo(void) {
 uint16_t level_id;
 
 uint8_t dle_routine;
+static uint8_t dle_timer; // ($F73A: a count of frames the events keep)
 // GHZ2-only: debounce timer for DynamicLevelEvents' own tube-exit
 // boundary shrink (see its own comment). Not part of real hardware --
 // added so the shrink doesn't apply the instant Sonic's X crosses the
@@ -468,32 +469,40 @@ void DynamicLevelEvents(void) {
     case ZoneId_EHZ:
         if (LEVEL_ACT(level_id) != 1)
             break; // (act 1 has none, and act 3 is a copy of it)
-        switch (dle_routine) {
-        case 0: // the boss arena (the alpha's DynResize_GHz_Act_2: only the lower limit's target moves, the limit itself follows)
-            if ((uint16_t)scrpos_x.f.u < (0x26E0 - SCREEN_WIDEADD2))
+        switch (dle_routine) { // (Beta 4's DynResize_GHz, act 2)
+        case 0: // the camera's coming to $2750: it cannot go back, and the lower limit is $390
+            if ((uint16_t)scrpos_x.f.u < (0x2750 - SCREEN_WIDEADD2))
                 break;
             limit_left2 = scrpos_x.f.u;
             limit_btm1 = 0x390 - SCREEN_TALLADD;
             dle_routine += 2;
-            {
-                Sst *boss = Sst_Spawn(0x56, 0x29D0, 0x426); // the EHZ boss
-                if (boss != NULL)
-                    boss->subtype = 0x81;
-            }
-            QueueSound1(bgm_Boss);
+            break;
+        case 2: // at $28F0 the arena's walls ($28F0 and $2940), the boss's art, the music goes
+            if ((uint16_t)scrpos_x.f.u < (0x28F0 - SCREEN_WIDEADD2))
+                break;
+            limit_left2 = 0x28F0 - SCREEN_WIDEADD2;
+            limit_right2 = 0x2940 + SCREEN_WIDEADD2;
+            dle_routine += 2;
+            QueueSound1(bgm_Fade); // ($F9)
+            dle_timer = 0;
             lock_screen = true;
             boss_flag = 2; // (Boss_Flag: which boss is there)
             AddPLC(PlcId_Boss);
             break;
-        case 2:
-            if ((uint16_t)scrpos_x.f.u < (0x2880 - SCREEN_WIDEADD2))
-                break;
-            limit_left2 = 0x28F0 - SCREEN_WIDEADD2; // (the pre-beta's: it writes $2940 and then $28F0 to the same limit, so the arena's left edge is $28F0)
-            dle_routine += 2;
+        case 4: // the camera comes down to $388, and after $5A frames the boss comes in and its music starts
+            if ((uint16_t)scrpos_y.f.u >= (0x388 - SCREEN_TALLADD))
+                limit_top2 = 0x388 - SCREEN_TALLADD;
+            if (++dle_timer >= 0x5A) {
+                Sst *boss = Sst_Spawn(0x56, 0x29D0, 0x426); // the EHZ boss
+                if (boss != NULL)
+                    boss->subtype = 0x81;
+                dle_routine += 2;
+                QueueSound1(bgm_Boss);
+            }
             break;
-        case 4: // when the boss is beaten, the results card (the alpha's; Nick Arcade went back to the Sega screen)
-            if (boss_status)
-                GotThroughAct();
+        case 6: // when it is beaten the camera can no longer go back (the capsule and the end of the act are the level's objects)
+            if (boss_status == 1)
+                limit_left2 = scrpos_x.f.u;
             break;
         }
         break;
