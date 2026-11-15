@@ -1171,7 +1171,7 @@ static void DEZ_MetalSonicMakesHisPartsAndDiesAfterEightHits(void) {
     }
     CHECK_EQ(boss->routine, 0xA);
     CHECK_EQ(DEZ_Count(), 2);                      // (the flame and the shoulder box are gone: Metal Sonic and the window are left)
-    for (int i = 0; i < 0xF2 && boss->code != NULL; i++)
+    for (int i = 0; i < 0x102 && boss->code != NULL; i++)
         DEZ_Step();
     CHECK(boss->code == NULL);
     CHECK_EQ(dle_routine, 4);

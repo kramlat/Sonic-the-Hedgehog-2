@@ -159,7 +159,7 @@ static void Refresh(Sst *self) {
 static void Hit(Sst *self, Own_MetalSonic *own) {
     if (self->collision_property == 0) {
         AddPoints(100);
-        own->death = 0xEF;
+        own->death = 0xFF; // (Beta 4: $FF frames of blowing up; the pre-beta's $EF)
         self->routine = Routine_Dying;
         self->collision_flags = 0;
         self->status |= Status_Beaten;
@@ -240,7 +240,7 @@ static void Step(Sst *self, Own_MetalSonic *own) {
     case 0: // Offset_0x033CAE: four dashes
         self->routine_secondary += 2;
         self->mapping_frame = 3;
-        own->attacks = 4;
+        own->attacks = 2; // (Beta 4: two dashes; the pre-beta's four)
         FlameOn(own);
         break;
     case 1: // Offset_0x033CD6: he waits and sets off
@@ -250,12 +250,14 @@ static void Step(Sst *self, Own_MetalSonic *own) {
             self->anim = 1;
             Dash(self, own, 0x800);
             (*Part(own->flame)).anim = 2;
+            PlaySound(sfx_Roll); // (Beta 4: $BE as he sets off)
         }
         break;
     case 2: // Offset_0x033D02: he dashes, brakes and turns; then the next dash, or he stands
         if ((int8_t)--own->timer < 0) {
             if (--own->attacks == 0) {
                 Stand(self);
+                PlaySound(sfx_Saw); // (Beta 4: $B0 when the dashes are done)
             } else {
                 self->routine_secondary = 2;
                 self->x_vel = 0;

@@ -55,7 +55,7 @@ static Sst *LoadSub(Sst *self, uint16_t *field, uint8_t subtype) {
 
 // Offset_0x0369CE: what he throws, from his place a little above, to the left, falling
 static void Throw(Sst *self, Own_DEZRunning *own) {
-    Sst *thing = LoadSub(self, &own->thrown, 0x9A);
+    Sst *thing = LoadSub(self, &own->thrown, 0xAA);
     if (thing == NULL)
         return;
     thing->mapping_frame = 5;
@@ -68,7 +68,7 @@ static void Robotnik(Sst *self, Own_DEZRunning *own) {
     switch (self->routine_secondary) {
     case 0: {
         self->routine_secondary += 2;
-        Sst *door = LoadSub(self, &own->door, 0x98);
+        Sst *door = LoadSub(self, &own->door, 0xA8);
         if (door != NULL) {
             door->x_pos.f.u = 0x3F8;
             door->y_pos.f.u = 0x160;
@@ -102,15 +102,21 @@ static void Robotnik(Sst *self, Own_DEZRunning *own) {
                 self->x_vel = 0x80;
                 self->y_vel = -0x200;
                 self->mapping_frame = 2;
-                own->timer = 0x40;
+                own->timer = 0x50; // (Beta 4: $50 frames of the leap; the pre-beta's $40)
                 self->status |= 0x08;
             }
             break;
         }
         {
-            const uint16_t d = (uint16_t)((uint16_t)self->x_pos.f.u - (uint16_t)player->x_pos.f.u + 0x50);
+            Sst *chr = player; // (Beta 4: the nearer of the two characters in x, loc_32866)
+            if (TAILS_OBJ->code != NULL) {
+                const int16_t a = (int16_t)(self->x_pos.f.u - player->x_pos.f.u), b = (int16_t)(self->x_pos.f.u - TAILS_OBJ->x_pos.f.u);
+                if ((a < 0 ? -a : a) > (b < 0 ? -b : b))
+                    chr = TAILS_OBJ;
+            }
+            const uint16_t d = (uint16_t)((uint16_t)self->x_pos.f.u - (uint16_t)chr->x_pos.f.u + 0x50);
             if (d < 0xA0)
-                self->x_pos.f.u = (int16_t)(player->x_pos.f.u + 0x50);
+                self->x_pos.f.u = (int16_t)(chr->x_pos.f.u + 0x50);
         }
         if (--own->timer >= 0) {
             // (nothing this frame)
@@ -181,13 +187,13 @@ void Obj_DEZRunning(Sst *self) {
         self->render_flags |= SST_RENDER_LEVEL;
         self->collision_flags = 0;
         switch (self->subtype) {
-        case 0x98:
+        case 0xA8:
             self->mappings = Mappings_DEZRunDoor;
             self->art_tile = TILE_MAP(0, 1, 0, 0, 0x328);
             self->priority = 1 * 0x80;
             self->width_pixels = 0x08;
             break;
-        case 0x9A:
+        case 0xAA:
             self->mappings = Mappings_DEZRobotnikRunning;
             self->art_tile = TILE_MAP(0, 0, 0, 0, 0);
             self->priority = 5 * 0x80;
@@ -200,7 +206,7 @@ void Obj_DEZRunning(Sst *self) {
             self->width_pixels = 0x18;
             break;
         }
-        self->routine = (uint8_t)(self->subtype - 0x94);
+        self->routine = (uint8_t)(self->subtype - 0xA4); // (Beta 4's subtypes: the layout's is $A6; the pre-beta's $96)
         return;
     }
     switch (self->routine) {

@@ -678,7 +678,7 @@ static void DEZRunning_RunsThrowsAndOpensItsDoor(void) {
     player->y_pos.f.u = 0x100;
     Sst *rob = &sst[0x20];
     rob->code = Obj_DEZRunning;
-    rob->subtype = 0x96;
+    rob->subtype = 0xA6;
     rob->x_pos.f.u = 0x400;
     rob->y_pos.f.u = 0x160;
     int thrown = 0;
@@ -691,11 +691,11 @@ static void DEZRunning_RunsThrowsAndOpensItsDoor(void) {
         for (int i = 0x20; i < 0x80; i++) {
             if (sst[i].code != Obj_DEZRunning)
                 continue;
-            if (sst[i].subtype == 0x98) {
+            if (sst[i].subtype == 0xA8) {
                 door = true;
                 CHECK_EQ(sst[i].x_pos.f.u, 0x3F8);
             }
-            if (sst[i].subtype == 0x9A && sst[i].x_vel == -0x100 && sst[i].mapping_frame == 5)
+            if (sst[i].subtype == 0xAA && sst[i].x_vel == -0x100 && sst[i].mapping_frame == 5)
                 thrown++;
         }
         door_seen |= door;
@@ -718,7 +718,7 @@ static void DEZFinalBoss_MakesItsPartsAndRunsThePuppetOnceRobotnikHasHopped(void
     player->y_pos.f.u = 0x200;
     Sst *rob = &sst[0x20];
     rob->code = Obj_DEZRunning;
-    rob->subtype = 0x96;
+    rob->subtype = 0xA6;
     rob->x_pos.f.u = 0x300;
     rob->y_pos.f.u = 0x160;
     Sst *boss = &sst[0x21];

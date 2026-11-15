@@ -227,7 +227,7 @@ void Obj_DEZFinalBoss(Sst *self) {
         self->priority = 4 * 0x80;
         self->width_pixels = 0x38;
         self->collision_flags = 0x96;
-        self->routine = (uint8_t)(self->subtype - 0x9C);
+        self->routine = (uint8_t)(self->subtype >= 0x9C ? self->subtype - 0x9C : self->subtype); // (Beta 4 puts the boss in the layout with subtype 2, its routine: the pre-beta had $9E)
         return;
     }
     switch (self->routine) {
