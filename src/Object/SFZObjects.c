@@ -309,7 +309,17 @@ void Obj_SFZTornado(Sst *self) {
             Tornado_Follow(self, own);
             own->changed = (uint8_t)(((own->changed & 8) ^ (self->status & 8)) != 0);
             limit_left2 = scrpos_x.f.u;
-            limit_right2 = (uint16_t)(scrpos_x.f.u - 0x40);
+            if (scrpos_x.f.u < 0x1400 - SCREEN_WIDEADD2) {
+                limit_right2 = (uint16_t)(scrpos_x.f.u - 0x40);
+            } else if ((uint16_t)player->x_pos.f.u >= 0x1568) { // Beta 4: the end of Sky Chase: on to Sky Fortress (level $600) when Sonic has come to the end
+                level_id = LEVEL_ID(ZoneId_SFZ, 0);
+                restart = 1;
+            } else { // (the camera is at the end: Sonic runs on his own, to the right)
+                lock_ctrl = true;
+                jpad1_hold2 = JPAD_RIGHT;
+                jpad1_press2 = JPAD_RIGHT;
+                limit_right2 = scrpos_x.f.u;
+            }
         }
         Sst_Animate(self, Animation_SFZTornado);
         Sst_Draw(self);
@@ -679,10 +689,16 @@ void Obj_SFZVerticalHelix(Sst *self) {
         self->priority = 4 * 0x80;
         self->width_pixels = 4;
         self->collision_flags = 0xA8;
+        if (self->render_flags & SST_RENDER_Y_FLIP) { // (Beta 4: a flipped one is harmless, and not flipped)
+            self->render_flags &= (uint8_t)~SST_RENDER_Y_FLIP;
+            self->collision_flags = 0;
+        }
         self->routine += 2;
         return;
     }
     Sst_Animate(self, Animation_SFZVerticalHelix);
+    if ((frame_count & 0x1F) == 0 && (self->render_flags & SST_RENDER_ON_SCREEN))
+        PlaySound(sfx_Helicopter); // (Beta 4: the sound every 32nd frame, `moveq #$DE,d0`, Play_Sfx_Ex: only when it is on screen)
     SstOnScreenTest(self);
 }
 
@@ -826,26 +842,11 @@ void Obj_SFZHorizontalHelix(Sst *self) {
         self->collision_flags = 0;
         Helix_RandomWait(self, own);
         self->anim = 4;
-        self->routine = (uint8_t)(self->subtype - 0x5C);
+        self->routine = (uint8_t)(self->subtype - 0x64); // (Beta 4's: $66 catches, $68 only turns; the pre-beta's base was $5C)
         return;
     }
-    if (self->routine == 2) {
-        if (self->routine_secondary == 0) {
-            Helix_CatchAll(self);
-            if (--own->timer < 0) {
-                self->routine_secondary += 2;
-                self->anim = 5;
-                own->timer = 0x100;
-            }
-        } else {
-            Helix_CatchAll(self);
-            if (--own->timer < 0) {
-                self->routine_secondary -= 2;
-                self->anim = 0;
-                own->timer = 0x100;
-            }
-        }
-    }
+    if (self->routine == 2) // (Beta 4: always at its full speed, always catching: the pre-beta slowed it for $100 frames in every $200)
+        Helix_CatchAll(self);
     Sst_Animate(self, Animation_SFZHorizontalHelix);
     SstOnScreenTest(self);
 }
@@ -1246,7 +1247,7 @@ void Obj_SFZBreakableWall(Sst *self) {
 void Obj_SFZClouds(Sst *self) {
     if (self->routine == 0) {
         static const int16_t speeds[3] = { (int16_t)0xFF80, (int16_t)0xFFC0, (int16_t)0xFFE0 };
-        const int index = ((self->subtype - 0x56) >> 1) % 3;
+        const int index = ((self->subtype - 0x5E) >> 1) % 3; // (Beta 4's subtypes: $5E, $60 and $62; the pre-beta's were $56 and on)
         self->mappings = Mappings_SFZClouds;
         self->art_tile = TILE_MAP(0, 2, 0, 0, 0x54F);
         self->render_flags |= SST_RENDER_LEVEL;

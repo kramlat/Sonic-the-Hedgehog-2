@@ -576,7 +576,7 @@ static void SFZObjects_TheBossSwitchIsDestroyedByARollingLandingAndChangesTheLay
 static void SFZObjects_TheHorizontalHelixCatchesWhoIsOverItWhileItSpinsAtFullSpeed(void) {
     Reset();
     player->code = NULL;
-    Sst *helix = Spawn(0xB5, 0x5E, 500, 300);
+    Sst *helix = Spawn(0xB5, 0x66, 500, 300); // (Beta 4's subtype: $66 catches, $68 only turns)
     Frames(1);
     CHECK_EQ(helix->routine, 2);
     CHECK_EQ(helix->anim, 4); // (it starts at its full speed)
@@ -586,11 +586,18 @@ static void SFZObjects_TheHorizontalHelixCatchesWhoIsOverItWhileItSpinsAtFullSpe
     Frames(1);
     CHECK(player->status & SST_PSTATUS_IN_AIR);
     CHECK_EQ(player->anim, 0x0F);
-    helix->anim = 5; // (slowing: it does not)
-    Scratch_Sonic *sc = (Scratch_Sonic *)player->own.u8;
-    sc->flip_angle = 0;
-    player->anim = 0;
+}
+
+static void SFZObjects_TheHorizontalHelixThatOnlyTurnsCatchesNobody(void) {
+    Reset();
+    player->code = NULL;
+    Sst *idle = Spawn(0xB5, 0x68, 500, 300);
     Frames(1);
+    CHECK_EQ(idle->routine, 4);
+    player->routine = 2;
+    player->x_pos.f.u = 500;
+    player->y_pos.f.u = 300 - 0x30;
+    Frames(2);
     CHECK_EQ(player->anim, 0);
 }
 
@@ -712,8 +719,8 @@ static void SFZObjects_TheBreakableWallLetsGoWhenItsTimeIsOut(void) {
 static void SFZObjects_TheCloudsDriftLeftAtTheirOwnSpeedsAndTheRestStay(void) {
     Reset();
     scrpos_x.f.u = 400;
-    Sst *near_cloud = Spawn(0xB3, 0x56, 500, 300);
-    Sst *far_cloud = Spawn(0xB3, 0x5A, 500, 320);
+    Sst *near_cloud = Spawn(0xB3, 0x5E, 500, 300);
+    Sst *far_cloud = Spawn(0xB3, 0x62, 500, 320);
     Frames(1);
     CHECK_EQ(near_cloud->mapping_frame, 0);
     CHECK_EQ(far_cloud->mapping_frame, 2);
@@ -898,6 +905,7 @@ void RegisterCPZObjectTests(void) {
     RUN_TEST(SFZObjects_TheSpeedBoosterCarriesWhoStandsOnItAndThrowsHim);
     RUN_TEST(SFZObjects_TheVerticalHelixHurtsAndTurns);
     RUN_TEST(SFZObjects_TheHorizontalHelixCatchesWhoIsOverItWhileItSpinsAtFullSpeed);
+    RUN_TEST(SFZObjects_TheHorizontalHelixThatOnlyTurnsCatchesNobody);
     RUN_TEST(SFZObjects_APlatformHelixIsAPlatformThatFoldsAwayAndComesBack);
     RUN_TEST(SFZObjects_TheLargeLaserFlickersForThirtyTwoFramesAndGoes);
     RUN_TEST(SFZObjects_TheCannonTurnsToWhoIsBelowItAndFiresEverySixtyFourFrames);

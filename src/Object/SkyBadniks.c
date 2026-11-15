@@ -377,7 +377,7 @@ void Obj_Turtloid(Sst *self) {
     for (int who = SolidChar_Sonic; who <= SolidChar_Tails; who++) {
         Sst *chr = who == SolidChar_Sonic ? player : (TAILS_OBJ->code != NULL ? TAILS_OBJ : NULL);
         if (chr != NULL)
-            Solid_Platform(self, chr, who, 0x23, 0x0E, old_x);
+            Solid_Platform(self, chr, who, 0x18, 0x0E, old_x); // (Beta 4: $18 wide; the pre-beta's $23)
     }
     SstDeleteIfNotInRange(self);
     if (self->code != NULL)
