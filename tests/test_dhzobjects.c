@@ -20,6 +20,8 @@
 #include "Object/Sonic.h"
 #include "Object/Tails.h"
 #include "Solid.h"
+#include "LevelData.h"
+#include "LevelLayout.h"
 #include "EnginePLC.h"
 #include "Oscillatory Routines.h"
 
@@ -693,6 +695,52 @@ static void CNZ_TheBossPatrolsLetsTheBallFallAndDivesAtSonic(void) {
     CHECK(boss->y_pos.f.u < 0x680);               // (and came back up)
     ClearPLC();
     boss_flag = 0;
+}
+
+
+// --- Beta 4's squash check: a character inside a solid block (not on top of it) is crushed unless he goes at $800 or more ---
+
+static void Chars_ACharacterInsideASolidBlockIsCrushedWhenSlow(void) {
+    // A full block of the collision maps (all heights $10), made the one block of a chunk of the test's own
+    int block = -1;
+    for (int b = 1; b < 0x100 && block < 0; b++) {
+        bool full = true;
+        for (int i = 0; i < 16; i++)
+            full &= Collision_HeightMap[(b << 4) + i] == 0x10;
+        if (full)
+            block = b;
+    }
+    CHECK(block > 0);
+    if (block < 0)
+        return;
+    uint8_t saved_chunk[128];
+    memcpy(saved_chunk, level_map128 + 0x80 * 0xFE, 128);
+    const uint8_t saved_cell = LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_FG, 2, 1);
+    const uint8_t saved_index = coll_index[0][1];
+    coll_index[0][1] = (uint8_t)block;
+    for (int i = 0; i < 64; i++) {
+        const uint16_t word = (uint16_t)(META_SOLID_TOP_1 | META_SOLID_LRB_1 | 1);
+        level_map128[0x80 * 0xFE + i * 2] = (uint8_t)(word >> 8);
+        level_map128[0x80 * 0xFE + i * 2 + 1] = (uint8_t)word;
+    }
+    LevelLayout_SetChunk(LEVEL_LAYOUT_PLANE_FG, 2, 1, 0xFE); // (x $100 to $17F, y $80 to $FF)
+    Reset(ZoneId_CNZ);
+    player->x_pos.f.u = 0x140;
+    player->y_pos.f.u = 0xC0; // inside the block
+    player->ground_vel = 0x7FF;
+    CHECK(CharCrushed(player));
+    player->ground_vel = (int16_t)-0x7FF;
+    CHECK(CharCrushed(player));
+    player->ground_vel = 0x800; // (fast: not tested)
+    CHECK(!CharCrushed(player));
+    player->ground_vel = (int16_t)-0x800;
+    CHECK(!CharCrushed(player));
+    player->ground_vel = 0;
+    player->x_pos.f.u = 0x40; // (no block: nothing to be inside of)
+    CHECK(!CharCrushed(player));
+    coll_index[0][1] = saved_index;
+    memcpy(level_map128 + 0x80 * 0xFE, saved_chunk, 128);
+    LevelLayout_SetChunk(LEVEL_LAYOUT_PLANE_FG, 2, 1, saved_cell);
 }
 
 // DynResize_CNz (act 2) of the pre-beta: X $27C0 fixes the left edge and the lower limit; X $2890 shuts the arena between $2860 and $28E0, Boss_Flag 6; then the top is held at $4E0 and, $5A frames on, the boss is made
@@ -1741,6 +1789,7 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(DHZ_TheEventsShutTheArenaAndMakeTheBossLast);
     RUN_TEST(CNZ_TheRoundBumperThrowsWhoeverTouchesIt);
     RUN_TEST(CNZ_TheBossPatrolsLetsTheBallFallAndDivesAtSonic);
+    RUN_TEST(Chars_ACharacterInsideASolidBlockIsCrushedWhenSlow);
     RUN_TEST(CNZ_TheEventsShutTheArenaAndMakeTheBossLast);
     RUN_TEST(OOZ_TheBossDivesThenHoversAndSpitsBallsThatLightFlames);
     RUN_TEST(OOZ_ABossThatWasHitSwingsRoundTheArena);

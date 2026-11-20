@@ -1223,6 +1223,7 @@ static void Tails_HurtStop(Sst *self) {
         self->y_vel = 0;
         self->x_vel = 0;
         self->ground_vel = 0;
+        OBJ_CONTROL(self) = 0; // (Beta 4: whatever held him lets go when he lands)
         self->anim = SonAnimId_Walk;
         self->routine -= 2;
         scratch->flash_time = 120;
@@ -1230,44 +1231,14 @@ static void Tails_HurtStop(Sst *self) {
 }
 
 // Object collision
-static const uint8_t obj_sizes[][2] = {
-    { 0x0, 0x0 },
-    { 0x14, 0x14 },
-    { 0xC, 0x14 },
-    { 0x14, 0xC },
-    { 0x4, 0x10 },
-    { 0xC, 0x12 },
-    { 0x10, 0x10 },
-    { 0x6, 0x6 },
-    { 0x18, 0xC },
-    { 0xC, 0x10 },
-    { 0x10, 0xC },
-    { 0x8, 0x8 },
-    { 0x14, 0x10 },
-    { 0x14, 0x8 },
-    { 0xE, 0xE },
-    { 0x18, 0x18 },
-    { 0x28, 0x10 },
-    { 0x10, 0x18 },
-    { 0x8, 0x10 },
-    { 0x20, 0x70 },
-    { 0x40, 0x20 },
-    { 0x80, 0x20 },
-    { 0x20, 0x20 },
-    { 0x8, 0x8 },
-    { 0x4, 0x4 },
-    { 0x20, 0x8 },
-    { 0xC, 0xC },
-    { 0x8, 0x4 },
-    { 0x18, 0x4 },
-    { 0x28, 0x4 },
-    { 0x4, 0x8 },
-    { 0x4, 0x18 },
-    { 0x4, 0x28 },
-    { 0x4, 0x20 },
-    { 0x18, 0x18 },
-    { 0xC, 0x18 },
-    { 0x48, 0x8 },
+static const uint8_t obj_sizes[][2] = { // (Beta 4's Touch_Sizes, entry by entry: the pre-beta's with four more pairs, $20/$10 to $50/$10, at $2B; the port had Nick Arcade's idea of entries 0, $A and $21 and stopped at $24)
+    { 0x4, 0x4 }, { 0x14, 0x14 }, { 0xC, 0x14 }, { 0x14, 0xC }, { 0x4, 0x10 }, { 0xC, 0x12 }, { 0x10, 0x10 }, { 0x6, 0x6 },
+    { 0x18, 0xC }, { 0xC, 0x10 }, { 0x10, 0x8 }, { 0x8, 0x8 }, { 0x14, 0x10 }, { 0x14, 0x8 }, { 0xE, 0xE }, { 0x18, 0x18 },
+    { 0x28, 0x10 }, { 0x10, 0x18 }, { 0x8, 0x10 }, { 0x20, 0x70 }, { 0x40, 0x20 }, { 0x80, 0x20 }, { 0x20, 0x20 }, { 0x8, 0x8 },
+    { 0x4, 0x4 }, { 0x20, 0x8 }, { 0xC, 0xC }, { 0x8, 0x4 }, { 0x18, 0x4 }, { 0x28, 0x4 }, { 0x4, 0x8 }, { 0x4, 0x18 },
+    { 0x4, 0x28 }, { 0x4, 0x10 }, { 0x18, 0x18 }, { 0xC, 0x18 }, { 0x48, 0x8 }, { 0x18, 0x28 }, { 0x10, 0x4 }, { 0x20, 0x2 },
+    { 0x4, 0x40 }, { 0x18, 0x80 }, { 0x20, 0x10 }, { 0x10, 0x20 }, { 0x10, 0x30 }, { 0x10, 0x40 }, { 0x10, 0x50 }, { 0x10, 0x2 },
+    { 0x10, 0x1 }, { 0x2, 0x8 },
 };
 
 static signed int React_ChkHurt(Sst *self, Sst *hit) {
@@ -1362,7 +1333,7 @@ static signed int React_Monitor(Sst *self, Sst *hit) {
             if (!hit->routine_secondary)
                 hit->routine_secondary += 4;
         }
-    } else if (self->anim == SonAnimId_Roll && hit->routine == 2) {
+    } else if ((two_player_mode || true_two_player) && self->anim == SonAnimId_Roll && hit->routine == 2) { // (Beta 4: Tails does not break a monitor by landing on it unless it is the versus play (or a second human has him): only Sonic does, loc_3B5AA)
         // Break monitor (once: a monitor that is breaking already is not broken again by the other character)
         self->y_vel = -self->y_vel;
         hit->routine += 2;
@@ -2344,6 +2315,8 @@ static void Obj_Tails_Run(Sst *self) {
                 Sst_MoveSprite2(self);
                 Tails_AnglePos(self);
                 Tails_SlopeRepel(self);
+                if (CharCrushed(self)) // (Beta 4)
+                    KillTails(self);
                 break;
             case 2: // Not in ball, in air
                 if (tails_flying) { // flying (Obj02_MdFly: no gravity of the jump, no jump height)
@@ -2375,6 +2348,8 @@ static void Obj_Tails_Run(Sst *self) {
                 Sst_MoveSprite2(self);
                 Tails_AnglePos(self);
                 Tails_SlopeRepel(self);
+                if (CharCrushed(self)) // (Beta 4)
+                    KillTails(self);
                 break;
             case 6: // In ball, in air
                 Tails_CancelSpindash();
