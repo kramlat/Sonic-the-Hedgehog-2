@@ -1,10 +1,12 @@
-// Casino Night's boss for Sonic 2, as the pre-beta has it (object 51, Obj_0x51_CNz_Boss): see CNZBoss.h. Like Dust Hill's it uses the shared boss helpers (BossCommon): the ship's place and speed in a buffer, and the
+// Casino Night's boss for Sonic 2, as Beta 4 has it (object 51, Obj_0x51_CNz_Boss; the pre-beta's was a different fight): see CNZBoss.h. Like Dust Hill's it uses the shared boss helpers (BossCommon): the ship's place and speed in a buffer, and the
 // animation of its parts, each a pair of nibbles in a small buffer. Its parts are the object's child sprites: the right catcher, the ship, Robotnik and the left catcher (its own sprite is the flame under the ship).
 #include "Object/CNZBoss.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
 #include "Object.h"
 #include "Object/BossCommon.h"
+#include "Object/Tails.h"
+#include "Object/Sonic.h"
 #include "Constants.h"
 
 #include "EngineObject.h"
@@ -26,31 +28,29 @@
 #define ArtTile_CNZBoss 0x3A7 // (the art word $03A7: the mapping adds its own tile numbers, which reach the ship at $A000 and the boss at $80E0 of list $2D)
 
 enum { Boss_Start = 0, Boss_Run = 2, Boss_Ball = 4 };
-// What the boss is doing (Obj_Ani_Boss_Routine; the animations of its parts move it on too)
-enum { Run_Move = 0, Run_Choose = 2, Run_Drop = 4, Run_Catch = 6, Run_Wreck = 8, Run_Fall = 0xA, Run_Leave = 0xC };
-// Where it goes (Obj_Control_Var_0C): a round of the arena's corners
-enum { Path_Right = 0, Path_Up = 2, Path_Left = 4, Path_Down = 6 };
+// What the boss is doing (Beta 4's $26: loc_2DF46 and on)
+enum { Run_Patrol = 0, Run_Drop = 2, Run_Dive = 4, Run_Wreck = 6, Run_Fall = 8, Run_Leave = 0xA };
+// Which way it patrols (the byte at $38)
+enum { Path_Left = 0, Path_Right = 2 };
 enum { Part_RightCatcher = 0, Part_Ship = 1, Part_Robotnik = 2, Part_LeftCatcher = 3 };
-enum { Ball_Make = 0, Ball_Follow = 2, Ball_Fall = 4, Ball_Roll = 6, Ball_Away = 8 };
+enum { Ball_Make = 0, Ball_Follow = 2, Ball_Fall = 4, Ball_Away = 6 };
 
 typedef struct {
-    Own_AlphaBoss boss; // flag: the path (0x38), side: it has been beaten (0x2C), count: which side it is catching on, and whether the catchers have opened (0x3E), flash: Obj_Inertia
+    Own_AlphaBoss boss; // flag: the way it patrols (0x38), side: it has been beaten (0x2C), count: it is coming back up from a dive (0x3E), flash: Obj_Inertia
     int16_t left_speed;     // 0x2E: how fast the left catcher falls when the wreck lets go of it
     int16_t right_speed;    // 0x30
     int32_t right_y;        // 0x34 (Control_Var_08)
     int32_t left_y;         // 0x3A (Control_Var_0E)
+    uint8_t dives;          // 0x2D: how many times it has let the ball fall since it turned round
+    uint8_t cooldown;       // 0x3F: frames before it looks for Sonic again
 } Own_CNZBoss;
 
-// The ball's own: it shares the object's scratch memory with the ship's (the pre-beta's own fields)
+// The ball's own: it shares the object's scratch memory with the ship's
 typedef struct {
     int16_t drop;       // 0x28: how far it has fallen from the catcher, a pixel a frame up to $2E
-    int16_t x_base;     // 0x2A (Obj_Timer): its X, which its falling moves along with the pixels only
-    uint8_t direction;  // 0x2C (var_00): bit 7, the way it rolls
-    uint8_t parent;     // 0x34: the slot of the boss it fell from
     int16_t x_speed;    // 0x10
     int16_t y_speed;    // 0x12
-    int16_t timer;      // 0x30 (var_04): the pre-beta sets it to 1, so the ball goes after two frames of rolling
-    int16_t blink;      // 0x32 (Obj_Boss_Hit_2): the blinking
+    uint8_t parent;     // 0x34: the slot of the boss it fell from
 } Own_CNZBall;
 
 static uint8_t catcher_state; // $F73F: 0 the catchers do not hurt, 1 they are shut, 2 open (the box under the ship hurts)
@@ -62,7 +62,8 @@ void CNZBoss_Reset(void) {
 }
 
 // DynResize_CNz of act 2: X $27C0 fixes the left edge and the lower limit and closes the arena's first wall (the layout's chunk $F9 at ($54,12)); X $2890 closes the second, fixes the edges ($2860 to $28E0), fades
-// the music, sets Boss_Flag 6 and loads the boss's list; once the camera is at Y $4E0 its top is held, and $5A frames on the boss is made and its music starts; when it is beaten, the results card
+// the music, sets Boss_Flag 6 and loads the boss's list; once the camera is at Y $4E0 its top is held, and $5A frames on the boss is made and its music starts; when it is beaten the camera is let go (Beta 4: the capsule
+// in the layout ends the act, not the events as in the pre-beta)
 void CNZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
@@ -96,21 +97,24 @@ void CNZBoss_Events(void) {
             QueueSound1(bgm_Boss);
         }
         break;
-    case 6:
-        if (boss_status)
-            GotThroughAct();
+    case 6: // once the camera is past $2A00 its lower limit is let down to $5D0 and the left edge follows it, the right limit stays where it is (loc_D092)
+        if (scrpos_x.f.u >= (0x2A00 - SCREEN_WIDEADD2)) {
+            limit_btm1 = 0x5D0 - SCREEN_TALLADD;
+            limit_left2 = scrpos_x.f.u;
+            limit_right1 = limit_right2;
+        }
         break;
     }
 }
 
-// The catchers' box (the touch code of Boss_Flag 6, Offset_0x038684): under the ship, $10 across and 4 high each way while they are shut, $20 across and 4 high, a little to the right, while they are open: it hurts
+// The catchers' box (the touch code of Boss_Flag 6, Offset_0x038684): under the ship, $10 across and 8 high each way while they are shut (Beta 4: the pre-beta's was 4 high), $20 across and 8 high, a little to the right, while they are open: it hurts
 bool CNZBoss_CatcherBox(const Sst *hit, int16_t *centre_x, int16_t *centre_y, int16_t *half_width, int16_t *half_height) {
     if (hit->code != sst_object_codes[ObjId_CNZBoss] || hit->routine != Boss_Run || boss_flag != 6 || catcher_state == 0)
         return false;
     *centre_x = hit->x_pos.f.u;
     *centre_y = (int16_t)(hit->y_pos.f.u + 0x28);
     *half_width = 0x10;
-    *half_height = 4;
+    *half_height = 8;
     if (catcher_state != 1) {
         *half_width = 0x20;
         *centre_y = (int16_t)(*centre_y - 8);
@@ -121,16 +125,6 @@ bool CNZBoss_CatcherBox(const Sst *hit, int16_t *centre_x, int16_t *centre_y, in
 
 static void SetPartAnim(int part, uint8_t anim) {
     boss_anim[(part + 1) * 2] = (uint8_t)((boss_anim[(part + 1) * 2] & 0xF0) | anim);
-}
-
-// CNz_Boss_Hit (Offset_0x028DF2): the bob (the sine of its angle, a byte that goes on by 2 a frame, about the ship's place) and then the hit
-static void Boss_Bob(Sst *self, Own_CNZBoss *own) {
-    int16_t sin, cos;
-    CalcSine(own->boss.angle, &sin, &cos);
-    self->y_pos.f.u = (int16_t)((sin >> 6) + boss_move.y.f.u);
-    self->x_pos.f.u = boss_move.x.f.u;
-    own->boss.angle = (uint8_t)(own->boss.angle + 2);
-    Boss_Hit(self, &own->boss);
 }
 
 // Offset_0x02D23A: where the parts are, from the ship's place; once it has been beaten the catchers fall (the left first)
@@ -167,79 +161,62 @@ static void Boss_Parts(Sst *self, Own_CNZBoss *own) {
         own->right_speed = 0;
 }
 
-// Offset_0x02D162: the path (the pre-beta's corners are one line: the track is at Y $63A all round, so it only goes to and fro between $28A0 and $29E0, and the catching starts where it passes $2940 going left)
-static void Boss_Path(Sst *self, Own_CNZBoss *own) {
-    switch (own->boss.flag) {
-    case Path_Right:
-        if (boss_move.x.f.u < 0x29E0)
-            return;
-        boss_move.x.f.u = 0x29E0;
-        boss_move.xsp = 0;
-        boss_move.ysp = (int16_t)0xFE80;
-        own->boss.flag = Path_Up;
-        break;
-    case Path_Up:
-        if (boss_move.y.f.u > 0x63A)
-            return;
-        SST_RENDER_SET(self, SST_RENDER_X_FLIP, false);
-        boss_move.y.f.u = 0x63A;
-        boss_move.ysp = 0;
-        boss_move.xsp = (int16_t)0xFE80;
-        own->boss.flag = Path_Left;
-        own->boss.count &= 0x7F;
-        break;
-    case Path_Left:
-        if (boss_move.x.f.u > 0x2940)
-            return;
-        if (!(own->boss.count & 0x80)) {
-            own->boss.count |= 0x80;
-            own->boss.anim_routine += 2;
-        }
-        if (boss_move.x.f.u > 0x28A0)
-            return;
-        boss_move.x.f.u = 0x28A0;
-        boss_move.xsp = 0;
-        boss_move.ysp = 0x180;
-        own->boss.flag = Path_Down;
-        break;
-    case Path_Down:
-        if (boss_move.y.f.u < 0x63A)
-            return;
-        SST_RENDER_SET(self, SST_RENDER_X_FLIP, true);
-        boss_move.y.f.u = 0x63A;
-        boss_move.ysp = 0;
-        boss_move.xsp = 0x180;
-        own->boss.flag = Path_Right;
-        break;
+// loc_2E1EC: the bob (the sine of its angle, a byte that goes on by 2 a frame, about the ship's place), and then its hits: when they are out it is beaten, and a hit flashes it
+static void Boss_Bob(Sst *self, Own_CNZBoss *own) {
+    int16_t sin, cos;
+    CalcSine(own->boss.angle, &sin, &cos);
+    self->y_pos.f.u = (int16_t)((sin >> 6) + boss_move.y.f.u);
+    self->x_pos.f.u = boss_move.x.f.u;
+    own->boss.angle = (uint8_t)(own->boss.angle + 2);
+    if (own->boss.anim_routine >= Run_Wreck)
+        return;
+    if (self->collision_property == 0) { // the hits are out: it is beaten (Beta 4 also loads the animals' art here, PLC $40, which the port does not have yet)
+        AddPoints(100);
+        boss_move.timer = 0xB3;
+        own->boss.anim_routine = Run_Wreck;
+        return;
+    }
+    if (self->collision_flags != 0)
+        return;
+    if (own->boss.flash == 0) {
+        own->boss.flash = 0x30;
+        QueueSound2(sfx_HitBoss);
+    }
+    dry_palette[1][1] = (dry_palette[1][1] == 0) ? 0x0EEE : 0;
+    if (--own->boss.flash == 0)
+        self->collision_flags = 0x0F;
+}
+
+// loc_2E1A2: Eggman's face: a hit shows it (the frame after the hit), and so does a hurt character, unless it is showing the hit
+static void Boss_Face(Own_CNZBoss *own) {
+    if (own->boss.flash == 0x2F) {
+        SetPartAnim(Part_Robotnik, 6);
+        return;
+    }
+    if (player->routine == 4 || (TAILS_OBJ->code != NULL && TAILS_OBJ->routine == 4)) {
+        if ((boss_anim[6] & 0xF) != 6)
+            SetPartAnim(Part_Robotnik, 5);
     }
 }
 
-// Offset_0x02CF30: what a frame of the boss's moving is (the several waits and catches below go on with it)
+// loc_2E118: what is done each frame it is moving, hanging or diving: its place and hits, the catchers, the face, the animation and the drawing
 static void Boss_Moving(Sst *self, Own_CNZBoss *own) {
-    Boss_Move();
     Boss_Bob(self, own);
-    Boss_Path(self, own);
     Boss_Parts(self, own);
+    Boss_Face(own);
     Boss_AnimateSprite(self, &own->boss, Animation_CNZBoss);
     Sst_Draw(self);
 }
 
-static void Boss_OpenCatchers(void) { // Offset_0x02CF9E
-    catcher_state = 2;
-    boss_anim[3] = 0x20;
-    boss_anim[9] = 0x20;
-    boss_anim[1] = 0x40;
-    SetPartAnim(Part_Robotnik, 5);
+// The catchers open (the box under the ship hurts) or shut; the animation of the box under the ship is the main sprite's (anim 9 open, 4 shut)
+static void Boss_Catchers(uint8_t state, uint8_t main_anim, uint8_t parts) {
+    catcher_state = state;
+    boss_anim[3] = parts;
+    boss_anim[9] = parts;
+    boss_anim[0] = main_anim;
 }
 
-static void Boss_ShutCatchers(void) { // Offset_0x02CFCA
-    catcher_state = 1;
-    boss_anim[3] = 0;
-    boss_anim[9] = 0;
-    boss_anim[1] = 0;
-}
-
-static void Boss_DropBall(Sst *self) { // Offset_0x02D04E
+static void Boss_DropBall(Sst *self) { // loc_2E102
     Sst *ball = Sst_Allocate();
     if (ball == NULL)
         return;
@@ -248,166 +225,224 @@ static void Boss_DropBall(Sst *self) { // Offset_0x02D04E
     ((Own_CNZBall *)ball->own.u8)->parent = (uint8_t)(self - sst);
 }
 
-static void Boss_Dig(Sst *self, Own_CNZBoss *own) {
-    Own_AlphaBoss *boss = &own->boss;
-
-    switch (boss->anim_routine) {
-    case Run_Move:
-        Boss_Moving(self, own);
-        break;
-
-    case Run_Choose: // on one side it opens its catchers, on the other it lets the ball fall
-        if (!(boss->count & 1)) {
-            boss->count++;
-            self->mapping_frame = 0x0C; // (the main sprite shows while the catchers wait)
-            boss->anim_routine += 2;
-            boss_move.timer = 0xC8;
-        } else {
-            boss->count--;
-            self->mapping_frame = 0;
-            boss->anim_routine += 4;
-            Boss_DropBall(self);
-            boss_move.timer = 0xDC;
-        }
-        Boss_Moving(self, own);
-        break;
-
-    case Run_Drop:
-        boss_move.timer--;
-        if (boss_move.timer < 0) {
-            if (boss_move.timer == (int16_t)0xFFB5) {
-                Boss_OpenCatchers();
-            } else if (boss_move.timer == (int16_t)0xFF6A) {
-                boss->anim_routine = Run_Move;
-                Boss_ShutCatchers();
+// loc_2DFB4: the ship moves, and looks for Sonic under it: in the pit (below $6B0) it lets the ball fall, on the ledge (from $67C) it dives with the catchers open; every $40 frames it opens or shuts the catchers
+static void Boss_Hunt(Sst *self, Own_CNZBoss *own) {
+    Boss_Move();
+    if (own->cooldown) {
+        own->cooldown--;
+    } else {
+        const uint16_t under = (uint16_t)(player->x_pos.f.u - self->x_pos.f.u + 0x10);
+        if (under < 0x20) {
+            const uint16_t y = (uint16_t)player->y_pos.f.u;
+            if (y >= 0x6B0) {
+                if (own->dives < 3) {
+                    own->dives++;
+                    own->boss.anim_routine += 2;
+                    Boss_Catchers(0, 8, 0);
+                    Boss_DropBall(self);
+                    boss_move.timer = 0x50;
+                    Boss_Moving(self, own);
+                    return;
+                }
+            } else if (y >= 0x67C) {
+                self->mapping_frame = 0x0F;
+                Boss_Catchers(2, 9, 0x20);
+                own->boss.anim_routine += 4;
+                boss_move.xsp = 0;
+                boss_move.ysp = 0x180;
+                own->boss.count = 0;
+                Boss_Moving(self, own);
+                return;
             }
-        } else if (boss_move.timer == 0) {
-            Boss_ShutCatchers();
-        } else if (boss_move.timer == 0x4B) {
-            Boss_OpenCatchers();
         }
-        Boss_Moving(self, own);
-        break;
-
-    case Run_Catch:
-        catcher_state = 0;
-        boss_move.timer--;
-        if (boss_move.timer == 0) {
-            boss_anim[3] = 0x20;
-            boss_anim[9] = 0x20;
-            SetPartAnim(Part_Robotnik, 5);
-        } else if (boss_move.timer <= -0x14) {
-            boss_anim[3] = 0;
-            boss_anim[9] = 0;
-            boss->anim_routine = Run_Move;
-        }
-        Boss_Moving(self, own);
-        break;
-
-    case Run_Wreck: // blowing up where it is (and the arena's wall opens at the end)
-        boss->side = 0xFF;
-        dhz_shake = 0;
-        if (--boss_move.timer >= 0) {
-            Boss_Defeated(self);
+    }
+    // loc_2E056
+    boss_move.timer++;
+    if (!(boss_move.timer & 0x3F)) {
+        if (boss_move.timer & 0x40) {
+            self->mapping_frame = 0x0F;
+            Boss_Catchers(2, 9, 0x20);
         } else {
-            self->children[Part_Robotnik].frame = 0x0B;
-            self->mapping_frame = 0;
+            self->mapping_frame = 0x0C;
+            Boss_Catchers(1, 4, 0);
+        }
+    }
+    Boss_Moving(self, own);
+}
+
+static void Boss_Patrol(Sst *self, Own_CNZBoss *own) { // loc_2DF46: to and fro between $28C0 and $29C0
+    if (own->boss.flag == Path_Left) {
+        if (boss_move.x.f.u <= 0x28C0) {
+            boss_move.x.f.u = 0x28C0;
+            boss_move.xsp = 0x180;
+            boss_move.ysp = 0;
+            own->boss.flag = Path_Right;
             SST_RENDER_SET(self, SST_RENDER_X_FLIP, true);
+            own->dives = 0;
+        }
+    } else if (boss_move.x.f.u >= 0x29C0) {
+        boss_move.x.f.u = 0x29C0;
+        boss_move.xsp = (int16_t)0xFE80;
+        boss_move.ysp = 0;
+        own->boss.flag = Path_Left;
+        SST_RENDER_SET(self, SST_RENDER_X_FLIP, false);
+        own->dives = 0;
+    }
+    Boss_Hunt(self, own);
+}
+
+// loc_2E0B8: the ball hangs under the catcher for $50 frames, the catchers open as it falls, and $14 frames on they shut and it goes back to its rounds
+static void Boss_BallDrop(Sst *self, Own_CNZBoss *own) {
+    catcher_state = 0;
+    boss_move.timer--;
+    if (boss_move.timer == 0) {
+        boss_anim[3] = 0x20;
+        boss_anim[9] = 0x20;
+    } else if (boss_move.timer <= -0x14) {
+        boss_anim[3] = 0;
+        boss_anim[9] = 0;
+        own->boss.anim_routine = Run_Patrol;
+        boss_move.timer = -1;
+        own->cooldown = 0x40;
+    }
+    Boss_Moving(self, own);
+}
+
+// loc_2E132: the dive: down to $680 with the catchers open, then up to $654 with them shut, and back to its rounds
+static void Boss_Dive(Sst *self, Own_CNZBoss *own) {
+    Boss_Move();
+    if (!own->boss.count) {
+        if (self->y_pos.f.u >= 0x680) {
             boss_move.xsp = 0;
-            boss_move.ysp = 0;
-            boss->anim_routine += 2;
-            LevelLayout_SetChunk(LEVEL_LAYOUT_PLANE_FG, 0x54, 0x0C, 0xDD);
-            boss_move.timer = -0x12;
+            boss_move.ysp = (int16_t)0xFE80;
+            own->boss.count = 0xFF;
+            Boss_Catchers(1, 4, 0);
         }
-        self->y_pos.f.u = boss_move.y.f.u;
-        self->x_pos.f.u = boss_move.x.f.u;
-        Boss_Parts(self, own);
-        Sst_Draw(self);
-        break;
+    } else if (self->y_pos.f.u < 0x654) {
+        own->boss.anim_routine = Run_Patrol;
+        boss_move.ysp = 0;
+        boss_move.xsp = (int16_t)0xFE80;
+        if (self->render_flags & SST_RENDER_X_FLIP) {
+            boss_move.xsp = 0x180;
+            self->mapping_frame = 0x0C;
+        }
+    }
+    Boss_Moving(self, own);
+}
 
-    case Run_Fall: // the ship drops a little and hovers, and then goes
-        boss_move.timer++;
-        if (boss_move.timer == 0) {
-            boss_move.ysp = 0;
-        } else if (boss_move.timer > 0) {
-            if (boss_move.timer < 0x18)
-                boss_move.ysp -= 8;
-            else if (boss_move.timer == 0x18)
-                boss_move.ysp = 0;
-            else if (boss_move.timer >= 0x20)
-                boss->anim_routine += 2;
-        } else {
-            boss_move.ysp += 0x18;
-        }
-        Boss_Move();
-        Boss_Bob(self, own);
-        self->y_pos.f.u = boss_move.y.f.u;
-        self->x_pos.f.u = boss_move.x.f.u;
-        Boss_Parts(self, own);
-        Sst_Draw(self);
-        break;
+// Where the ship is drawn, as the states below that do not bob it show it (its own place, not the bob's)
+static void Boss_Place(Sst *self, Own_CNZBoss *own) {
+    Boss_Bob(self, own);
+    self->y_pos.f.u = boss_move.y.f.u;
+    self->x_pos.f.u = boss_move.x.f.u;
+    Boss_Parts(self, own);
+}
 
-    case Run_Leave: // up and away to the right, the arena opening as it goes; when it is off the screen the act is over
-        boss_move.xsp = 0x400;
-        boss_move.ysp = (int16_t)0xFFC0;
-        if (limit_right2 != 0x2980 + SCREEN_WIDEADD2) {
-            limit_right1 = limit_right2 += 2;
-        } else if (!(self->render_flags & SST_RENDER_ON_SCREEN)) {
-            if (!boss_status)
-                boss_status = 1;
-            Sst_Delete(self);
-            return;
-        }
-        Boss_Move();
-        Boss_Bob(self, own);
-        self->y_pos.f.u = boss_move.y.f.u;
-        self->x_pos.f.u = boss_move.x.f.u;
-        Boss_Parts(self, own);
-        Sst_Draw(self);
+// loc_2E26C: blowing up where it is; the catchers' balls are gone; at the end the arena's second wall opens
+static void Boss_Wreck(Sst *self, Own_CNZBoss *own) {
+    own->boss.side = 0xFF;
+    if (--boss_move.timer >= 0) {
+        catcher_state = 0;
+        self->mapping_frame = 0;
+        self->children[Part_Robotnik].frame = 0x0B;
+        Boss_Defeated(self);
+    } else {
+        SST_RENDER_SET(self, SST_RENDER_X_FLIP, true);
+        boss_move.xsp = 0;
+        boss_move.ysp = 0;
+        own->boss.anim_routine += 2;
+        SetPartAnim(Part_Robotnik, 3);
+        boss_anim[0] = 8;
+        LevelLayout_SetChunk(LEVEL_LAYOUT_PLANE_FG, 0x54, 0x0C, 0xDD);
+        boss_move.timer = -0x12;
+    }
+    self->y_pos.f.u = boss_move.y.f.u;
+    self->x_pos.f.u = boss_move.x.f.u;
+    Boss_Parts(self, own);
+    Sst_Draw(self);
+}
+
+// loc_2E2DC: the ship drops a little and hovers, the level's music comes back, and then it goes
+static void Boss_Fall(Sst *self, Own_CNZBoss *own) {
+    boss_move.timer++;
+    if (boss_move.timer == 0) {
+        boss_move.ysp = 0;
+    } else if (boss_move.timer < 0) {
+        boss_move.ysp += 0x18;
+    } else if ((uint16_t)boss_move.timer < 0x18) {
+        boss_move.ysp -= 8;
+    } else if (boss_move.timer == 0x18) {
+        boss_move.ysp = 0;
+        boss_status = 1; // (Boss_Defeated_Music_Restore: the boss is beaten and the level's music is back; the animals' art, PLC $40, is not ported yet; the capsule in the layout ends the act)
+        QueueSound1(Level_Music(level_id));
+    } else if ((uint16_t)boss_move.timer >= 0x20) {
+        own->boss.anim_routine += 2;
+    }
+    Boss_Move();
+    Boss_Place(self, own);
+    Sst_Draw(self);
+}
+
+// loc_2E33A: up and away to the right, the camera's right limit let out to $2AF0 as it goes; when that is reached and it is off the screen it is gone
+static void Boss_Leave(Sst *self, Own_CNZBoss *own) {
+    boss_move.xsp = 0x400;
+    boss_move.ysp = (int16_t)0xFFC0;
+    if (limit_right2 != 0x2AF0 + SCREEN_WIDEADD2) {
+        limit_right1 = limit_right2 = (uint16_t)(limit_right2 + 2);
+    } else if (!(self->render_flags & SST_RENDER_ON_SCREEN)) {
+        Sst_Delete(self);
+        return;
+    }
+    Boss_Move();
+    Boss_Place(self, own);
+    Boss_AnimateSprite(self, &own->boss, Animation_CNZBoss);
+    Sst_Draw(self);
+}
+
+static void Boss_Run_Step(Sst *self, Own_CNZBoss *own) {
+    // The catchers' sound while they hurt (every 32nd frame)
+    if (catcher_state && !(frame_count & 0x1F))
+        QueueSound2(sfx_CNZBossZap);
+    switch (own->boss.anim_routine) {
+    case Run_Patrol:
+        Boss_Patrol(self, own);
+        break;
+    case Run_Drop:
+        Boss_BallDrop(self, own);
+        break;
+    case Run_Dive:
+        Boss_Dive(self, own);
+        break;
+    case Run_Wreck:
+        Boss_Wreck(self, own);
+        break;
+    case Run_Fall:
+        Boss_Fall(self, own);
+        break;
+    case Run_Leave:
+        Boss_Leave(self, own);
         break;
     }
 }
 
-// The ball moves by its speeds (Offset_0x02D48E): its X and Y are taken as whole pixels each frame, as the pre-beta does (a negative speed moves at least a pixel), and gravity is added
-static void Ball_Fall_Move(Sst *self, Own_CNZBall *ball) {
-    uint32_t x = (uint32_t)(uint16_t)ball->x_base << 16;
-    uint32_t y = (uint32_t)(uint16_t)self->y_pos.f.u << 16;
-    x += (uint32_t)((int32_t)ball->x_speed << 8);
-    y += (uint32_t)((int32_t)ball->y_speed << 8);
-    ball->y_speed += 0x38;
-    ball->x_base = (int16_t)(x >> 16);
-    self->x_pos.f.u = ball->x_base;
-    self->y_pos.f.u = (int16_t)(y >> 16);
-}
-
-// Offset_0x02D45C: the same for the rolling ball (its X is its own, not the base's), without gravity
-static void Ball_Roll_Move(Sst *self, Own_CNZBall *ball) {
+// The ball's move (loc_2E50E): its X and Y are taken as whole pixels each frame (the speeds are added to the pixels only), and gravity is added
+static void Ball_Move(Sst *self, Own_CNZBall *ball) {
     uint32_t x = (uint32_t)(uint16_t)self->x_pos.f.u << 16;
     uint32_t y = (uint32_t)(uint16_t)self->y_pos.f.u << 16;
     x += (uint32_t)((int32_t)ball->x_speed << 8);
     y += (uint32_t)((int32_t)ball->y_speed << 8);
+    ball->y_speed += 0x38;
     self->x_pos.f.u = (int16_t)(x >> 16);
     self->y_pos.f.u = (int16_t)(y >> 16);
 }
 
-// Offset_0x02D4CA: its time and its blinking; when the time is out, or the boss has been beaten, the ball breaks into two that fall away
-static void Ball_Time(Sst *self, Own_CNZBall *ball) {
-    const Sst *boss = &sst[ball->parent];
-    const Own_CNZBoss *boss_own = (const Own_CNZBoss *)boss->own.u8;
-    if (boss_own->boss.anim_routine < Run_Fall && --ball->timer >= 0) {
-        if ((uint16_t)ball->timer >= 0x1A4)
-            return;
-        if (--ball->blink >= 0)
-            return;
-        ball->blink = (int16_t)(ball->timer / 0x3C);
-        self->art_tile ^= 0x2000;
-        return;
-    }
+// The ball breaks (loc_2E546): it flies up and away to the left, and a second one, the same, to the right
+static void Ball_Break(Sst *self, Own_CNZBall *ball) {
+    PlaySound(sfx_Bomb);
     self->art_tile = TILE_MAP(0, 0, 0, 0, ArtTile_CNZBoss);
     self->anim = 7;
     ball->y_speed = (int16_t)0xFD00;
     ball->x_speed = (int16_t)0xFF00;
-    ball->x_base = self->x_pos.f.u;
     self->routine = Boss_Ball;
     self->routine_secondary = Ball_Away;
     self->collision_flags = 0x98;
@@ -418,79 +453,51 @@ static void Ball_Time(Sst *self, Own_CNZBall *ball) {
     }
 }
 
-// What the ball (routine 4) does: it hangs under the catcher, falls to the floor, rolls to and fro for a moment and breaks away
+// What the ball (routine 4) does: it hangs under the catcher, falls to the floor and breaks into two that fall away
 static void Ball_Run(Sst *self, Own_CNZBall *ball) {
+    const Sst *boss = &sst[ball->parent];
+    if (((const Own_CNZBoss *)boss->own.u8)->boss.anim_routine >= Run_Wreck) { // (the boss is beaten: it goes)
+        Sst_Delete(self);
+        return;
+    }
     switch (self->routine_secondary) {
-    case Ball_Make: {
-        const Sst *boss = &sst[ball->parent];
+    case Ball_Make:
         self->mappings = Mappings_CNZBoss;
         self->art_tile = TILE_MAP(0, 0, 0, 0, ArtTile_CNZBoss);
         self->render_flags |= SST_RENDER_LEVEL;
         self->priority = 7 * 0x80;
         self->routine_secondary += 2;
         self->x_pos.f.u = boss->x_pos.f.u;
-        ball->x_base = boss->x_pos.f.u;
         self->y_pos.f.u = (int16_t)(boss->y_pos.f.u + 0x30);
         self->y_radius = 8;
         self->x_radius = 8;
-        self->width_pixels = 8;
         self->mapping_frame = 0x12;
         self->collision_flags = 0x98;
         break;
-    }
-    case Ball_Follow: { // it is held under the catcher, and goes down a little further each frame
-        const Sst *boss = &sst[ball->parent];
+    case Ball_Follow: // held under the catcher, and goes down a little further each frame until the time is out
         self->x_pos.f.u = boss->x_pos.f.u;
-        ball->x_base = boss->x_pos.f.u;
         self->y_pos.f.u = (int16_t)(boss->y_pos.f.u + ball->drop);
-        ball->drop++;
-        if (ball->drop >= 0x2E)
+        if (++ball->drop >= 0x2E)
             ball->drop = 0x2E;
         if (boss_move.timer == 0) {
             self->routine_secondary += 2;
-            ball->x_speed = boss_move.xsp;
-            ball->timer = 1;
+            ball->x_speed = 0;
+            ball->y_speed = 0;
         }
         Sst_Draw(self);
         break;
-    }
-    case Ball_Fall:
-        Ball_Fall_Move(self, ball);
-        ball->x_speed -= 8;
-        {
-            const int16_t d = SstFloorDist(self, self->x_pos.f.u);
-            if (d < 0) {
-                self->y_pos.f.u += d;
-                ball->y_speed = 0;
-                self->routine_secondary += 2;
-                ball->direction = 0;
-                ball->x_speed = (int16_t)0xFD00;
-                ball->y_speed = 0x0800;
-            }
-        }
-        Sst_Draw(self);
-        break;
-    case Ball_Roll: {
-        Ball_Time(self, ball);
-        const bool right = (ball->direction & 0x80) != 0;
-        if (!right ? (uint16_t)self->x_pos.f.u < 0x2884 : (uint16_t)self->x_pos.f.u >= 0x29FC) {
-            ball->direction ^= 0x80;
-            ball->x_speed = (int16_t)-ball->x_speed;
-            Sst_Draw(self);
-            break;
-        }
-        Ball_Roll_Move(self, ball);
+    case Ball_Fall: {
+        Ball_Move(self, ball);
         const int16_t d = SstFloorDist(self, self->x_pos.f.u);
-        ball->x_speed = (int16_t)(ball->x_speed + (int16_t)((int32_t)((int8_t)angle_buffer0) * 8 / 5)); // (the floor's angle, as D3: it speeds it up or slows it on a slope)
-        if (!right ? ball->x_speed >= 0 : ball->x_speed < 0)
-            ball->direction ^= 0x80;
-        if (d < 0)
+        if (d < 0) {
             self->y_pos.f.u += d;
+            Ball_Break(self, ball);
+        }
         Sst_Draw(self);
         break;
     }
     case Ball_Away:
-        Ball_Fall_Move(self, ball);
+        Ball_Move(self, ball);
         Sst_Animate(self, Animation_CNZBoss);
         if ((uint16_t)self->y_pos.f.u >= 0x705) {
             Sst_Delete(self);
@@ -512,18 +519,17 @@ void Obj_CNZBoss(Sst *self) {
         self->priority = 3 * 0x80;
         self->width_pixels = 0x60;
         self->y_radius = 0x20;
-        self->x_pos.f.u = 0x29D0;
-        self->y_pos.f.u = 0x590;
+        self->x_pos.f.u = 0x2A46; // (Beta 4: it comes in from the right; the pre-beta's started at $29D0,$590)
+        self->y_pos.f.u = 0x654;
         self->mapping_frame = 0;
         own->boss.flash = 0x80; // (Obj_Inertia: the first flash lasts $80 frames, with no sound)
         self->routine = Boss_Run;
+        own->boss.anim_routine = Run_Patrol;
         self->child_count = 4;
         self->collision_flags = 0x0F;
-        self->collision_property = 2;
+        self->collision_property = 8;
         boss_move.x.f.u = self->x_pos.f.u;
         boss_move.y.f.u = self->y_pos.f.u;
-        boss_move.xsp = 0;
-        boss_move.timer = 0;
         for (int i = 0; i < 4; i++) {
             self->children[i].x = self->x_pos.f.u;
             self->children[i].y = self->y_pos.f.u;
@@ -532,17 +538,20 @@ void Obj_CNZBoss(Sst *self) {
         self->children[Part_Ship].frame = 1;
         self->children[Part_Robotnik].frame = 6;
         self->children[Part_LeftCatcher].frame = 2;
-        own->boss.flag = Path_Up;
-        boss_move.ysp = (int16_t)0xE800;
+        own->boss.flag = Path_Left;
+        own->dives = 0;
+        boss_move.xsp = (int16_t)0xFE80;
+        boss_move.ysp = 0;
+        boss_move.timer = 1;
         own->left_y = own->right_y = (int32_t)((uint32_t)(uint16_t)self->y_pos.f.u << 16);
         {
-            static const uint8_t buffer[10] = { 0x04, 0x00, 0x01, 0x00, 0x10, 0x00, 0x03, 0x00, 0x02, 0x00 };
+            static const uint8_t buffer[10] = { 0x08, 0x00, 0x01, 0x00, 0x10, 0x00, 0x03, 0x00, 0x02, 0x00 };
             memcpy(boss_anim, buffer, sizeof(buffer));
         }
         break;
 
     case Boss_Run:
-        Boss_Dig(self, own);
+        Boss_Run_Step(self, own);
         break;
 
     case Boss_Ball:

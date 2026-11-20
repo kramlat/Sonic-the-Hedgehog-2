@@ -611,50 +611,86 @@ static void CNZ_TheRoundBumperThrowsWhoeverTouchesIt(void) {
     CHECK_EQ(bumper->anim, 1);
 }
 
-// The pre-beta's Casino Night boss: it starts at ($29D0,$590) and is on its track at Y $63A at once; it goes to and fro between $28A0 and $29E0, opens its catchers (and lets a ball fall from one side), and the ball
-// falls, rolls and breaks away
-static void CNZ_TheBossGoesToAndFroAndLetsTheBallFall(void) {
+// Beta 4's Casino Night boss: it comes in at ($2A46,$654) from the right and patrols between $28C0 and $29C0; Sonic in the pit (below $6B0) under it makes it let a ball fall (the catchers open as it falls), Sonic on
+// the ledge (from $67C) makes it dive with the catchers open to $680 and up again
+static void CNZ_TheBossPatrolsLetsTheBallFallAndDivesAtSonic(void) {
     Reset(ZoneId_CNZ);
     level_id = LEVEL_ID(ZoneId_CNZ, 1);
     boss_flag = 6;
     Sst *boss = Spawn(0x51, 0, 0, 0);
     Obj_CNZBoss(boss);
     CHECK_EQ(boss->child_count, 4);
-    CHECK_EQ(boss->collision_property, 2);
-    CHECK_EQ(boss->x_pos.f.u, 0x29D0);
-    CHECK_EQ(boss->y_pos.f.u, 0x590);
+    CHECK_EQ(boss->collision_property, 8);
+    CHECK_EQ(boss->x_pos.f.u, 0x2A46);
+    CHECK_EQ(boss->y_pos.f.u, 0x654);
+
+    // Patrolling (Sonic is far away)
     player->x_pos.f.u = 0x2800;
-    int balls = 0;
+    player->y_pos.f.u = 0x500;
     int16_t min_x = 0x7FFF, max_x = 0;
-    bool open = false;
-    for (int i = 0; i < 1500; i++) {
+    for (int i = 0; i < 900; i++) {
         scrpos_x.f.u = 0x2700;
         scrpos_y.f.u = 0x500;
         frame_count++;
         Obj_CNZBoss(boss);
         if (boss->x_pos.f.u < min_x)
             min_x = boss->x_pos.f.u;
-        if (boss->x_pos.f.u > max_x)
+        if (min_x <= 0x28C0 + 4 && boss->x_pos.f.u > max_x)
             max_x = boss->x_pos.f.u;
-        {
-            int16_t cx, cy, hw, hh;
-            open |= CNZBoss_CatcherBox(boss, &cx, &cy, &hw, &hh);
-        }
-        int now = 0;
-        for (int j = 0x21; j < 0x60; j++) {
-            if (sst[j].code == sst_object_codes[0x51] && sst[j].routine == 4) {
-                now++;
-                Obj_CNZBoss(&sst[j]);
-            }
-        }
-        if (now > balls)
-            balls = now;
     }
-    CHECK(balls > 0);                           // (it lets a ball fall)
-    CHECK(open);                                // (its catchers hurt while out)
-    CHECK(min_x <= 0x28A0 + 4);                 // (the left end of its track)
-    CHECK(max_x >= 0x29E0 - 4 && max_x <= 0x29E0 + 8); // (and the right)
-    CHECK(boss->y_pos.f.u <= 0x63A + 6 && boss->y_pos.f.u >= 0x63A - 6);
+    CHECK(min_x <= 0x28C0 + 4);                  // (the left end of its rounds)
+    CHECK(max_x >= 0x29C0 - 4 && max_x <= 0x29C0 + 8); // (and the right)
+
+    // Sonic in the pit under it: a ball falls
+    int balls = 0;
+    for (int i = 0; i < 400 && !balls; i++) {
+        scrpos_x.f.u = 0x2700;
+        scrpos_y.f.u = 0x500;
+        frame_count++;
+        player->x_pos.f.u = boss->x_pos.f.u;
+        player->y_pos.f.u = 0x6C0;
+        Obj_CNZBoss(boss);
+        for (int j = 0x21; j < 0x60; j++)
+            if (sst[j].code == sst_object_codes[0x51] && sst[j].routine == 4)
+                balls++;
+    }
+    CHECK(balls > 0);
+
+    // Sonic on the ledge under it: it dives with the catchers open (they hurt), to $680, and comes back
+    for (int j = 0x21; j < 0x60; j++)
+        if (sst[j].code == sst_object_codes[0x51] && sst[j].routine == 4)
+            Sst_Delete(&sst[j]);
+    for (int i = 0; i < 300; i++) { // (back to its rounds)
+        scrpos_x.f.u = 0x2700;
+        scrpos_y.f.u = 0x500;
+        frame_count++;
+        player->x_pos.f.u = 0x2800;
+        player->y_pos.f.u = 0x500;
+        Obj_CNZBoss(boss);
+        for (int j = 0x21; j < 0x60; j++)
+            if (sst[j].code == sst_object_codes[0x51] && sst[j].routine == 4)
+                Sst_Delete(&sst[j]);
+    }
+    bool open = false, deep = false;
+    int16_t deepest = 0;
+    for (int i = 0; i < 400; i++) {
+        scrpos_x.f.u = 0x2700;
+        scrpos_y.f.u = 0x500;
+        frame_count++;
+        player->x_pos.f.u = boss->x_pos.f.u;
+        player->y_pos.f.u = 0x690;
+        Obj_CNZBoss(boss);
+        int16_t cx, cy, hw, hh;
+        open |= CNZBoss_CatcherBox(boss, &cx, &cy, &hw, &hh);
+        if (open)
+            CHECK_EQ(hh, 8);
+        if (boss->y_pos.f.u > deepest)
+            deepest = boss->y_pos.f.u;
+    }
+    deep = deepest >= 0x680;
+    CHECK(open);                                  // (its catchers hurt while out)
+    CHECK(deep);                                  // (it dived to $680)
+    CHECK(boss->y_pos.f.u < 0x680);               // (and came back up)
     ClearPLC();
     boss_flag = 0;
 }
@@ -688,6 +724,15 @@ static void CNZ_TheEventsShutTheArenaAndMakeTheBossLast(void) {
     CNZBoss_Events();
     CHECK_EQ(dle_routine, 6);
     { int made = 0; for (int j = 1; j < 0x60; j++) made += sst[j].code == sst_object_codes[0x51]; CHECK_EQ(made, 1); }
+    // Beta 4: the capsule of the layout ends the act; the events only let the camera down past $2A00 (the lower limit $5D0, the left edge follows)
+    scrpos_x.f.u = 0x2A00 - SCREEN_WIDEADD2 - 1;
+    limit_btm1 = 0;
+    CNZBoss_Events();
+    CHECK_EQ(limit_btm1, 0);
+    scrpos_x.f.u = 0x2A00 - SCREEN_WIDEADD2;
+    CNZBoss_Events();
+    CHECK_EQ(limit_btm1, 0x5D0 - SCREEN_TALLADD);
+    CHECK_EQ(limit_left2, scrpos_x.f.u);
     ClearPLC();
     boss_flag = 0;
     dle_routine = 0;
@@ -1695,7 +1740,7 @@ void RegisterDHZObjectTests(void) {
     RUN_TEST(DHZ_TheBossDigsDropsRocksAndChargesAlongTheFloor);
     RUN_TEST(DHZ_TheEventsShutTheArenaAndMakeTheBossLast);
     RUN_TEST(CNZ_TheRoundBumperThrowsWhoeverTouchesIt);
-    RUN_TEST(CNZ_TheBossGoesToAndFroAndLetsTheBallFall);
+    RUN_TEST(CNZ_TheBossPatrolsLetsTheBallFallAndDivesAtSonic);
     RUN_TEST(CNZ_TheEventsShutTheArenaAndMakeTheBossLast);
     RUN_TEST(OOZ_TheBossDivesThenHoversAndSpitsBallsThatLightFlames);
     RUN_TEST(OOZ_ABossThatWasHitSwingsRoundTheArena);
