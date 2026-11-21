@@ -32,6 +32,7 @@
 #include "Resource/Art/Nebula.h"
 #include "Resource/Art/Turtloid.h"
 #include "Resource/Art/SFZRobotnikShip.h"
+#include "Resource/Art/SFZSpikeLaser.h"
 #include "Resource/Art/SFZTornado.h"
 #include "Resource/Art/SFZClouds.h"
 #include "Resource/Art/SFZVerticalHelix.h"
@@ -968,6 +969,17 @@ static const PLCList PLC_SFZ = { // Sky Fortress's primary list, the pre-beta's 
     }
 };
 
+static const PLCList PLC_SFZBoss = { // Beta 4's list $3E: Wing Fortress's boss: its spike balls and lasers (over the Clucker's art), Robotnik, his faces and his body, and the explosions
+    5,
+    (const PLC[]) {
+        { Art_SFZSpikeLaser,     ART_VRAM(0x6F20 >> 5) },
+        { Art_DEZRobotnik,       ART_VRAM(0xA300 >> 5) },
+        { Art_DEZRobotnikFaces,  ART_VRAM(0xA000 >> 5) },
+        { Art_DEZRobotnikBody,   ART_VRAM(0xAC80 >> 5) },
+        { Art_BossExplosion,     ART_VRAM(0xB000 >> 5) },
+    }
+};
+
 static const PLCList PLC_SFZ2 = { // Sky Fortress's secondary list, the pre-beta's $11
     14,
     (const PLC[]) {
@@ -1175,5 +1187,6 @@ const PLCList* plcs[PlcId_Num] = {
     /* PlcId_DEZBoss     */ &PLC_DEZBoss,
     /* PlcId_SSMain      */ &PLC_SSMain,
     /* PlcId_SSRings     */ &PLC_SSRings,
+    /* PlcId_SFZBoss     */ &PLC_SFZBoss,
 };
 

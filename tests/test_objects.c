@@ -600,9 +600,16 @@ static void ObjectHit_FollowsThePreBetasTimingAndArt(void) {
     CHECK_EQ(pts->y_vel, -0x300 + 0x18); // (moved, then gravity)
 }
 
-// The pre-beta's Sky Fortress boss ($C5, which no layout or event makes): the body locks the camera's lower limit, waits for Sonic to stand within $20 of it and makes two platforms and a mover; then it animates, makes
-// the bouncing part and the one that follows it, and loops its animations
-static void SFZBoss_BodyMakesItsPartsAndTheBouncerStaysInItsBox(void) {
+// Beta 4's Wing Fortress boss ($C5, subtype $92 in the layout): the body locks the camera's lower limit, waits for a character within $20 of it and makes two platforms, the hanging piece, the rising piece and Robotnik (who makes
+// his plate); the hanging piece then lets down bouncers, each with its box; when its hits are out it blows up and the limit is free again
+static int CountSubtype(uint8_t subtype) {
+    int n = 0;
+    for (int i = 0x20; i < 0x80; i++)
+        n += sst[i].code == Obj_SFZBoss && sst[i].subtype == subtype;
+    return n;
+}
+
+static void SFZBoss_BodyMakesItsPartsAndTheBouncersAndIsBeaten(void) {
     SstTestClear();
     scrpos_x.f.u = 0x100;
     scrpos_y.f.u = 0x100;
@@ -611,32 +618,45 @@ static void SFZBoss_BodyMakesItsPartsAndTheBouncerStaysInItsBox(void) {
     player->y_pos.f.u = 0x300;
     Sst *body = &sst[0x20];
     body->code = Obj_SFZBoss;
-    body->subtype = 0x8A;
+    body->subtype = 0x92;
     body->x_pos.f.u = 0x300;
     body->y_pos.f.u = 0x200;
-    int parts = 0, bouncers = 0;
-    bool in_box = true;
+    int bouncers = 0, boxes = 0;
     for (int f = 0; f < 700; f++) {
         for (int i = 0x20; i < 0x80; i++)
             if (sst[i].code == Obj_SFZBoss)
                 Obj_SFZBoss(&sst[i]);
         if (f == 1)
             CHECK_EQ(limit_btm2, 0x442 - SCREEN_TALLADD);
-        parts = bouncers = 0;
-        for (int i = 0x20; i < 0x80; i++) {
-            if (sst[i].code != Obj_SFZBoss)
-                continue;
-            parts++;
-            if (sst[i].subtype == 0x90 && sst[i].routine_secondary >= 6) {
-                bouncers++;
-                const int x = sst[i].x_pos.f.u, y = sst[i].y_pos.f.u;
-                in_box &= x >= 0x300 - 0x70 - 2 && x <= 0x300 + 0x70 + 2 && y >= 0x200 + 0x0C - 2 && y <= 0x200 + 0x0C + 0x84 + 2;
-            }
+        if (f == 20) {
+            CHECK_EQ(CountSubtype(0x92), 1);
+            CHECK_EQ(CountSubtype(0x94), 2);
+            CHECK_EQ(CountSubtype(0x96), 1);
+            CHECK_EQ(CountSubtype(0x9C), 1);
+            CHECK_EQ(CountSubtype(0xA0), 1);
+            CHECK_EQ(CountSubtype(0xA2), 1); // (Robotnik's plate)
         }
+        bouncers = CountSubtype(0x98) > bouncers ? CountSubtype(0x98) : bouncers;
+        boxes = CountSubtype(0x9A) > boxes ? CountSubtype(0x9A) : boxes;
     }
-    CHECK_EQ(parts, 6); // (the body, two platforms, the mover, the bouncer and the part that follows it)
-    CHECK_EQ(bouncers, 1);
-    CHECK(in_box);
+    CHECK(bouncers >= 1);
+    CHECK(boxes >= 1); // (each bouncer has the box that hurts)
+    // Beaten: its hits are out
+    Sst *b = NULL;
+    for (int i = 0x20; i < 0x80; i++)
+        if (sst[i].code == Obj_SFZBoss && sst[i].subtype == 0x92)
+            b = &sst[i];
+    CHECK(b != NULL);
+    if (b != NULL) {
+        b->collision_property = 0;
+        for (int f = 0; f < 400 && b->code != NULL; f++) {
+            for (int i = 0x20; i < 0x80; i++)
+                if (sst[i].code == Obj_SFZBoss)
+                    Obj_SFZBoss(&sst[i]);
+        }
+        CHECK(b->code == NULL);
+        CHECK_EQ(limit_btm2, 0x720 - SCREEN_TALLADD);
+    }
 }
 
 // Wing Fortress' events (Beta 4's DynResize_SFz): the background starts as the camera; once the camera is at $2BC0 across and $580 down the events move on and the offset in x runs up, and past $600 the offset in y
@@ -1460,7 +1480,7 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(DEZFinalBoss_MakesItsPartsAndRunsThePuppetOnceRobotnikHasHopped);
     RUN_TEST(DEZRunning_RunsThrowsAndOpensItsDoor);
     RUN_TEST(SFZEvents_StartAsTheCameraAndMoveOnWhenTheCameraIsFarEnough);
-    RUN_TEST(SFZBoss_BodyMakesItsPartsAndTheBouncerStaysInItsBox);
+    RUN_TEST(SFZBoss_BodyMakesItsPartsAndTheBouncersAndIsBeaten);
     RUN_TEST(ObjectHit_FollowsThePreBetasTimingAndArt);
     RUN_TEST(Sonic_DebugCheatDiesButBEntersPlacementModeFromHurtAndDead);
     RUN_TEST(Animals_ZonesHaveTheirPairAndEndAnimalsTheirOwnMovement);
