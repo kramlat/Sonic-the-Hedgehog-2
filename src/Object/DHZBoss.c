@@ -13,6 +13,8 @@
 #include "Level.h"
 #include "MathUtil.h"
 #include "Sound.h"
+
+extern uint8_t two_player_mode; // (SplitScreen.c)
 #include "Backend/VDP.h"
 
 #include <string.h>
@@ -52,10 +54,14 @@ void DHZBoss_Reset(void) {
 }
 
 // DynResize_DHz of act 2: X $2080 fixes the left edge and the lower limit ($5D0); X $20F0 shuts the arena, fades the music, puts the rocks' eight tiles at VRAM $AC00, sets Boss_Flag 5, the boss's list and its palette;
-// then the camera's top is held at Y $5C8 and, $5A frames on, the boss is made and its music starts; while it digs the screen shakes with the sound of the ground; when it is beaten, the results card
+// then the camera's top is held at Y $5C8 and, $5A frames on, the boss is made and its music starts; while it digs the screen shakes with the sound of the ground; when it is beaten the camera is let go
 void DHZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
+        if (two_player_mode) { // (Beta 4: in the versus play there is no boss: the right limit is held at $2100)
+            limit_right1 = limit_right2 = 0x2100 + SCREEN_WIDEADD2;
+            break;
+        }
         if (scrpos_x.f.u < (0x2080 - SCREEN_WIDEADD2))
             break;
         limit_left2 = scrpos_x.f.u;
@@ -91,8 +97,10 @@ void DHZBoss_Events(void) {
     case 6:
         if (dhz_shake && (frame_count & 0x1F) == 0)
             QueueSound2((enum SoundID)(sfx_Jump + (0xE1 - 0xA0))); // (the ground rumbles: $E1)
-        if (boss_status)
-            GotThroughAct();
+        if (boss_status) { // (Beta 4's loc_CF9E: once it is beaten the camera cannot go back; the capsule in the layout ends the act)
+            limit_left2 = scrpos_x.f.u;
+            limit_right1 = limit_right2;
+        }
         break;
     }
 }
@@ -196,7 +204,7 @@ static void Boss_DropRock(void) {
     }
 }
 
-// Offset_0x02C976 (and Offset_0x02C9AC): the hit (a flash of $40 frames, or the wreck when the hits are out) and Robotnik's face at the first frame of a flash
+// Offset_0x02C976 (and Offset_0x02C9AC): the hit (a flash of $20 frames (Beta 4's; the pre-beta's $40), or the wreck when the hits are out) and Robotnik's face at the first frame of a flash
 static void Boss_Struck(Sst *self, Own_DHZBoss *own) {
     Own_AlphaBoss *boss = &own->boss;
     if (boss->anim_routine < Run_Wreck) {
@@ -206,7 +214,7 @@ static void Boss_Struck(Sst *self, Own_DHZBoss *own) {
             boss->anim_routine = Run_Wreck;
         } else if (self->collision_flags == 0) {
             if (boss->flash == 0) {
-                boss->flash = 0x40;
+                boss->flash = 0x20;
                 QueueSound2(sfx_HitBoss);
             }
             dry_palette[1][1] = (dry_palette[1][1] == 0) ? 0x0EEE : 0;
@@ -214,7 +222,7 @@ static void Boss_Struck(Sst *self, Own_DHZBoss *own) {
                 self->collision_flags = 0xF;
         }
     }
-    if (boss->flash == 0x3F)
+    if (boss->flash == 0x1F)
         boss_anim[7] = 0xC0;
 }
 
@@ -355,6 +363,8 @@ static void Boss_Dig(Sst *self, Own_DHZBoss *own) {
                 boss_move.ysp -= 8;
             } else if (boss_move.timer == 0x18) {
                 boss_move.ysp = 0;
+                boss_status = 1; // (Beta 4's Boss_Defeated_Music_Restore: the boss is beaten and the level's music is back; the animals' art, PLC $40, is not ported yet; the capsule ends the act)
+                QueueSound1(Level_Music(level_id));
             } else if (boss_move.timer >= 0x20) {
                 boss_anim[7] = 0x0D;
                 boss_anim[0] = 2; // (the pre-beta writes this through a register that was left pointing there)
@@ -370,14 +380,12 @@ static void Boss_Dig(Sst *self, Own_DHZBoss *own) {
         Boss_ShowWreck(self, own);
         break;
 
-    case Run_Leave: // up and away to the right, the arena opening to $22F0 as it goes; when it is off the screen the act is over
+    case Run_Leave: // up and away to the right, the camera's right limit let out to $2210 as it goes (Beta 4; the pre-beta's $22F0); when it is there and the ship is off the screen it is gone
         boss_move.xsp = 0x400;
         boss_move.ysp = (int16_t)0xFFC0;
-        if (limit_right2 != 0x22F0 + SCREEN_WIDEADD2) {
+        if (limit_right2 != 0x2210 + SCREEN_WIDEADD2) {
             limit_right1 = limit_right2 += 2;
         } else if (!(self->render_flags & SST_RENDER_ON_SCREEN)) {
-            if (!boss_status)
-                boss_status = 1;
             Sst_Delete(self);
             return;
         }
