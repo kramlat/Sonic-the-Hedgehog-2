@@ -326,9 +326,11 @@ static void RunEvents(void) {
             QueueSound1(bgm_Boss);
         }
         break;
-    case 0x10: // when it is beaten, the results card
-        if (boss_status)
-            GotThroughAct();
+    case 0x10: // once it is beaten (Beta 4's loc_CD8E) the camera can no longer go back: the left edge follows it and the right limit stays where it is; the capsule in the layout ends the act (the pre-beta's events made the results card)
+        if (boss_status) {
+            limit_left2 = scrpos_x.f.u;
+            limit_right1 = limit_right2;
+        }
         break;
     }
 }

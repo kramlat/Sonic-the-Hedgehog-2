@@ -165,6 +165,8 @@ static void Ship_Run(Sst *self, Own_AlphaBoss *own) {
     }
 
     case Ship_Wreck:
+        if (limit_right2 < 0x314E + SCREEN_WIDEADD2) // (Beta 4: the camera's right limit is let out to $314E while it burns)
+            limit_right1 = limit_right2 = (uint16_t)(limit_right2 + 2);
         self->child_count = 0;
         if (--boss_move.timer >= 0) {
             if (boss_move.timer <= 0x1E) {
@@ -184,17 +186,17 @@ static void Ship_Run(Sst *self, Own_AlphaBoss *own) {
             Sst_Draw(self);
             break;
         }
-        self->y_pos.f.u += 2; // (sinking)
-        if (self->y_pos.f.u <= (left_side ? 0x538 : 0x548)) {
+        if (!boss_status) {
+            boss_status = 1; // the boss is beaten (Beta 4's Boss_Defeated_Music_Restore: the level's music is back, and the animals' art is loaded, PLC $40: not ported yet)
+            QueueSound1(Level_Music(level_id));
+        }
+        self->y_pos.f.u += 2; // (sinking: it is gone when it is off the screen or has sunk to $578, or $588 on the right: Beta 4's; the pre-beta's $538 and $548 and the results card)
+        if ((self->render_flags & SST_RENDER_ON_SCREEN) && self->y_pos.f.u <= (left_side ? 0x578 : 0x588)) {
             Sst_Draw(self);
             break;
         }
-        if (!boss_status) {
-            boss_status = 1; // the boss is beaten
-            Sst_Delete(self);
-        } else {
-            Sst_Draw(self);
-        }
+        limit_right1 = limit_right2 = 0x314E + SCREEN_WIDEADD2;
+        Sst_Delete(self);
         break;
     }
 }
