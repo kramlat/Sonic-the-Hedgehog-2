@@ -779,6 +779,7 @@ sources:
   - "src/HTZBackground.c"
   - "src/Level.c"
   - "src/SpecialStageTables.c"
+  - "src/SpecialStageB4Tables.c"
   - "src/SpecialStageTrack.c"
   - "src/SpecialStageDisplay.c"
   - "src/SpecialStageCharacter.c"

@@ -12,6 +12,7 @@
 #include "SpecialStageWide.h"
 #include "SpecialStageCharacter.h"
 #include "SpecialStageItems.h"
+#include "SpecialStageB4Tables.h"
 #include "Object/SpecialStageArt.h"
 
 // The pre-beta's special stage (built in stages, see docs/Sonic2SpecialStage.md). Stage 1: its art, imported as it is: every picture of the two lists the stage loads ($3C and $3D) decodes to the tiles its header
@@ -616,7 +617,59 @@ static void SpecialStage_ATumbleOnlyUsesFramesOfItsTable(void) {
     }
 }
 
+// Beta 4's tables (stage 2 of docs/Sonic2SpecialStageB4.md): ten stages whose steps are kinds of the pre-beta's five lists, a list of objects for each that parses to its end, and the places of the rings and bombs of
+// each of the 56 segments
+static void SpecialStageB4_TheStagesTheirObjectsAndTheSegmentsPlacesAreConsistent(void) {
+    for (int stage = 0; stage < SS4_STAGE_COUNT; stage++) {
+        size_t steps;
+        const uint8_t *step = SS4_StageSteps(stage, &steps);
+        CHECK(steps >= 40 && steps <= 64);
+        for (size_t i = 0; i < steps; i++)
+            CHECK((step[i] & 0x7F) <= 4); // (a kind of the five lists)
+        size_t size;
+        const uint8_t *objects = SS4_StageObjects(stage, &size);
+        size_t at = 0;
+        int groups = 0, rings = 0;
+        while (at < size) {
+            if (objects[at] >= 0x80) { // (the end of a step's objects)
+                at++;
+                groups++;
+                continue;
+            }
+            rings += !(objects[at] & 0x40);
+            at += 2;
+        }
+        CHECK_EQ(at, size);                  // (the pairs and the ends fill the list)
+        CHECK(objects[size - 1] >= 0x80);    // (and it ends on an end)
+        CHECK(groups >= 40 && groups <= 64);
+        CHECK(rings > 0);
+    }
+    // The three stages of the bonus stars' entry are the stages 4 to 6 again, step for step, but for the last end: the rings' check ($FE) where the emerald's ($FD) was
+    for (int stage = 4; stage <= 6; stage++) {
+        size_t a, b;
+        const uint8_t *x = SS4_StageObjects(stage, &a), *y = SS4_StageObjects(stage + 3, &b);
+        CHECK_EQ(a, b);
+        int different = 0;
+        for (size_t i = 0; i < a; i++)
+            if (x[i] != y[i]) {
+                different++;
+                CHECK_EQ(x[i], 0xFD);
+                CHECK_EQ(y[i], 0xFE);
+            }
+        CHECK_EQ(different, 1);
+    }
+    CHECK_EQ(SS4_KindLength(0), 0x18);
+    CHECK_EQ(SS4_KindLength(2), 0x0C);
+    for (int segment = 0; segment < SS_SEGMENT_COUNT; segment++) {
+        const int places = SS4_PlaceCount(segment);
+        CHECK(places > 0 && places < 200);
+        const uint8_t *last = SS4_Place(segment, places - 1);
+        CHECK(last[0] != 0 || last[1] != 0 || last[2] != 0 || last[3] != 0 || last[4] != 0 || last[5] != 0);
+    }
+}
+
 void RegisterSpecialStageTests(void) {
+    RUN_TEST(SpecialStageB4_TheStagesTheirObjectsAndTheSegmentsPlacesAreConsistent);
     RUN_TEST(SpecialStage_TheMainListsArtDecodesAndGoesWherePreBetaPutsIt);
     RUN_TEST(SpecialStage_TheRingsListGoesOverTheTrafficLights);
     RUN_TEST(SpecialStage_EverySegmentIsThreeSectionsThatFillItsFile);
