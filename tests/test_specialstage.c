@@ -668,7 +668,36 @@ static void SpecialStageB4_TheStagesTheirObjectsAndTheSegmentsPlacesAreConsisten
     }
 }
 
+// Beta 4's order: a stage's steps are kinds (the pre-beta's five lists), a step takes the list's length of segments, and the track is turned over by $0D, $12 and $1A (not the pre-beta's $11) when the step has its flag
+static void SpecialStageB4_TheSegmentsComeInTheStagesStepsAndTurnByTheirFlags(void) {
+    for (int stage = 0; stage < SS4_STAGE_COUNT; stage++) {
+        size_t count;
+        const uint8_t *steps = SS4_StageSteps(stage, &count);
+        SSTrack track;
+        SSTrack_ResetStage(&track, stage);
+        for (size_t step = 0; step < count; step++) {
+            const int kind = steps[step] & 0x7F;
+            size_t size;
+            const uint8_t *list = SS_List(kind, &size);
+            for (int i = 0; i < SS_ListLength(kind); i++) {
+                CHECK_EQ(track.step, (int)step);
+                const int segment = SSTrack_NextSegment(&track);
+                CHECK_EQ(segment, list[i]);
+                bool flipped;
+                if (SSTrack_Turns(&track, &flipped)) {
+                    CHECK(segment == 0x0D || segment == 0x12 || segment == 0x1A);
+                    CHECK_EQ(track.flipped, (steps[track.step < (int)count ? track.step : count - 1] & 0x80) != 0);
+                } else {
+                    CHECK(segment != 0x0D && segment != 0x12 && segment != 0x1A);
+                }
+            }
+        }
+        CHECK_EQ(track.step, (int)count);
+    }
+}
+
 void RegisterSpecialStageTests(void) {
+    RUN_TEST(SpecialStageB4_TheSegmentsComeInTheStagesStepsAndTurnByTheirFlags);
     RUN_TEST(SpecialStageB4_TheStagesTheirObjectsAndTheSegmentsPlacesAreConsistent);
     RUN_TEST(SpecialStage_TheMainListsArtDecodesAndGoesWherePreBetaPutsIt);
     RUN_TEST(SpecialStage_TheRingsListGoesOverTheTrafficLights);

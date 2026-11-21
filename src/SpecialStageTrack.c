@@ -1,5 +1,6 @@
 // The pre-beta's special stage track: see SpecialStageTrack.h
 #include "SpecialStageTrack.h"
+#include "SpecialStageB4Tables.h"
 #include "SpecialStageTables.h"
 
 #include <string.h>
@@ -134,6 +135,20 @@ void SSTrack_Reset(SSTrack *track) {
     track->list = 0;
     track->segment = -1;
     track->flipped = false;
+    track->stage = -1;
+}
+
+void SSTrack_ResetStage(SSTrack *track, int stage) {
+    SSTrack_Reset(track);
+    track->stage = stage;
+}
+
+static uint8_t StepByte(const SSTrack *track) {
+    if (track->stage < 0)
+        return SS_SequenceStep((size_t)track->step);
+    size_t count;
+    const uint8_t *steps = SS4_StageSteps(track->stage, &count);
+    return steps[(size_t)track->step < count ? (size_t)track->step : count - 1];
 }
 
 // Offset_0x008B9E: three of the segments turn the track over or back; the others leave it as it is. Segment $11 (the pre-beta's ROM range $0CDEC6 to $0CE544) always turns it over; $0D and $1A turn it
@@ -147,7 +162,7 @@ static void Turn(SSTrack *track) {
 // Offset_0x005F16's first half. The step's byte gives the list ($FF: the sequence is over and starts again, with the first list); a segment of the list is taken, and the place in the list goes on; at the list's end the
 // next step begins
 int SSTrack_NextSegment(SSTrack *track) {
-    int list = SS_SequenceStep((size_t)track->step);
+    int list = StepByte(track);
     if (list == 0xFF) { // (the sequence starts again: from the first list, not the first step's)
         list = 0;
         track->step = 0;
@@ -170,11 +185,18 @@ int SSTrack_NextSegment(SSTrack *track) {
 bool SSTrack_Turns(const SSTrack *track, bool *flipped) {
     switch (track->segment) {
     case 0x11:
+        if (track->stage >= 0)
+            return false;
         *flipped = true;
+        return true;
+    case 0x12:
+        if (track->stage < 0)
+            return false;
+        *flipped = (StepByte(track) & 0x80) != 0;
         return true;
     case 0x0D:
     case 0x1A:
-        *flipped = (SS_SequenceStep((size_t)track->step) & 0x80) != 0;
+        *flipped = (StepByte(track) & 0x80) != 0;
         return true;
     default:
         return false;

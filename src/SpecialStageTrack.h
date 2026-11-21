@@ -47,9 +47,12 @@ typedef struct {
     int list;          // the list the current segment came from
     int segment;       // the current segment (-1: none yet)
     bool flipped;      // the track is turned over
+    int stage;         // Beta 4's stage (SpecialStageB4Tables.h) whose steps give the lists, or -1 for the pre-beta's one sequence
 } SSTrack;
 
 void SSTrack_Reset(SSTrack *track);
+// Beta 4's order: a stage's steps (SS4_StageSteps; a step beyond the last repeats it), the kind of a step is its list, and the segments that turn the track are $0D, $12 and $1A (when the step has its flag: loc_7806)
+void SSTrack_ResetStage(SSTrack *track, int stage);
 // Whether the current segment is one that turns the track over or back ($11, $0D and $1A), and to which: the state it would have, which the display takes up at the end of the segment's time
 bool SSTrack_Turns(const SSTrack *track, bool *flipped);
 // The next segment of the stage (and the flipped state it brings)
