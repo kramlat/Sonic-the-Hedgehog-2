@@ -1,5 +1,6 @@
 #include "Object/Signpost.h"
 #include "SstLoad.h"
+extern uint8_t true_two_player; // (Game.h: the versus play)
 void Obj_Ring(Sst *self);
 #include "ObjectSst.h"
 #include "Object.h"
@@ -44,7 +45,7 @@ void Obj_Signpost(Sst *self) {
     case 0: // Initialization
         // Beta 4: in the one player play the end panel is only there in the first act (and Metropolis' second): in the others the act ends at its boss and the egg prison, and a panel that the layout has
         // (Emerald Hill 2 has one beyond the arena) takes itself away
-        if (!two_player_mode && level_id != LEVEL_ID(ZoneId_MTZ, 1) && LEVEL_ACT(level_id) != 0) {
+        if (!true_two_player && level_id != LEVEL_ID(ZoneId_MTZ, 1) && LEVEL_ACT(level_id) != 0) {
             Sst_Delete(self);
             break;
         }
@@ -59,7 +60,7 @@ void Obj_Signpost(Sst *self) {
         self->priority = 4 * 0x80;
         // Fallthrough
     case 2: // Wait for contact
-        if (vs_stats_active) { // the versus play: each player passes it on his own, the first one sets it spinning
+        if (true_two_player) { // the versus play: each player passes it on his own, the first one sets it spinning
             if (VsEndPanel_Update(self)) {
                 PlaySound(sfx_Signpost);
                 SplitScreen_LockCameras(self->x_pos.f.u, self->width_pixels);
@@ -77,7 +78,7 @@ void Obj_Signpost(Sst *self) {
         }
         break;
     case 4: // Spinning
-        if (vs_stats_active)
+        if (true_two_player)
             VsEndPanel_Update(self); // (the other player may pass it while it spins)
         // Handle spinning animation
         if (--own->spin_time < 0) {
@@ -116,7 +117,7 @@ void Obj_Signpost(Sst *self) {
         }
         break;
     case 6: // Player run
-        if (vs_stats_active) { // the versus play: the act is over when both have passed it (and a moment after the last)
+        if (true_two_player) { // the versus play: the act is over when both have passed it (and a moment after the last)
             if (VsEndPanel_Update(self))
                 break;
             if (VsEndPanel_BothPassed() && ++own->spin_time > 180)

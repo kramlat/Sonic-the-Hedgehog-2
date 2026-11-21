@@ -2,6 +2,7 @@
 #include "SstLoad.h"
 #include "ObjectSst.h"
 #include "Object.h"
+extern uint8_t true_two_player; // (Game.h: the versus play)
 
 #include "Constants.h"
 #include "Game.h"
@@ -59,7 +60,7 @@ uint16_t TitleCard_NextLevel(void) {
     }
     if (zone > 0x10)
         return 0;
-    return level_order[two_player_mode != 0][zone][act & 1];
+    return level_order[true_two_player != 0][zone][act & 1]; // (the versus play's order: the true 2 player flag, not the split screen)
 }
 
 const uint8_t *EndCard_ZoneArt(void); // (Sonic2PLC.c, which has the art)

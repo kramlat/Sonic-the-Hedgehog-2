@@ -3,6 +3,7 @@
 #include "Object/Monitor.h"
 #include "VersusStats.h"
 #include "SplitScreen.h"
+extern uint8_t true_two_player; // (Game.h: the versus play)
 void Obj_ObjectHit(Sst *self);
 #include "Resource/Mappings/Monitor.h"
 #include "Resource/Animation/Monitor.h"
@@ -89,7 +90,7 @@ void Obj_Monitor(Sst *self) {
         // Set collision type and animation
         self->collision_flags = 0x46;
         self->anim = self->subtype; // subtype
-        if (two_player_mode)
+        if (true_two_player)
             self->anim = 9; // (the versus play: every monitor shows the teleport icon and gives a random item)
         // Fallthrough
     case 2: // Solid
@@ -194,7 +195,7 @@ void Obj_Monitor(Sst *self) {
             item->y_pos.f.u = self->y_pos.f.u;
             item->anim = self->anim;
             item->status_tertiary = self->status_tertiary; // (who broke it)
-            if (two_player_mode)
+            if (true_two_player)
                 item->anim = (uint8_t)((frame_count & 7) + 1); // (Monitor_Contents: the item is one of the eight, by the frame's count)
         }
 
@@ -315,7 +316,7 @@ void Obj_MonitorItem(Sst *self) {
                 HurtSonicFrom(player, self->x_pos.f.u, false);
                 break;
             case 8: // The random monitor ("?"): the two players change places
-                if (two_player_mode)
+                if (true_two_player)
                     SplitScreen_SwapPlayers();
                 break;
             default: // 0, 9 (the spring): nothing, as in the prototype

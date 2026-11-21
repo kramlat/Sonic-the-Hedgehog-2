@@ -16,6 +16,7 @@
 #include "Sound.h"
 #include "Resource/Mappings/StarPost.h"
 #include "Resource/Mappings/StarPostStars.h"
+extern uint8_t true_two_player; // (Game.h: the versus play)
 
 uint8_t last_star_p2;
 int16_t star_p2_x, star_p2_y;
@@ -91,7 +92,7 @@ static void CheckPlayer(Sst *self, Sst *who, bool second) {
         ball->mapping_frame = 2;
         bown->timer = 0x20;
         bown->parent = (uint16_t)(self - sst);
-        if (!two_player_mode && rings >= 0x32)
+        if (!true_two_player && rings >= 0x32)
             SpawnBonusStars(self);
     }
     self->anim = 1;
@@ -228,7 +229,7 @@ void Obj_StarPost(Sst *self) {
     case 2:
         if (!debug_use && !(lock_multi & 0x80)) {
             CheckPlayer(self, player, false);
-            if (two_player_mode)
+            if (true_two_player)
                 CheckPlayer(self, TAILS_OBJ, true);
         }
         Animate(self);

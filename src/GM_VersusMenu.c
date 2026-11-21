@@ -439,10 +439,16 @@ bool VersusMenu_ChoseSpecialStage(void) {
     return chose_special_stage;
 }
 
+static bool chose_local;
+bool VersusMenu_ChoseLocal(void) {
+    return chose_local;
+}
+
 extern bool hud_player_two; // (Object/HUD.c)
 
 bool VersusMenu_Run(void) {
     chose_special_stage = false;
+    chose_local = false;
     hud_player_two = false;
     EnterScreens();
     PlayMusic(mus_Menu);
@@ -456,6 +462,7 @@ bool VersusMenu_Run(void) {
         if (choice == Session_Local) {
             if (ZoneMenu()) {
                 result = true;
+                chose_local = true; // (the split screen: a session online has the one picture)
                 break;
             }
             continue;

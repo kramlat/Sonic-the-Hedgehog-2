@@ -367,8 +367,8 @@ static void PlayLevel(bool new_game) {
    FadeOutMusic();
 }
 
-// Sonic 2's title Start: the level select cheat is on from the start (hold A and press Start, no code to enter), and a plain Start begins in Neo Green Hill (the prototype's title sets
-// Current_ZoneAndAct to neo_green_hill_zone_act_1: zone slot $0F, Aquatic Ruin in the final game).
+// Sonic 2's title Start: the level select cheat is on from the start (hold A and press Start, no code to enter), and a plain Start begins in Emerald Hill (Beta 4's title sets the level to 0; the pre-beta's set Neo Green Hill
+// (zone slot $0F, Aquatic Ruin in the final game), which is the third zone of the order here as in the final game).
 extern bool hud_player_two; // (Object/HUD.c)
 
 static void Tit_ChkLevSel(bool level_select_cheat) {
@@ -380,14 +380,16 @@ static void Tit_ChkLevSel(bool level_select_cheat) {
     } else {
         two_player_mode = TitleMenu_TwoPlayers(); // (the menu's choice: Up and Down turn it over, Start takes it)
         true_two_player = two_player_mode;
-        level_id = LEVEL_ID(ZoneId_ARZ, 0);
+        level_id = LEVEL_ID(ZoneId_EHZ, 0);
         if (two_player_mode && !VersusMenu_Run()) { // (the session and zone menus; B on the first goes back to the title)
             two_player_mode = true_two_player = false;
             return;
         }
-        if (two_player_mode)
+        if (true_two_player) {
+            two_player_mode = VersusMenu_ChoseLocal(); // (the split screen only for the local match: the true 2 player mode is the versus, with or without it)
             VersusMatch_Begin(); // (the match: its acts' results and counters)
-        if (two_player_mode && VersusMenu_ChoseSpecialStage()) { // (its box: the special stage with the two players)
+        }
+        if (true_two_player && VersusMenu_ChoseSpecialStage()) { // (its box: the special stage with the two players)
             PlayLevel(true);
             gamemode = GameMode_Special;
             level_id = 0;

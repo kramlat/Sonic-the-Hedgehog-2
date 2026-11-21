@@ -14,7 +14,7 @@
 #include "MathUtil.h"
 #include "Sound.h"
 
-extern uint8_t two_player_mode; // (SplitScreen.c)
+extern uint8_t true_two_player; // (Game.h)
 #include "Backend/VDP.h"
 
 #include <string.h>
@@ -58,7 +58,7 @@ void DHZBoss_Reset(void) {
 void DHZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
-        if (two_player_mode) { // (Beta 4: in the versus play there is no boss: the right limit is held at $2100)
+        if (true_two_player) { // (Beta 4: in the versus play there is no boss: the right limit is held at $2100)
             limit_right1 = limit_right2 = 0x2100 + SCREEN_WIDEADD2;
             break;
         }

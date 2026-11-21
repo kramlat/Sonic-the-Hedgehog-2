@@ -592,12 +592,16 @@ static void Order_TheActsFollowThePreBetasSequence(void) {
     CHECK_EQ(TitleCard_NextLevel(), 0xFFFF);
     level_id = LEVEL_ID(ZoneId_MTZ, 2); // (the third act is the pre-beta's zone 5: Neo Green Hill)
     CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_ARZ, 0));
-    // versus: Emerald Hill 2 goes to Casino Night, Dust Hill 2 ends it
-    two_player_mode = 1;
+    // versus (the true 2 player mode, not the split screen alone): Emerald Hill 2 goes to Casino Night, Dust Hill 2 ends it
+    true_two_player = 1;
     level_id = LEVEL_ID(ZoneId_EHZ, 1);
     CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_CNZ, 0));
     level_id = LEVEL_ID(ZoneId_MCZ, 1);
     CHECK_EQ(TitleCard_NextLevel(), 0xFFFF);
+    true_two_player = 0;
+    two_player_mode = 1; // (the split screen alone keeps the one player order)
+    level_id = LEVEL_ID(ZoneId_EHZ, 1);
+    CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_CPZ, 0));
     two_player_mode = 0;
 }
 

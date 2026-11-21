@@ -1,4 +1,5 @@
 #include "VersusMatch.h"
+extern uint8_t true_two_player; // (Game.h: the versus play)
 
 #include <string.h>
 
@@ -35,7 +36,7 @@ void VersusMatch_Begin(void) {
 }
 
 void VersusMatch_LevelStart(void) {
-    if (two_player_mode && in_match) {
+    if (two_player_mode || true_two_player) { // (separate counters for each player: the split screen's and the versus')
         VsStats_Begin();
         return;
     }

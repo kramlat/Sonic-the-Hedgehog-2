@@ -9,6 +9,8 @@
 bool VersusMenu_Run(void);
 // After a true VersusMenu_Run: the special stage box was chosen (level_id is not a level then)
 bool VersusMenu_ChoseSpecialStage(void);
+// After a true VersusMenu_Run: the match is in the split screen (LOCAL SPLITSCREEN); a session online (HOST, JOIN) is the true 2 player mode alone, with the one picture
+bool VersusMenu_ChoseLocal(void);
 
 #include "VersusFlow.h"
 

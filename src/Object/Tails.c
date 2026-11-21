@@ -1339,7 +1339,7 @@ static signed int React_Monitor(Sst *self, Sst *hit) {
             if (!hit->routine_secondary)
                 hit->routine_secondary += 4;
         }
-    } else if ((two_player_mode || true_two_player) && self->anim == SonAnimId_Roll && hit->routine == 2) { // (Beta 4: Tails does not break a monitor by landing on it unless it is the versus play (or a second human has him): only Sonic does, loc_3B5AA)
+    } else if (true_two_player && self->anim == SonAnimId_Roll && hit->routine == 2) { // (Beta 4: Tails does not break a monitor by landing on it unless a second human has him (the true 2 player mode: the versus play): only Sonic does, loc_3B5AA)
         // Break monitor (once: a monitor that is breaking already is not broken again by the other character)
         self->y_vel = -self->y_vel;
         hit->routine += 2;
