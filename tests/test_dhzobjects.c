@@ -540,7 +540,7 @@ static void DHZ_TheBossDigsDropsRocksAndChargesAlongTheFloor(void) {
             if (sst[j].code != sst_object_codes[0x57] || sst[j].routine != 4)
                 continue;
             now++;
-            dangerous += sst[j].collision_flags == 0xAD;
+            dangerous += sst[j].collision_flags == 0xB1; // (the pre-beta's $AD: the same size entry, Beta 4's numbering)
             Obj_DHZBoss(&sst[j]);
         }
         rocks += now;

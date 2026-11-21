@@ -73,7 +73,7 @@ static uint8_t dle_counter; // $F73A: how long the arena has been shut
 static const int16_t arrow_targets[4] = { 0x458, 0x478, 0x498, 0x4B8 };
 
 // DynResize_NGHz of act 2: the camera comes to the arena (X $2800): the left edge and the lower limit are fixed and the boss's list loaded; at X $2A40 the arena is shut, the music fades and the boss is made; its
-// camera's top is held once it has gone to Y $3F8, and $5A frames later the boss's music starts; when it is beaten, the results card
+// camera's top is held once it has gone to Y $3F8, and $5A frames later the boss's music starts; when it is beaten the camera is let go
 void NGHZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
@@ -107,9 +107,9 @@ void NGHZBoss_Events(void) {
             QueueSound1(bgm_Boss);
         }
         break;
-    case 6:
-        if (boss_status)
-            GotThroughAct();
+    case 6: // once it is beaten the camera can no longer go back: the left edge follows it and the right limit stays where it is (loc_D2CC; the capsule in the layout ends the act, the pre-beta's events made the results card)
+        limit_left2 = scrpos_x.f.u;
+        limit_right1 = limit_right2;
         break;
     }
 }
@@ -287,9 +287,11 @@ static void Ship_Run(Sst *self, Own_NGHZBoss *own) {
         } else if (boss_move.timer > 0) {
             if (boss_move.timer < 0x18)
                 boss_move.ysp -= 8;
-            else if (boss_move.timer == 0x18)
+            else if (boss_move.timer == 0x18) {
                 boss_move.ysp = 0;
-            else if (boss_move.timer >= 0x20)
+                boss_status = 1; // (Beta 4's Boss_Defeated_Music_Restore: the boss is beaten and the level's music is back; the animals' art, PLC $40, is not ported yet; the capsule in the layout ends the act)
+                QueueSound1(Level_Music(level_id));
+            } else if (boss_move.timer >= 0x20)
                 boss->anim_routine += 2;
         } else {
             boss_move.ysp += 0x18;
@@ -303,14 +305,12 @@ static void Ship_Run(Sst *self, Own_NGHZBoss *own) {
         Sst_Draw(self);
         break;
 
-    case Ship_Leave: // up and away to the right while the arena's right edge opens to $2D00; offscreen, the results card
+    case Ship_Leave: // up and away to the right while the camera's right limit is let out to $2BE0 (Beta 4; the pre-beta's $2D00); when it is there and the ship is off the screen it is gone (the capsule in the layout ends the act)
         boss_move.xsp = 0x400;
         boss_move.ysp = (int16_t)0xFFC0;
-        if (limit_right2 < 0x2D00 + SCREEN_WIDEADD2) {
+        if (limit_right2 < 0x2BE0 + SCREEN_WIDEADD2) {
             limit_right1 = limit_right2 += 2;
         } else if (!(self->render_flags & SST_RENDER_ON_SCREEN)) {
-            if (!boss_status)
-                boss_status = 1;
             Sst_Delete(self);
             return;
         }
@@ -472,7 +472,7 @@ static void Pillar_Run(Sst *self, Own_Part *own) {
         } else {
             self->x_vel = 3;
         }
-        self->collision_flags = 0xAC;
+        self->collision_flags = 0xB0; // (Beta 4 numbering of Touch_Sizes: the pre-beta's $AC)
         break;
     }
 

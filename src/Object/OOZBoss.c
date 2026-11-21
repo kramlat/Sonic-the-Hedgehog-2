@@ -489,7 +489,7 @@ static void Ball_Run(Sst *self, Own_OOZBall *ball) {
             self->x_vel = (int16_t)-self->x_vel;
         }
         self->x_pos.f.u += offset;
-        self->collision_flags = 0xAB;
+        self->collision_flags = 0xAF; // (Beta 4 numbering of Touch_Sizes: the pre-beta's $AB)
         break;
     }
 

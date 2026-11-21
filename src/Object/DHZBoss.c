@@ -192,7 +192,7 @@ static void Boss_DropRock(void) {
     rock->mapping_frame = 0x0D;
     if (!harmless) {
         rock->mapping_frame = 0x14;
-        rock->collision_flags = 0xAD;
+        rock->collision_flags = 0xB1; // (Beta 4 numbering of Touch_Sizes: the pre-beta's $AD)
     }
 }
 
