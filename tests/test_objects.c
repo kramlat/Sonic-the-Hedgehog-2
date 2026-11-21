@@ -657,6 +657,7 @@ static void SFZBoss_BodyMakesItsPartsAndTheBouncersAndIsBeaten(void) {
         CHECK(b->code == NULL);
         CHECK_EQ(limit_btm2, 0x720 - SCREEN_TALLADD);
     }
+    ClearPLC();
 }
 
 // Wing Fortress' events (Beta 4's DynResize_SFz): the background starts as the camera; once the camera is at $2BC0 across and $580 down the events move on and the offset in x runs up, and past $600 the offset in y

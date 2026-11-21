@@ -13,6 +13,7 @@
 #include "Object/CharControl.h"
 #include "Object/Tails.h"
 #include "Solid.h"
+#include "PLC.h"
 
 #include "Resource/Animation/SFZBoss.h"
 #include "Resource/Mappings/SFZBoss.h"
@@ -137,6 +138,7 @@ static bool Body_Run(Sst *self) {
     switch (self->routine_secondary) {
     case 0x00: // loc_38382
         self->routine_secondary += 2;
+        AddPLC(PlcId_SFZBoss); // (Beta 4 has the list $3E in its cue table and no call for it: the boss's art is brought in as the body starts)
         self->collision_flags = 0;
         self->collision_property = 8;
         limit_btm2 = 0x442 - SCREEN_TALLADD;
