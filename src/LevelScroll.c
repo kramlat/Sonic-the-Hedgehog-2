@@ -899,6 +899,7 @@ static void Deform_DEZ(void)
 	for (int i = 0; i < 36; i++)
 		values[i] = (int16_t)w[i];
 	Deform_Bands(heights, 36, values, (uint16_t)bg_scrpos_y.f.u, (int16_t)-scrpos_x.f.u);
+	HTZQuake_ShakeDustHill(); // (the final boss shakes the screen as it lands: Beta 4's Bg_Scroll_DEz)
 }
 
 // Sky Chase (Bg_Scroll_SCz): the level scrolls by itself: the camera goes by the Tornado's speeds (the events set them: SFZObjects.h) and not after the player; the background goes half a pixel a frame whenever the camera

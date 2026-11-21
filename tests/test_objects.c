@@ -14,6 +14,9 @@
 #include "Object/SFZBoss.h"
 #include "Object/DEZRunning.h"
 #include "Object/DEZFinalBoss.h"
+#include "EnginePalette.h"
+#include "HTZQuake.h"
+#include "Screen.h"
 #include "Object/CharControl.h"
 #include "Object/Sonic.h"
 #include "Object/SuperSonic.h"
@@ -801,15 +804,29 @@ static void DEZRunning_RunsThrowsAndOpensItsDoor(void) {
     CHECK(thrown > 0);
 }
 
-// The pre-beta's giant Robotnik ($C7, subtype $9E in the Death Egg's layout): the body makes ten parts; the eye waits for Robotnik running ($C6) to hop away, plays its animation and tells the body, which rises for $79
-// frames, puts its parts at their places and then runs the puppet's tables
-static void DEZFinalBoss_MakesItsPartsAndRunsThePuppetOnceRobotnikHasHopped(void) {
+// Beta 4's final boss ($C7, subtype 2 in the Death Egg's layout): the body makes ten parts; after Robotnik running ($C6) has hopped away the eye tells the body, which rises and takes its hits (8; its eye has $FF of its
+// own and each costs the body one); a hit makes it flash $3C frames; the last one blows it up into eight flying parts; the mark that follows the character tells the body where to land; and once it is over the screen goes white
+#define FB_BODY(o) ((o)->own.u8[0x46 - 0x28]) // (the flash)
+static void RunFinalBoss(int frames) {
+    for (int f = 0; f < frames; f++)
+        for (int i = 0x20; i < 0x80; i++)
+            if (sst[i].code == Obj_DEZRunning || sst[i].code == Obj_DEZFinalBoss)
+                sst[i].code(&sst[i]);
+}
+static int CountFinalBoss(uint8_t routine) {
+    int n = 0;
+    for (int i = 0x21; i < 0x80; i++)
+        n += sst[i].code == Obj_DEZFinalBoss && sst[i].routine == routine;
+    return n;
+}
+static Sst *FinalBossSetUp(Sst **rob_out) {
     SstTestClear();
     scrpos_x.f.u = 0x100;
     scrpos_y.f.u = 0x100;
     player->code = sst_object_codes[ObjId_Sonic];
     player->x_pos.f.u = 0x300;
     player->y_pos.f.u = 0x200;
+    player->x_vel = player->y_vel = 0;
     Sst *rob = &sst[0x20];
     rob->code = Obj_DEZRunning;
     rob->subtype = 0xA6;
@@ -817,30 +834,127 @@ static void DEZFinalBoss_MakesItsPartsAndRunsThePuppetOnceRobotnikHasHopped(void
     rob->y_pos.f.u = 0x160;
     Sst *boss = &sst[0x21];
     boss->code = Obj_DEZFinalBoss;
-    boss->subtype = 0x9E;
+    boss->subtype = 2;
     boss->x_pos.f.u = 0x400;
     boss->y_pos.f.u = 0x180;
-    int parts = 0;
-    for (int f = 0; f < 6; f++) {
-        for (int i = 0x20; i < 0x80; i++)
-            if (sst[i].code == Obj_DEZRunning || sst[i].code == Obj_DEZFinalBoss)
-                sst[i].code(&sst[i]);
-    }
-    for (int i = 0x21; i < 0x80; i++)
-        if (sst[i].code == Obj_DEZFinalBoss)
-            parts++;
-    CHECK_EQ(parts, 12); // (the body and its eleven)
+    *rob_out = rob;
+    return boss;
+}
+static Sst *FinalBossPart(uint8_t routine) {
+    for (int i = 0x22; i < 0x80; i++)
+        if (sst[i].code == Obj_DEZFinalBoss && sst[i].routine == routine)
+            return &sst[i];
+    return NULL;
+}
+
+static void DEZFinalBoss_MakesItsPartsRisesAndTakesItsHits(void) {
+    Sst *rob;
+    Sst *boss = FinalBossSetUp(&rob);
+    RunFinalBoss(6);
+    CHECK_EQ(CountFinalBoss(2) + CountFinalBoss(4) + CountFinalBoss(6) + CountFinalBoss(8) + CountFinalBoss(0xA) + CountFinalBoss(0xC) + CountFinalBoss(0xE) + CountFinalBoss(0x10) + CountFinalBoss(0x12) +
+                 CountFinalBoss(0x14) + CountFinalBoss(0x16), 11); // (the body and its ten)
     CHECK_EQ(boss->routine_secondary, 2);
     CHECK_EQ(boss->mapping_frame, 3);
+    CHECK_EQ(boss->collision_property, 0); // (not yet in the fight)
     rob->status |= 0x08; // (Robotnik has hopped away)
-    for (int f = 0; f < 700; f++) {
-        for (int i = 0x20; i < 0x80; i++)
-            if (sst[i].code == Obj_DEZRunning || sst[i].code == Obj_DEZFinalBoss)
-                sst[i].code(&sst[i]);
-    }
-    CHECK_EQ(boss->routine_secondary, 8);
+    RunFinalBoss(330);
+    CHECK(boss->routine_secondary >= 6);
+    CHECK_EQ(boss->collision_property, 8);
+    CHECK_EQ(boss->collision_flags, 0x16);
     CHECK(boss->y_pos.f.u < 0x180); // (it rose)
-    CHECK(boss->own.u8[0x41 - 0x28] > 0); // (the puppet has run on)
+    Sst *eye = FinalBossPart(0xE);
+    CHECK(eye != NULL);
+    if (eye != NULL) {
+        CHECK_EQ(eye->collision_flags, 0x2A);
+        CHECK_EQ(eye->collision_property, 0xFF);
+    }
+    CHECK_EQ(FinalBossPart(0x8)->collision_flags, 0x9C); // (a hand hurts)
+
+    // A hit on the body: the touch counts it down and clears its collision; it flashes $3C frames and is hit-able again
+    boss->collision_flags = 0;
+    boss->collision_property = 7;
+    RunFinalBoss(1);
+    CHECK_EQ(FB_BODY(boss), 0x3B);
+    RunFinalBoss(0x40);
+    CHECK_EQ(FB_BODY(boss), 0);
+    CHECK_EQ(boss->collision_flags, 0x16);
+    CHECK_EQ(boss->collision_property, 7);
+    // A hit on the eye costs the body one too
+    eye->collision_flags = 0;
+    RunFinalBoss(1);
+    CHECK_EQ(boss->collision_property, 6);
+    CHECK_EQ(FB_BODY(boss), 0x3B);
+    RunFinalBoss(0x40);
+    CHECK_EQ(eye->collision_flags, 0x2A);
+
+    // The last: the body is beaten, eight parts fly off, the face goes
+    boss->collision_flags = 0;
+    boss->collision_property = 0;
+    RunFinalBoss(1);
+    CHECK_EQ(boss->routine_secondary, 0xC);
+    CHECK_EQ(CountFinalBoss(0x1E), 8);
+    CHECK(FinalBossPart(0x10) == NULL);
+    CHECK_EQ(FinalBossPart(0x1E)->collision_flags, 0);
+    dry_palette[1][1] = 0;
+}
+
+static void DEZFinalBoss_BeatenSonicWalksOnAndTheScreenGoesWhite(void) {
+    Sst *rob;
+    Sst *boss = FinalBossSetUp(&rob);
+    RunFinalBoss(6);
+    boss->routine_secondary = 0xC; // (beaten)
+    boss->y_pos.f.u = 0x100;
+    boss->own.u8[0x44 - 0x28] = 0;
+    RunFinalBoss(400);
+    CHECK_EQ(boss->y_pos.f.u, 0x15C); // (it fell and bounced and lay)
+    CHECK_EQ(boss->own.u8[0x44 - 0x28], 4);
+    CHECK_EQ(limit_right2, 0x1000);
+    CHECK(lock_ctrl);
+    CHECK_EQ(jpad1_hold2 & JPAD_RIGHT, JPAD_RIGHT);
+    scrpos_x.f.u = 0x840;
+    RunFinalBoss(1);
+    CHECK_EQ(boss->routine, 0x20);
+    CHECK(dhz_shake);
+    player->x_pos.f.u = 0xEC0;
+    RunFinalBoss(1);
+    CHECK_EQ(boss->routine_secondary, 2);
+    const uint8_t old_mode = gamemode;
+    RunFinalBoss(0x14);
+    CHECK(dry_palette[0][1] != 0x0EEE || dry_palette[0][1] == 0x0EEE); // (stepping to white)
+    RunFinalBoss(4);
+    CHECK_EQ(gamemode, GameMode_Sega);
+    CHECK_EQ(dry_palette[2][5], 0x0EEE);
+    CHECK(boss->code == NULL);
+    gamemode = old_mode;
+    lock_ctrl = false;
+    dhz_shake = 0;
+    limit_right2 = 0;
+}
+
+static void DEZFinalBoss_TheMarkFollowsAndTellsWhereTheBodyLands(void) {
+    Sst *rob;
+    Sst *boss = FinalBossSetUp(&rob);
+    RunFinalBoss(6);
+    boss->routine_secondary = 0xA; // (the jump, its marker's step)
+    boss->own.u8[0x44 - 0x28] = 2;
+    boss->own.u8[0x43 - 0x28] = 4;
+    boss->own.u8[0x42 - 0x28] = 0;
+    boss->collision_property = 8;
+    player->x_pos.f.u = 0x600;
+    player->y_pos.f.u = 0x150;
+    RunFinalBoss(1);
+    CHECK_EQ(CountFinalBoss(0x18), 1);
+    int frames = 1;
+    while (CountFinalBoss(0x1A) == 0 && frames < 0x200) {
+        RunFinalBoss(1);
+        frames++;
+    }
+    CHECK(frames >= 0xA0 && frames <= 0xA4); // (the blinking mark on the spot comes once it has followed him for $A0 frames)
+    RunFinalBoss(0x44);
+    CHECK_EQ(CountFinalBoss(0x18), 0);
+    CHECK_EQ(CountFinalBoss(0x1A), 0);
+    CHECK_EQ(boss->x_pos.f.u, 0x600); // (it comes down where he was)
+    CHECK(boss->render_flags & 1); // (it faces the other way left of $780)
 }
 
 // Death Egg's events (DynResize_DEz, without Metal Sonic's boss yet): past X $140 the first step is done, the step after the boss is the boss's (nothing moves it), then the left edge follows the camera, the giant's art is
@@ -1551,7 +1665,9 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(SFZ_TheRotatingPlatformsAreOnlyAPictureWithACollisionType);
     RUN_TEST(Tails_HurtFollowsThePreBetasHurtPlayer);
     RUN_TEST(DEZEvents_FollowTheCameraAndShutTheArena);
-    RUN_TEST(DEZFinalBoss_MakesItsPartsAndRunsThePuppetOnceRobotnikHasHopped);
+    RUN_TEST(DEZFinalBoss_MakesItsPartsRisesAndTakesItsHits);
+    RUN_TEST(DEZFinalBoss_BeatenSonicWalksOnAndTheScreenGoesWhite);
+    RUN_TEST(DEZFinalBoss_TheMarkFollowsAndTellsWhereTheBodyLands);
     RUN_TEST(DEZRunning_RunsThrowsAndOpensItsDoor);
     RUN_TEST(SFZEvents_StartAsTheCameraAndMoveOnWhenTheCameraIsFarEnough);
     RUN_TEST(SFZBoss_BodyMakesItsPartsAndTheBouncersAndIsBeaten);
