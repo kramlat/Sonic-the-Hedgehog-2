@@ -102,9 +102,11 @@ void MTZBoss_Events(void) {
             QueueSound1(bgm_Boss);
         }
         break;
-    case 6:
-        if (boss_status)
-            GotThroughAct();
+    case 6: // once it is on its way out (Beta 4's last state) the camera cannot go back: the left edge follows it, the right limit stays; the capsule in the layout ends the act
+        if (boss_status) {
+            limit_left2 = scrpos_x.f.u;
+            limit_right1 = limit_right2;
+        }
         break;
     }
 }
@@ -127,7 +129,7 @@ static void Ship_Damage(Sst *self, Own_MTZBoss *own) {
     if (boss->anim_routine < Ship_Wreck) {
         if (self->collision_property == 0) {
             AddPoints(100);
-            boss_move.timer = 0xB3;
+            boss_move.timer = 0xEF; // (Beta 4: $EF frames, the explosions in the first $B3; the pre-beta's $B3)
             boss->anim_routine = Ship_Wreck;
             goto after;
         }
@@ -210,14 +212,14 @@ static void Ship_DiveRun(Sst *self, Own_MTZBoss *own) {
             if ((uint16_t)boss_move.x.f.u < 0x2AF0) {
                 own->dive += 2;
                 boss_move.ysp = 0x180;
-                own->shots = 4;
+                own->shots = 3; // (Beta 4: three shots a dive; the pre-beta's four)
                 boss_move.timer = 0x1E;
                 Ship_Turn(self, true);
             }
         } else if ((uint16_t)boss_move.x.f.u >= 0x2BB0) {
             own->dive += 2;
             boss_move.ysp = 0x180;
-            own->shots = 4;
+            own->shots = 3; // (Beta 4: three shots a dive; the pre-beta's four)
             boss_move.timer = 0x1E;
             Ship_Turn(self, false);
         }
@@ -387,9 +389,12 @@ static void Ship_Run(Sst *self, Own_MTZBoss *own) {
 
     case Ship_Wreck: // Offset_0x02DCB6: blowing up where it is, and then it turns and falls still
         if (--boss_move.timer >= 0) {
-            Boss_Defeated(self);
-            boss_anim[2] = 7;
+            if (boss_move.timer >= 0x3C) { // (Beta 4: the last $3C frames are quiet)
+                Boss_Defeated(self);
+                boss_anim[2] = 7;
+            }
         } else {
+            QueueSound1(Level_Music(level_id)); // (Beta 4's Boss_Defeated_Music_Restore)
             Ship_Turn(self, true);
             boss_move.xsp = 0;
             boss_move.ysp = 0;
@@ -404,16 +409,19 @@ static void Ship_Run(Sst *self, Own_MTZBoss *own) {
         Sst_Draw(self);
         return;
 
-    case Ship_Leave: // Offset_0x02DD0C: away to the right as the arena opens to $2AB0 (and its edge off the screen, the act is over)
+    case Ship_Leave: // Offset_0x02DD0C: away to the right as the camera's right limit is let out to $2BD0 (Beta 4; the pre-beta's $2AB0); when it is there and the ship is off the screen it is gone (the capsule in the layout ends the act)
         boss_move.xsp = 0x400;
         boss_move.ysp = (int16_t)0xFFC0;
-        if (limit_right2 < 0x2AB0 + SCREEN_WIDEADD2) {
+        if (limit_right2 < 0x2BD0 + SCREEN_WIDEADD2) {
             limit_right1 = limit_right2 += 2;
         } else if (!(self->render_flags & SST_RENDER_ON_SCREEN)) {
-            if (!boss_status)
-                boss_status = 1;
+            limit_right1 = limit_right2 = 0x2BD0 + SCREEN_WIDEADD2;
             Sst_Delete(self);
             return;
+        }
+        if (!boss_status) {
+            boss_status = 1;
+            Boss_DefeatedLoadFlickies(); // (Beta 4: once, as it leaves: the animals' and explosions' art)
         }
         Boss_Move();
         self->x_pos.f.u = boss_move.x.f.u;
@@ -676,6 +684,11 @@ void Obj_MTZBossBall(Sst *self) {
             int16_t speed = (int16_t)0xFF80;
             if ((int16_t)(player->x_pos.f.u - self->x_pos.f.u) < 0)
                 speed = (int16_t)-speed;
+            if ((uint16_t)self->x_pos.f.u < 0x2AF0) // (Beta 4: at the arena's ends it goes inwards, and faces the way it goes)
+                speed = 0x80;
+            if ((uint16_t)self->x_pos.f.u >= 0x2BB0)
+                speed = (int16_t)0xFF80;
+            SST_RENDER_SET(self, SST_RENDER_X_FLIP, speed >= 0);
             self->x_vel = speed;
         } else if (self->collision_property != 2) { // (a ball has been rolled into: the ship cannot be hurt)
             ship->collision_flags = 0;
