@@ -54,12 +54,17 @@ int16_t SplitScreen_FollowX(void) {
 }
 
 static tilebank_t *htz_p2_bank; // the second view's own mountains in Hill Top
+extern const tilebank_t *hud_second_bank; // (Object/HUD.c)
+static tilebank_t *hud_p2_bank;          // the second view's HUD digits (HUD.c writes them)
 
 static void SplitOff(void) {
     VDP_SetReal(0); // (the Genesis' reading of tiles again: the second view's own tile bank was the one thing that needed the real one)
     HTZBackground_SetSecondBank(NULL);
     TileBank_Free(htz_p2_bank);
     htz_p2_bank = NULL;
+    hud_second_bank = NULL;
+    TileBank_Free(hud_p2_bank);
+    hud_p2_bank = NULL;
     hud_lives_lower_left = false;
     camera_split = false;
     sprite_split_screen = SPRITE_SPLIT_NONE;
@@ -103,6 +108,12 @@ void SplitScreen_LoadLevel(void) {
         htz_p2_bank = TileBank_Create(0x20);
         HTZBackground_SetSecondBank(htz_p2_bank);
         DrawTileRemap_Set(&screen2p.plane_b, 0x500, 0x20, htz_p2_bank);
+    }
+    // The second view has HUD numbers of its own (Miles' score, rings and time): a bank with a copy of the HUD's art, from which the HUD's second sprite is drawn (the sprites read banks in the real reading)
+    hud_p2_bank = TileBank_Create(ArtTile_HUD + 0x3A);
+    if (hud_p2_bank != NULL) {
+        VDP_SetReal(VDP_GetReal() | VDP_REAL_SPRITES);
+        hud_second_bank = hud_p2_bank;
     }
     LevelPlane_Init(&fg_plane, &screen1p.plane_a, &scrpos_x, &scrpos_y, view_width);
     LevelPlane_Init(&level_plane_p2, &screen2p.plane_a, &scrpos_x_p2, &scrpos_y_p2, view_width);

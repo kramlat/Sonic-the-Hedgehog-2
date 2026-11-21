@@ -7,6 +7,8 @@
 #include "LevelScroll.h"
 #include "Object/Sonic.h"
 #include "Video.h"
+#include "TileBank.h"
+#include "Backend/VDP.h"
 
 #include <stdint.h>
 
@@ -109,6 +111,7 @@ void HUD_WriteHex(size_t offset, uint32_t value) {
 }
 
 // HUD functions
+static bool second_synced; // (the second view's HUD art has the words copied: see HUD_UpdateSecond)
 extern uint16_t endact_total; // (Object/TitleCard.c)
 extern uint8_t two_player_mode; // (SplitScreen.c)
 extern bool hud_player_two;     // (Object/HUD.c)
@@ -174,9 +177,70 @@ static void HUD_WriteBonus(uint16_t value) {
 }
 
 void HUD_Base(void) {
+    second_synced = false; // (the second view's copy of the words is taken again)
     // Write lives and initial HUD cmd
     HUD_Lives();
     HUD_WriteCmd(0xDC40, hud_cmd_base, 14);
+}
+
+
+// The second view of a split screen has numbers of its own: a tile bank (SplitScreen.c makes it) with a copy of the HUD's art, where Miles' score, rings and time are written as they change; the HUD's second sprite
+// (Object/HUD.c) draws from it. The words are the main bank's copies, taken when the HUD's base has been written.
+extern const tilebank_t *hud_second_bank;
+extern bool hud_second_rings_zero, hud_second_minutes_nine;
+static uint32_t second_score;
+static uint16_t second_rings;
+static uint8_t second_min, second_sec;
+
+static void HUD_BankNumber(size_t first_tile, uint32_t value, const uint32_t *dec, size_t decs, bool blank_leading, bool zero_shows) {
+    static const uint8_t blank[64];
+    tilebank_t *bank = (tilebank_t *)hud_second_bank;
+    bool started = !blank_leading;
+    size_t tile = first_tile;
+    do {
+        uint16_t digit;
+        for (digit = 0; value >= *dec; digit++, value -= *dec)
+            ;
+        if (digit || (decs == 0 && zero_shows)) // (the rings' last digit shows a 0 too; the score's has the 0 of its mapping after it)
+            started = true;
+        TileBank_Write(bank, tile, started ? Art_HUDNum + (digit << 6) : blank, 64);
+        tile += 2;
+        dec++;
+    } while (decs-- > 0);
+}
+
+static void HUD_UpdateSecond(void) {
+    if (hud_second_bank == NULL)
+        return;
+    if (!second_synced) {
+        TileBank_Write((tilebank_t *)hud_second_bank, ArtTile_HUD, VDP_PeekVRAM() + ArtTile_HUD * TILE_SIZE, 0x3A * TILE_SIZE);
+        second_synced = true;
+        second_score = ~0u;
+        second_rings = 0xFFFF;
+        second_min = second_sec = 0xFF;
+    }
+    uint32_t s;
+    uint16_t r;
+    uint8_t min, sec;
+    VsStats_SecondHud(&s, &r, &min, &sec);
+    if (s != second_score) {
+        second_score = s;
+        HUD_BankNumber(ArtTile_HUDScore, s, &hud_dec[0], 5, true, false);
+    }
+    if (r != second_rings) {
+        second_rings = r;
+        HUD_BankNumber(ArtTile_HUDRings, r, &hud_dec[3], 2, true, true);
+    }
+    if (min != second_min) {
+        second_min = min;
+        HUD_BankNumber(ArtTile_HUDTimeMins, min, &hud_dec[5], 0, false, true);
+    }
+    if (sec != second_sec) {
+        second_sec = sec;
+        HUD_BankNumber(ArtTile_HUDTimeSecs, sec, &hud_dec[4], 1, false, true);
+    }
+    hud_second_rings_zero = r == 0;
+    hud_second_minutes_nine = min == 9;
 }
 
 void HUD_Update(void) {
@@ -261,6 +325,8 @@ void HUD_Update(void) {
         life_count = false;
         HUD_Lives();
     }
+
+    HUD_UpdateSecond();
 
     // Update the time and ring bonus numbers of the end-of-act and special stage results cards
     if (endact_bonus) {

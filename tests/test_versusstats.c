@@ -3,6 +3,12 @@
 #include "Level.h"
 #include "Object/Ring.h"
 #include "VersusStats.h"
+#include <string.h>
+#include "HUD.h"
+#include "Object/HUD.h"
+#include "TileBank.h"
+#include "Constants.h"
+extern const uint8_t Art_HUDNum[]; // (HUD.c has it)
 #include "Object.h"
 #include "Object/Tails.h"
 #include "Object/InvincibilityStars.h"
@@ -83,6 +89,36 @@ static void VsStats_EachCharactersShieldStarsAndShoesAreHisOwn(void) {
     shield = invincibility = shoes = 0;
 }
 
+// The second view's HUD numbers: Miles' rings and time are written into the bank the second sprite draws from, in the HUD's digits
+static void VsStats_TheSecondViewsHudShowsHisOwnNumbers(void) {
+    score = 0;
+    rings = 0;
+    level_time = (LevelTime){ 0 };
+    time_count = 1;
+    VsStats_Begin();
+    VsStats_Swap();                // (his object runs: 25 rings and 1:07 on his clock)
+    rings = 25;
+    level_time.min = 1;
+    level_time.sec = 7;
+    VsStats_Swap();
+    tilebank_t *bank = TileBank_Create(ArtTile_HUD + 0x3A);
+    CHECK(bank != NULL);
+    if (bank == NULL)
+        return;
+    hud_second_bank = bank;
+    HUD_Base();
+    HUD_Update();
+    CHECK_EQ(memcmp(bank->patterns + (ArtTile_HUDRings + 2) * 32, Art_HUDNum + (2 << 6), 64), 0); // (the 2 of 25)
+    CHECK_EQ(memcmp(bank->patterns + (ArtTile_HUDRings + 4) * 32, Art_HUDNum + (5 << 6), 64), 0); // (and the 5)
+    CHECK_EQ(memcmp(bank->patterns + ArtTile_HUDTimeMins * 32, Art_HUDNum + (1 << 6), 64), 0);    // (1:)
+    CHECK_EQ(memcmp(bank->patterns + (ArtTile_HUDTimeSecs + 2) * 32, Art_HUDNum + (7 << 6), 64), 0); // (07)
+    CHECK(!hud_second_rings_zero);
+    hud_second_bank = NULL;
+    TileBank_Free(bank);
+    vs_stats_active = false;
+    ring_collected_hook = NULL;
+}
+
 static void VsStats_TheSecondPlayersClockStopsOnItsOwn(void) {
     score = 0;
     rings = 0;
@@ -105,5 +141,6 @@ static void VsStats_TheSecondPlayersClockStopsOnItsOwn(void) {
 void RegisterVersusStatsTests(void) {
     RUN_TEST(VsStats_TheSecondPlayersCountersAreHisOwn);
     RUN_TEST(VsStats_TheSecondPlayersClockStopsOnItsOwn);
+    RUN_TEST(VsStats_TheSecondViewsHudShowsHisOwnNumbers);
     RUN_TEST(VsStats_EachCharactersShieldStarsAndShoesAreHisOwn);
 }

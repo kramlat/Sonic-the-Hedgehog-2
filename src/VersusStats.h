@@ -15,6 +15,8 @@ void VsStats_Swap(void);                        // the second player's set in, o
 void VsStats_Tick(void);                        // the second player's clock (the first's is the HUD's)
 void VsStats_RingCollected(void);               // the total of the player whose set is in
 void VsStats_AddPointsTo(const struct Sst *chr, uint16_t points); // points to the character's own score (Beta 4's AddPoints_1, which takes the character in a3)
+// The second player's score, rings and clock whichever set is in the game's variables (the HUD of the second view)
+void VsStats_SecondHud(uint32_t *score_out, uint16_t *rings_out, uint8_t *min, uint8_t *sec);
 void VsStats_ItemBroken(void);                  // an item box
 // A character's shield, invincibility and speed shoes (the flags are on his own object in Beta 4, `$2B` bits 0 to 2): the game keeps one set (`shield`, `invincibility`, `shoes`) that goes with the counters, so the second
 // player's are in `other` while the first player's object runs. Outside the versus play the one set is both characters' (Sonic's, which is what Tails has always seen).

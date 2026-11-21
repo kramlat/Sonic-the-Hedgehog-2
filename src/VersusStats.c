@@ -88,6 +88,15 @@ void VsStats_AddPointsTo(const Sst *chr, uint16_t points) {
     }
 }
 
+void VsStats_SecondHud(uint32_t *score_out, uint16_t *rings_out, uint8_t *min, uint8_t *sec) {
+    const bool in_game = !vs_stats_active || second_in;
+    *score_out = in_game ? score : other.score;
+    *rings_out = in_game ? rings : other.rings;
+    const LevelTime *t = in_game ? &level_time : &other.time;
+    *min = t->min;
+    *sec = t->sec;
+}
+
 bool VsStats_Has(const Sst *chr, int what) {
     const bool in_game = !vs_stats_active || (chr == TAILS_OBJ) == second_in; // (whose set is in the game's variables)
     const Set *set = in_game ? NULL : &other;
