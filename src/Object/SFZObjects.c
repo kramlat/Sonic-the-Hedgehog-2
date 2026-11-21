@@ -44,6 +44,10 @@
 #include "Oscillatory Routines.h"
 #include "LevelData.h"
 #include "Resource/Mappings/SFZTornado.h"
+#include "Resource/Mappings/SFZTornadoRocket.h"
+#include "Resource/Animation/SFZTornadoRocket.h"
+#include "PLC.h"
+#include "LevelLayout.h"
 #include "Object/ObjectHit.h"
 #include "MathUtil.h"
 #include "Solid.h"
@@ -142,7 +146,7 @@ typedef struct {
     int16_t offset;      // 0x38 (var_0C): where it is from Sonic, in x
 } Own_SFZTornado;
 
-enum { TornadoRoutine_Init = 0, TornadoRoutine_Steered = 2, TornadoRoutine_Flying = 4, TornadoRoutine_Waiting = 6 };
+enum { TornadoRoutine_Init = 0, TornadoRoutine_Steered = 2, TornadoRoutine_Flying = 4, TornadoRoutine_Ending = 6, TornadoRoutine_Trigger = 8, TornadoRoutine_Flicker = 0xA, TornadoRoutine_Flame = 0xE };
 
 static void Tornado_Scroll(Sst *self) { // (Offset_0x030C20: the level scrolls by itself, and it goes with it)
     self->x_pos.f.u = (int16_t)(self->x_pos.f.u + tornado_scroll_x);
@@ -283,10 +287,209 @@ static void Tornado_Steered(Sst *self, Own_SFZTornado *own) {
     Tornado_Scroll(self);
 }
 
+void Obj_SFZTornado(Sst *self);
+extern int16_t sfz_offset_x; // (LevelScroll.c)
+// The addresses of Beta 4's objects ($B000 + the slot * $40), as the end's parts keep them
+#define TW(o) (self->own.u16[((o) - 0x28) / 2])
+static uint16_t Tornado_Address(const Sst *obj) {
+    return (uint16_t)(0xB000 + (obj - sst) * 0x40);
+}
+
+static Sst *FromAddress(uint16_t address) {
+    return &sst[(address - 0xB000) / 0x40];
+}
+
+// Load_Sub_Obj: a part of the end (this id with the subtype) after this one, its address in the field of this one, this one its parent ($2C), at this one's place
+static Sst *Tornado_LoadSub(Sst *self, int field, uint8_t subtype) {
+    Sst *sub = Sst_AllocateAfter(self);
+    if (sub == NULL)
+        return NULL;
+    TW(field) = Tornado_Address(sub);
+    sub->code = Obj_SFZTornado;
+    sub->subtype = subtype;
+    sub->own.u16[(0x2C - 0x28) / 2] = Tornado_Address(self);
+    sub->x_pos.f.u = self->x_pos.f.u;
+    sub->y_pos.f.u = self->y_pos.f.u;
+    return sub;
+}
+
+// The object writes the first player's pad ($FFFFF602) in the end: what he does is its script
+static void Tornado_Pad(uint8_t held) {
+    lock_ctrl = true;
+    jpad1_hold2 = held;
+    jpad1_press2 = held;
+}
+
+// loc_36CEE: Sonic sits on the plane (his frame and animation $05, the animation timer 1)
+static void Tornado_Sit(void) {
+    player->mapping_frame = 1;
+    player->anim_frame = 0;
+    player->anim = 5;
+    player->prev_anim = 5;
+    player->anim_frame_timer = 1;
+}
+
+// loc_36C7E: the plane flies on its own: the speeds it takes as the frames go by, and after $9C0 frames the level changes (the end of Wing Fortress: Death Egg)
+static void Tornado_Fly(Sst *self) {
+    static const uint16_t when[11] = { 0x1E0, 0x260, 0x2A0, 0x2C0, 0x300, 0x3A0, 0x3F0, 0x460, 0x4A0, 0x580, 0xFFFF };
+    static const int8_t speeds[11][2] = { { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, -1 }, { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }, { -1, 1 }, { -2, 0 }, { 0, 0 } };
+    if (TW(0x2A) >= 0x9C0) { // (loc_36CB6)
+        restart = 1;
+        level_id = LEVEL_ID(ZoneId_DEZ, 0);
+        return;
+    }
+    const uint16_t timer = (uint16_t)(TW(0x2A) + 1); // $2A
+    TW(0x2A) = timer;
+    uint16_t index = TW(0x34);
+    if (timer >= when[index / 2]) {
+        index = (uint16_t)(index + 2);
+        TW(0x34) = index;
+        self->x_vel = (int16_t)(((int16_t)speeds[index / 2][0] << 8) | (self->x_vel & 0xFF));
+        self->y_vel = (int16_t)(((int16_t)speeds[index / 2][1] << 8) | (self->y_vel & 0xFF));
+    }
+    Tornado_Move(self);
+    Sst_Draw(self);
+}
+
+// loc_36A28: the ending of Wing Fortress (subtype $54, at ($2C60,$5EC) in the layout), nine states: Sonic comes down to the plane, walks to it, sits, it lifts off with the parts made, he jumps, the plane
+// flies on its own and the level changes. (Beta 4 has the list of the Tornado's art, $3F, and no call for it: it is loaded as the ending starts.)
+static void Tornado_Ending(Sst *self) {
+    switch (self->routine_secondary) {
+    case 0x00: // loc_36A56
+        if ((uint16_t)player->y_pos.f.u < 0x5EC)
+            return;
+        Tornado_Pad(0);
+        if (!TW(0x3C)) {
+            TW(0x3C) = 1;
+            AddPLC(PlcId_SFZTornado);
+        }
+        TW(0x2E)++;
+        if (TW(0x2E) < 0x40)
+            return;
+        self->routine_secondary += 2;
+        self->x_pos.f.u = 0x2E58;
+        self->y_pos.f.u = 0x66C;
+        Tornado_Sit();
+        {
+            Sst *part = Tornado_LoadSub(self, 0x3C, 0x56); // (the switch)
+            if (part != NULL) {
+                part->x_pos.f.u = 0x3118;
+                part->y_pos.f.u = 0x3F0;
+            }
+            part = Tornado_LoadSub(self, 0x3E, 0x58);
+            if (part != NULL) {
+                part->x_pos.f.u = 0x3070;
+                part->y_pos.f.u = 0x3B0;
+            }
+            part = Tornado_LoadSub(self, 0x3E, 0x58);
+            if (part != NULL) {
+                part->x_pos.f.u = 0x3070;
+                part->y_pos.f.u = 0x430;
+            }
+            part = Tornado_LoadSub(self, 0x3A, 0x5C); // (the rocket under the plane)
+            if (part != NULL) {
+                part->x_pos.f.u = 0;
+                part->y_pos.f.u = 0;
+            }
+        }
+        return;
+    case 0x02: // loc_36AE2: Sonic is made to walk right to the plane
+        if ((uint16_t)player->x_pos.f.u < 0x2E30) {
+            Tornado_Pad(JPAD_RIGHT);
+            return;
+        }
+        self->routine_secondary += 2;
+        Tornado_Pad(0);
+        player->x_vel = 0;
+        player->y_vel = 0;
+        player->ground_vel = 0;
+        return;
+    case 0x04: // loc_36B0C: it waits for the background's ship to be far enough
+        if ((uint16_t)sfz_offset_x < 0x380) {
+            Tornado_Pad(0);
+            Tornado_Sit();
+            return;
+        }
+        self->routine_secondary += 2;
+        self->x_vel = 0x100;
+        self->y_vel = (int16_t)0xFF00;
+        TW(0x2A) = 0;
+        return;
+    case 0x06: // loc_36B32
+        Tornado_Sit();
+        if (++TW(0x2A) == 0x30) {
+            self->routine_secondary += 2;
+            Tornado_Pad(JPAD_A);
+            TW(0x2E) = 0x10;
+        }
+        Tornado_Move(self);
+        Sst_Draw(self);
+        return;
+    case 0x08: // loc_36B5A: Sonic jumps onto the plane's deck and the way to the right opens in the background's layout
+        TW(0x2A)++;
+        if ((int16_t)--TW(0x2E) >= 0)
+            Tornado_Pad(JPAD_A | JPAD_RIGHT);
+        Tornado_Move(self);
+        if (self->status & 0x08) {
+            self->routine_secondary += 2;
+            TW(0x2E) = 0x20;
+            static const uint8_t cells[4][6] = { { 0x52, 0, 0x50, 0x1F, 0x00, 0x25 }, { 0x52, 1, 0x25, 0x00, 0x1F, 0x50 }, { 0x56, 0xB, 0x50, 0x1F, 0x00, 0x25 }, { 0x56, 0xC, 0x25, 0x00, 0x1F, 0x50 } };
+            for (int i = 0; i < 4; i++)
+                for (int c = 0; c < 4; c++)
+                    LevelLayout_SetChunk(LEVEL_LAYOUT_PLANE_BG, cells[i][0] + c, cells[i][1], cells[i][2 + c]);
+        }
+        Sst_Draw(self);
+        return;
+    case 0x0A: // loc_36BAC: he sits on it; the rocket is told to go after $100 frames
+        if (++TW(0x2A) >= 0x100) {
+            self->routine_secondary += 2;
+            FromAddress(TW(0x3A))->routine_secondary = 2;
+        }
+        Tornado_Pad(0);
+        player->x_pos.f.u = self->x_pos.f.u;
+        player->x_vel = 0;
+        player->y_vel = 0;
+        player->ground_vel = 0;
+        player->status &= (uint8_t) ~(SST_PSTATUS_IN_AIR | SST_PSTATUS_IN_BALL);
+        Tornado_Sit();
+        player->y_radius = 0x13;
+        Tornado_Move(self);
+        Sst_Draw(self);
+        return;
+    case 0x0C: // loc_36C08
+        Tornado_Pad(0);
+        Tornado_Sit();
+        if (TW(0x2A) >= 0x437)
+            self->routine_secondary += 2;
+        // Fallthrough
+    case 0x0E: // loc_36C1C
+        if (self->routine_secondary >= 0x0E && TW(0x2A) < 0x447)
+            Tornado_Pad(JPAD_A);
+        if (TW(0x2A) >= 0x460 && self->routine_secondary < 0x10) { // (the events go on, and the last parts are made)
+            dle_routine = 6;
+            self->routine_secondary += 2;
+            static const int16_t where[3][2] = { { 0x3090, 0x3D0 }, { 0x30C0, 0x3F0 }, { 0x3090, 0x410 } };
+            for (int i = 0; i < 3; i++) {
+                Sst *part = Tornado_LoadSub(self, 0x3E, 0x58);
+                if (part != NULL) {
+                    part->x_pos.f.u = where[i][0];
+                    part->y_pos.f.u = where[i][1];
+                }
+            }
+        }
+        Tornado_Fly(self);
+        return;
+    case 0x10: // loc_36C7E
+        Tornado_Fly(self);
+        return;
+    }
+}
+
 void Obj_SFZTornado(Sst *self) {
     Own_SFZTornado *own = (Own_SFZTornado *)self->own.u8;
 
-    Tornado_Pilot(own);
+    if (self->routine <= TornadoRoutine_Ending)
+        Tornado_Pilot(own); // (the pilot's frames: the plane's own routines only)
     if (self->routine == TornadoRoutine_Init) {
         self->mappings = Mappings_SFZTornado;
         self->art_tile = TILE_MAP(1, 0, 0, 0, 0x500);
@@ -294,6 +497,15 @@ void Obj_SFZTornado(Sst *self) {
         self->priority = 4 * 0x80;
         self->width_pixels = 0x40;
         self->collision_flags = 0;
+        if (self->subtype == 0x56 || self->subtype == 0x58) { // (the rocket boost's mappings and art: Obj_0xBC_Ptr)
+            self->mappings = Mappings_SFZRocketBoost;
+            self->art_tile = TILE_MAP(0, 2, 0, 0, 0x465);
+            self->width_pixels = 0x10;
+        } else if (self->subtype == 0x5C) { // (the rocket under the plane: Obj_0xB2_01_Ptr)
+            self->mappings = Mappings_SFZTornadoRocket;
+            self->art_tile = TILE_MAP(0, 0, 0, 0, 0x561);
+            self->priority = 3 * 0x80;
+        }
         self->routine = (uint8_t)(self->subtype - 0x4E);
         Sst_Draw(self);
         return;
@@ -363,37 +575,48 @@ void Obj_SFZTornado(Sst *self) {
         else
             Sst_Draw(self);
         return;
-    case TornadoRoutine_Waiting:
-        switch (self->routine_secondary) {
-        case 0:
-            if ((uint16_t)player->x_pos.f.u < (uint16_t)(self->x_pos.f.u - 0x10) || (uint16_t)player->x_pos.f.u >= (uint16_t)(self->x_pos.f.u + 0x10)
-                || (uint16_t)player->y_pos.f.u < (uint16_t)(self->y_pos.f.u - 0x80) || (uint16_t)player->y_pos.f.u >= (uint16_t)(self->y_pos.f.u + 0x80))
-                return;
-            self->routine_secondary += 2;
-            self->x_vel = 0x100;
-            self->y_vel = (int16_t)0xFF00;
-            self->x_pos.f.u = (int16_t)(self->x_pos.f.u + 0x20);
-            self->y_pos.f.u = (int16_t)(self->y_pos.f.u + 0x80);
-            own->timer = 0;
-            return;
-        case 2: {
-            // The speeds it changes to as the frames go by (the pre-beta's table: its first entry is $FFFF, so that the plane keeps its first speeds for good)
-            static const uint16_t when[8] = { 0xFFFF, 0x01A0, 0x0208, 0x0285, 0x0300, 0x0340, 0x0390, 0x0440 };
-            static const uint8_t speeds[9][2] = { { 0xF0, 0x00 }, { 0x01, 0x01 }, { 0x00, 0x01 }, { 0x01, 0x01 }, { 0x00, 0x01 }, { 0x00, 0x01 }, { 0x01, 0x00 }, { 0x00, 0x01 }, { 0x00, 0x01 } };
-            own->timer++;
-            if (own->table < 16 && (uint16_t)own->timer >= when[own->table / 2]) {
-                own->table = (int16_t)(own->table + 2);
-                self->x_vel = (int16_t)((speeds[own->table / 2][0] << 8) | (self->x_vel & 0xFF));
-                self->y_vel = (int16_t)((speeds[own->table / 2][1] << 8) | (self->y_vel & 0xFF));
-            }
-            Tornado_Move(self);
-            Tornado_Carry(self);
-            Sst_Animate(self, Animation_SFZTornado);
-            SstOnScreenTest(self);
-            return;
-        }
-        }
+    case TornadoRoutine_Ending:
+        Tornado_Ending(self);
+        Sst_Animate(self, Animation_SFZTornado);
         return;
+    case TornadoRoutine_Trigger: // loc_36D02: Wing Fortress's switch: rolled into (it counts as a hit taken), it puts Sonic on the plane
+        if (self->routine_secondary >= 4) { // loc_36D7C: he is held
+            player->x_vel = 0;
+            player->y_vel = 0;
+            player->x_pos.f.u = (int16_t)(self->x_pos.f.u - 0x10);
+        } else {
+            if (self->routine_secondary == 0)
+                self->collision_flags = 0xC7;
+            if (self->collision_property != 0) { // loc_36D1C
+                self->routine_secondary += 2;
+                self->collision_flags = 0;
+                FromAddress(TW(0x2C))->status |= 0x40;
+                player->x_vel = 0;
+                player->y_vel = 0;
+                player->x_pos.f.u = (int16_t)(self->x_pos.f.u - 0x10);
+                player->status |= SST_PSTATUS_X_FLIP;
+                player->status &= (uint8_t) ~(SST_PSTATUS_IN_AIR | SST_PSTATUS_IN_BALL);
+                player->anim = 0x11;
+                OBJ_CONTROL(player) = 1;
+                Tornado_Pad(0);
+            }
+        }
+        Sst_Draw(self);
+        return;
+    case TornadoRoutine_Flicker: // loc_36D96: a part of the end that shows every other frame
+        self->status ^= 0x04;
+        if (!(self->status & 0x04)) // (bchg #2: shown when the bit was clear)
+            Sst_Draw(self);
+        return;
+    case TornadoRoutine_Flame: { // loc_36DCC: the rocket under the plane: it follows it, and animates once told to
+        const Sst *plane = FromAddress(TW(0x2C));
+        self->x_pos.f.u = (int16_t)(plane->x_pos.f.u - 0xC);
+        self->y_pos.f.u = (int16_t)(plane->y_pos.f.u + 0x28);
+        if (self->routine_secondary != 0)
+            Sst_Animate(self, Animation_SFZTornadoRocket);
+        Sst_Draw(self);
+        return;
+    }
     }
 }
 

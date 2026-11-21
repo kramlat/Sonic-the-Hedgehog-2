@@ -688,6 +688,79 @@ static void SFZEvents_StartAsTheCameraAndMoveOnWhenTheCameraIsFarEnough(void) {
     dle_routine = 0;
 }
 
+// Beta 4's ending of Wing Fortress (the Tornado, subtype $54): when Sonic has come down to it ($5EC) and waited $40 frames it goes to ($2E58,$66C) and makes the switch ($56), two flames ($58) and the rocket ($5C); Sonic is
+// walked right to $2E30; the switch put in Sonic's place when it is hit; and after $9C0 frames the level restarts as Death Egg
+extern int16_t sfz_offset_x;
+static int CountTornadoSubtype(uint8_t subtype) {
+    int n = 0;
+    for (int i = 0x20; i < 0x80; i++)
+        n += sst[i].code == Obj_SFZTornado && sst[i].subtype == subtype;
+    return n;
+}
+
+static void SFZTornado_TheEndingMakesItsPartsPutsSonicOnAndChangesTheLevel(void) {
+    SstTestClear();
+    scrpos_x.f.u = 0x2C00;
+    scrpos_y.f.u = 0x500;
+    player->code = sst_object_codes[ObjId_Sonic];
+    player->x_pos.f.u = 0x2D00;
+    player->y_pos.f.u = 0x5E0; // (not yet down to $5EC)
+    Sst *plane = &sst[0x20];
+    plane->code = Obj_SFZTornado;
+    plane->subtype = 0x54;
+    plane->x_pos.f.u = 0x2C60;
+    plane->y_pos.f.u = 0x5EC;
+    for (int f = 0; f < 100; f++)
+        Obj_SFZTornado(plane);
+    CHECK_EQ(plane->routine_secondary, 0); // (it waits for him)
+    player->y_pos.f.u = 0x5F0;
+    for (int f = 0; f < 0x50; f++)
+        Obj_SFZTornado(plane);
+    CHECK_EQ(plane->x_pos.f.u, 0x2E58);
+    CHECK_EQ(plane->y_pos.f.u, 0x66C);
+    CHECK_EQ(CountTornadoSubtype(0x56), 1);
+    CHECK_EQ(CountTornadoSubtype(0x58), 2);
+    CHECK_EQ(CountTornadoSubtype(0x5C), 1);
+    CHECK(lock_ctrl);
+    player->x_pos.f.u = 0x2E00; // (walked: right held until $2E30)
+    Obj_SFZTornado(plane);
+    CHECK_EQ(jpad1_hold2, JPAD_RIGHT);
+    player->x_pos.f.u = 0x2E40;
+    Obj_SFZTornado(plane);
+    CHECK_EQ(plane->routine_secondary, 4);
+
+    // The switch: hit, it holds him where it is
+    Sst *sw = NULL;
+    for (int i = 0x20; i < 0x80; i++)
+        if (sst[i].code == Obj_SFZTornado && sst[i].subtype == 0x56)
+            sw = &sst[i];
+    CHECK(sw != NULL);
+    if (sw != NULL) {
+        Obj_SFZTornado(sw); // (the first call is its set-up)
+        Obj_SFZTornado(sw);
+        CHECK_EQ(sw->collision_flags, 0xC7);
+        sw->collision_property = 2; // (the touch code)
+        Obj_SFZTornado(sw);
+        CHECK_EQ(sw->collision_flags, 0);
+        CHECK_EQ(player->x_pos.f.u, sw->x_pos.f.u - 0x10);
+        CHECK_EQ(player->anim, 0x11);
+    }
+
+    // The end: after $9C0 frames the level is Death Egg
+    plane->routine_secondary = 0x10;
+    plane->own.u16[1] = 0x9BF; // ($2A)
+    restart = 0;
+    Obj_SFZTornado(plane);
+    CHECK_EQ(restart, 0);
+    Obj_SFZTornado(plane);
+    CHECK(restart != 0);
+    CHECK_EQ(level_id, LEVEL_ID(ZoneId_DEZ, 0));
+    restart = 0;
+    lock_ctrl = false;
+    OBJ_CONTROL(player) = 0;
+    ClearPLC();
+}
+
 // The pre-beta's Robotnik running ($C6, which nothing makes): it makes its door at ($3F8,$160), waits for Sonic within $5C either side, pauses 24 frames and runs right at $200, throws something every $20 frames, and the door
 // (solid until then) opens when he runs and goes
 static void DEZRunning_RunsThrowsAndOpensItsDoor(void) {
@@ -1482,6 +1555,7 @@ void RegisterObjectCoverageTests(void) {
     RUN_TEST(DEZRunning_RunsThrowsAndOpensItsDoor);
     RUN_TEST(SFZEvents_StartAsTheCameraAndMoveOnWhenTheCameraIsFarEnough);
     RUN_TEST(SFZBoss_BodyMakesItsPartsAndTheBouncersAndIsBeaten);
+    RUN_TEST(SFZTornado_TheEndingMakesItsPartsPutsSonicOnAndChangesTheLevel);
     RUN_TEST(ObjectHit_FollowsThePreBetasTimingAndArt);
     RUN_TEST(Sonic_DebugCheatDiesButBEntersPlacementModeFromHurtAndDead);
     RUN_TEST(Animals_ZonesHaveTheirPairAndEndAnimalsTheirOwnMovement);

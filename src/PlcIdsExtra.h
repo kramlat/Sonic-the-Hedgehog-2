@@ -34,3 +34,4 @@ PlcId_DEZBoss, // the pre-beta's list $30: Death Egg's Metal Sonic (the explosio
 PlcId_SSMain, // the pre-beta's list $3C: the special stage's art
 PlcId_SSRings, // its list $3D: the rings
 PlcId_SFZBoss, // Beta 4's list $3E: Wing Fortress's boss (the spike ball and laser art, Robotnik, his faces and body, the explosions)
+PlcId_SFZTornado, // Beta 4's list $3F: the Tornado, its rocket and the clouds (the ending of Wing Fortress)

@@ -33,6 +33,7 @@
 #include "Resource/Art/Turtloid.h"
 #include "Resource/Art/SFZRobotnikShip.h"
 #include "Resource/Art/SFZSpikeLaser.h"
+#include "Resource/Art/SFZTornadoRocket.h"
 #include "Resource/Art/SFZTornado.h"
 #include "Resource/Art/SFZClouds.h"
 #include "Resource/Art/SFZVerticalHelix.h"
@@ -980,6 +981,15 @@ static const PLCList PLC_SFZBoss = { // Beta 4's list $3E: Wing Fortress's boss:
     }
 };
 
+static const PLCList PLC_SFZTornado = { // Beta 4's list $3F: the Tornado, its rocket and the clouds, for the ending of Wing Fortress (the boss's list took the Tornado's tiles)
+    3,
+    (const PLC[]) {
+        { Art_SFZTornado,       ART_VRAM(0xA000 >> 5) },
+        { Art_SFZTornadoRocket, ART_VRAM(0xAC20 >> 5) },
+        { Art_SFZClouds,        ART_VRAM(0xA9E0 >> 5) },
+    }
+};
+
 static const PLCList PLC_SFZ2 = { // Sky Fortress's secondary list, the pre-beta's $11
     14,
     (const PLC[]) {
@@ -1188,5 +1198,6 @@ const PLCList* plcs[PlcId_Num] = {
     /* PlcId_SSMain      */ &PLC_SSMain,
     /* PlcId_SSRings     */ &PLC_SSRings,
     /* PlcId_SFZBoss     */ &PLC_SFZBoss,
+    /* PlcId_SFZTornado  */ &PLC_SFZTornado,
 };
 

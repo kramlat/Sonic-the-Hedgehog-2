@@ -1454,6 +1454,9 @@ static signed int ReactToItem(Sst *self) {
                 case 6: case 0x0A: case 0x14: case 0x15: case 0x16: case 0x17: // (the round bumper, the blue bumper ($D7, flags $CA), the auto spin: bit 0 is Sonic's, bit 1 Tails')
                     hit->collision_property += 2;
                     return 0;
+                case 0x07: // (Beta 4's loc_3B85C: Wing Fortress's switch: touching it sets its hits to two and goes on as an enemy: rolled into, he bounces off and the switch is hit; otherwise he is hurt)
+                    hit->collision_property = 2;
+                    return React_Enemy(self, hit);
                 case 0x1A: // (the pre-beta's small Robotnik of Metropolis: rolled into, it bounces him off and counts down from $FF; otherwise it hurts)
                     hit->collision_property = 0xFF;
                     return React_Enemy(self, hit);
