@@ -2,6 +2,7 @@
 // object 30 (Obj_0x30, the solid pieces of the ground that moves). The events move the background by a diff of their own while the camera is in a quake's stretch of the level (Screen_Shaking_Flag_HTZ),
 // and every now and then they move the ground up or down by a quarter pixel a frame, between two limits, with the screen shaking (Screen_Shaking_Flag) while it does.
 #include "SstLoad.h"
+#include "VersusStats.h"
 #include "ObjectSst.h"
 #include "Object.h"
 #include "HTZQuake.h"
@@ -539,7 +540,7 @@ void Obj_HTZQuakeBlock(Sst *self) {
     if (kind == 2 || kind == 3) { // the lava's top (kinds 4 and 6) hurts whoever stands on it (Touch_ChkHurt: not while invincible or flashing)
         for (int who = SolidChar_Sonic; who <= SolidChar_Tails; who++) {
             Sst *chr = Char(who);
-            if (chr == NULL || !(self->status & (1 << (3 + who))) || invincibility || ((Scratch_Sonic *)chr->own.u8)->flash_time)
+            if (chr == NULL || !(self->status & (1 << (3 + who))) || VsStats_Has(chr, VS_INVINCIBLE) || ((Scratch_Sonic *)chr->own.u8)->flash_time)
                 continue;
             if (who == SolidChar_Sonic)
                 HurtSonicFrom(chr, self->x_pos.f.u, false);

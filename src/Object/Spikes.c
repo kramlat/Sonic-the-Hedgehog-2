@@ -2,6 +2,7 @@
 // (16, 32, 48 or 64 tall), upside down when the object is flipped; its low nibble how they move (0 not, 1 up and down, 2 left and right).
 #include "Object/Spikes.h"
 #include "SstLoad.h"
+#include "VersusStats.h"
 #include "Resource/Mappings/Spikes.h"
 #include "ObjectSst.h"
 #include "Object.h"
@@ -25,7 +26,7 @@ static Sst *Character(int who) {
 // Touch_ChkHurt2: the character is pushed back out of the spikes and hurt (unless he is invincible or already hurt)
 void Spikes_HurtCharacter(Sst *self, Sst *chr, int who) {
     // (the pre-beta tests the character's own invincibility, and only Sonic's monitor makes one: Tails is hurt by spikes while Sonic is invincible. Sand Shower, the final game's data, keeps the one flag for both)
-    if (invincibility && (who == SolidChar_Sonic || LEVEL_ZONE(level_id) == ZoneId_SSZ))
+    if (VsStats_Has(chr, VS_INVINCIBLE) && (who == SolidChar_Sonic || LEVEL_ZONE(level_id) == ZoneId_SSZ || vs_stats_active)) // (Beta 4: in the versus play each character's own)
         return;
     // (the prototype's Touch_ChkHurt2 has no check for the flashing after a hit -- Sonic 1's "Proper Spike Bug Fix" is not in it: spikes hurt a character who is still flashing, and the port keeps that)
     if (chr->routine >= 4)

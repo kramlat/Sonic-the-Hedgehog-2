@@ -16,6 +16,10 @@ void VsStats_Tick(void);                        // the second player's clock (th
 void VsStats_RingCollected(void);               // the total of the player whose set is in
 void VsStats_AddPointsTo(const struct Sst *chr, uint16_t points); // points to the character's own score (Beta 4's AddPoints_1, which takes the character in a3)
 void VsStats_ItemBroken(void);                  // an item box
+// A character's shield, invincibility and speed shoes (the flags are on his own object in Beta 4, `$2B` bits 0 to 2): the game keeps one set (`shield`, `invincibility`, `shoes`) that goes with the counters, so the second
+// player's are in `other` while the first player's object runs. Outside the versus play the one set is both characters' (Sonic's, which is what Tails has always seen).
+enum { VS_SHIELD, VS_INVINCIBLE, VS_SHOES };
+bool VsStats_Has(const struct Sst *chr, int what);
 void VsStats_Read(VsPlayerStats out[2]);        // both, for the results
 void VsStats_StopClock(int player);             // the player has passed the end: his time stops
 

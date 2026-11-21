@@ -80,6 +80,12 @@ static int16_t tails_look_shift;
 static uint8_t spindash_flag;
 // Tails' own top speed, acceleration and deceleration (the alpha's Miles_Max_Speed and the others at $FFFFFEC0): Sonic's are his own, so the water and the shoes of the one do not slow the other
 static int16_t tails_speed_max = 0x600, tails_speed_acc = 0xC, tails_speed_dec = 0x80;
+
+void Tails_ShoesSpeed(void) {
+    tails_speed_max = 0xC00;
+    tails_speed_acc = 0x18;
+    tails_speed_dec = 0x80;
+}
 static uint16_t spindash_count;
 
 // Tails' CPU (the pre-beta's Miles_CPU_Control: its states are the word at $FFFFF708): how long a real pad 2 has had him (Tails_control_counter, $F702), how long he has been out of sight ($F704), the place he flies to

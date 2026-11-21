@@ -3,6 +3,7 @@
 // there. See Countdown.h for why it is not in the object table.
 #include "Object/Countdown.h"
 #include "SstLoad.h"
+#include "VersusStats.h"
 #include "ObjectSst.h"
 #include "Object.h"
 #include "Constants.h"
@@ -63,7 +64,7 @@ void Countdown_ResumeMusic(Sst *player) {
     Scratch_Sonic *p = PlayerScratch(player);
     if (p->air <= 12) {
         // (the alpha plays the S1 music ids $82, $87 and $8C here: the level's, the invincibility's and the boss's)
-        if (invincibility)
+        if (VsStats_Has(player, VS_INVINCIBLE))
             PlayMusic(bgm_Invincible);
         else if (lock_screen)
             PlayMusic(bgm_Boss);

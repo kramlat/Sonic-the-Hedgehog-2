@@ -21,6 +21,7 @@ void Sonic_CarryCollision(Sst *sonic);        // Sonic's collision while he is c
 bool Sonic_Spindashing(void);                 // Sonic is charging a spin dash (Sonic.c): Tails does not take him then
 #define SONIC_ANIM_HANG2_ID 0x20              // the animation of Sonic hanging from Tails
 void Tails_CancelSpindash(void);            // drops a charging spin dash of Tails'
+void Tails_ShoesSpeed(void);                  // his speed shoes: the faster top speed and acceleration (the versus play: his own monitor)
 void Tails_ResetOnFloor(Sst *self);
 void KillTails(Sst *self);
 int32_t Tails_Hurt(Sst *self, Sst *src); // (hurts Tails as an object hurts Sonic: HurtSonic in Sonic.c)

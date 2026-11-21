@@ -2,6 +2,8 @@
 // go round him (their places, by his angle, the way he faces and whether the frame is even, from tables that step on 6 entries of 3 bytes a frame) and two that trail behind him (a table of their own, stepping
 // on 6 bytes). The data is the importer's (tools/import_s2prebeta_stars.pl). The object goes when Sonic is not invincible.
 #include "Object/InvincibilityStars.h"
+#include "Object/Tails.h"
+#include "VersusStats.h"
 #include "Constants.h"
 #include "Object.h"
 #include "ObjectSst.h"
@@ -42,19 +44,20 @@ void Obj_InvincibilityStars(Sst *self) {
         self->child_count = 8;
     }
 
-    if (!invincibility) {
+    const Sst *chr = self->status_tertiary == 1 ? TAILS_OBJ : player; // (the character they go with)
+    if (!VsStats_Has(chr, VS_INVINCIBLE)) {
         Sst_Delete(self);
         return;
     }
-    self->x_pos.f.u = player->x_pos.f.u;
-    self->y_pos.f.u = player->y_pos.f.u;
+    self->x_pos.f.u = chr->x_pos.f.u;
+    self->y_pos.f.u = chr->y_pos.f.u;
 
     // where the first six go round Sonic (Offset_0x0184FC): the angle he runs at (his way up or down in the air), a quarter of the circle of 8 for each pair of places
-    uint8_t status = player->status;
-    int16_t angle = player->angle;
+    uint8_t status = chr->status;
+    int16_t angle = chr->angle;
     if (status & SST_PSTATUS_IN_AIR) {
         angle = 0xC0;
-        if (player->y_vel >= 0)
+        if (chr->y_vel >= 0)
             angle -= 0x80;
         status = 0;
     }
@@ -70,8 +73,8 @@ void Obj_InvincibilityStars(Sst *self) {
     const int8_t *offsets = stars_angle + step + (odd ? 2 : 0);
     const int8_t *orbit = odd ? stars_orbit_odd : stars_orbit_even;
 
-    int16_t x = player->x_pos.f.u;
-    int16_t y = player->y_pos.f.u;
+    int16_t x = chr->x_pos.f.u;
+    int16_t y = chr->y_pos.f.u;
     int16_t dx = offsets[0];
     if (flip)
         dx = (int16_t)-dx;

@@ -13,6 +13,8 @@ void Obj_ObjectHit(Sst *self);
 
 #include "Object/InvisibleBarrier.h"
 #include "Object/ShieldInvincibility.h"
+#include "Object/InvincibilityStars.h"
+#include "Object/Tails.h"
 #include "Level.h"
 #include "LevelCollision.h"
 #include "LevelScroll.h"
@@ -254,10 +256,11 @@ void Obj_MonitorItem(Sst *self) {
             self->anim_frame_timer = 29;
 
             // Give item (in the versus play the counters are the breaker's: the second player's set is swapped in for it)
-            Scratch_Sonic* scratch = (Scratch_Sonic *)player->own.u8;
             bool second = vs_stats_active && self->status_tertiary == 1;
             if (vs_stats_active && (self->anim == 1 || self->anim == 2))
                 second = self->anim == 2; // (versus: the Sonic life is the first player's and the Miles life the second's, whoever broke the monitor)
+            Sst *breaker = second ? TAILS_OBJ : player; // (Beta 4: the shield, shoes and stars are on his own object)
+            Scratch_Sonic* scratch = (Scratch_Sonic *)breaker->own.u8;
             if (second)
                 VsStats_Swap();
             VsStats_ItemBroken();
@@ -286,23 +289,24 @@ void Obj_MonitorItem(Sst *self) {
             case 5: // Shoes
                 shoes = true;
                 scratch->shoes_time = 1200;
-                sonspeed_max = 0xC00;
-                sonspeed_acc = 0x18;
-                sonspeed_dec = 0x80;
+                if (second) {
+                    Tails_ShoesSpeed();
+                } else {
+                    sonspeed_max = 0xC00;
+                    sonspeed_acc = 0x18;
+                    sonspeed_dec = 0x80;
+                }
                 SpeedUpMusic();
                 break;
             case 6: // Shield
                 shield = true;
-                ShieldInvincibility_Make(0);
+                ShieldInvincibility_MakeFor(0, breaker);
                 PlaySound(sfx_Shield);
                 break;
             case 7: // Invincibility
                 invincibility = true;
                 scratch->invincibility_time = 1200;
-                ShieldInvincibility_Make(1);
-                ShieldInvincibility_Make(2);
-                ShieldInvincibility_Make(3);
-                ShieldInvincibility_Make(4);
+                ShieldInvincibility_MakeFor(1, breaker);
                 if (!lock_screen) {
                     PlayMusic(bgm_Invincible);
                 }

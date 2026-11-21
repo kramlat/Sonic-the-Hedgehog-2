@@ -13,23 +13,31 @@ extern const uint8_t Mappings_Sonic[];
 #include "Level.h"
 #include "Object/Sonic.h"
 #include "Object/InvincibilityStars.h"
+#include "Object/Tails.h"
+#include "VersusStats.h"
+
+static Sst *Owner(const Sst *self) { // (the character it goes with: status_tertiary 1 is Tails)
+    return self->status_tertiary == 1 ? TAILS_OBJ : player;
+}
+
+void ShieldInvincibility_MakeFor(uint8_t anim, const Sst *owner) {
+    const uint8_t who = (owner == TAILS_OBJ) ? 1 : 0;
+    if (anim > 1) // (the pre-beta's stars are one object: the monitor asks for four of Nick Arcade's, the others are not made)
+        return;
+    SstCode code = anim == 1 ? Obj_InvincibilityStars : Obj_ShieldInvincibility;
+    for (int i = 0; i < SST_COUNT; i++)
+        if (sst[i].code == code && sst[i].status_tertiary == who && (anim == 1 || sst[i].anim == anim))
+            return;
+    Sst *self = Sst_SpawnCode(code, 0, 0);
+    if (self != NULL) {
+        self->status_tertiary = who;
+        if (anim == 0)
+            self->anim = anim;
+    }
+}
 
 void ShieldInvincibility_Make(uint8_t anim) {
-    if (anim == 1) { // (the pre-beta's stars are one object: the monitor asks for four of Nick Arcade's, the others are not made)
-        for (int i = 0; i < SST_COUNT; i++)
-            if (sst[i].code == Obj_InvincibilityStars)
-                return;
-        Sst_SpawnCode(Obj_InvincibilityStars, 0, 0);
-        return;
-    }
-    if (anim > 1)
-        return;
-    for (int i = 0; i < SST_COUNT; i++)
-        if (sst[i].code == Obj_ShieldInvincibility && sst[i].anim == anim)
-            return;
-    Sst *self = Sst_SpawnCode(Obj_ShieldInvincibility, 0, 0);
-    if (self != NULL)
-        self->anim = anim;
+    ShieldInvincibility_MakeFor(anim, player);
 }
 
 void Obj_ShieldInvincibility(Sst *self) {
@@ -58,19 +66,20 @@ void Obj_ShieldInvincibility(Sst *self) {
         break;
     case 2: // Shield
         // Check if shield should exist
-        if (invincibility)
+        const Sst *owner = Owner(self); // (Beta 4: it goes with its own character and his own flag)
+        if (VsStats_Has(owner, VS_INVINCIBLE))
             break;
-        if (!shield) {
+        if (!VsStats_Has(owner, VS_SHIELD)) {
             Sst_Delete(self);
             break;
         }
 
         // Update shield position
-        self->x_pos.f.u = player->x_pos.f.u;
-        self->y_pos.f.u = player->y_pos.f.u;
-        self->status = player->status;
-        // The pre-beta's: it is in front of the level's tiles when Sonic is
-        self->art_tile = (uint16_t)((self->art_tile & 0x7FFF) | (player->art_tile & 0x8000));
+        self->x_pos.f.u = owner->x_pos.f.u;
+        self->y_pos.f.u = owner->y_pos.f.u;
+        self->status = owner->status;
+        // The pre-beta's: it is in front of the level's tiles when he is
+        self->art_tile = (uint16_t)((self->art_tile & 0x7FFF) | (owner->art_tile & 0x8000));
 
         // Animate and draw shield
         Sst_Animate(self, Animation_ShieldInvincibility);

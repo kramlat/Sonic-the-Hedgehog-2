@@ -17,6 +17,7 @@ typedef struct {
     uint16_t rings;
     uint8_t time_count;
     uint8_t lives, life_count;
+    uint8_t shield, invincibility, shoes;
 } Set;
 
 static Set other;              // the set that is not in the game's variables
@@ -37,13 +38,16 @@ void VsStats_Begin(void) {
 }
 
 void VsStats_Swap(void) {
-    Set now = { score, level_time, rings, time_count, lives, life_count };
+    Set now = { score, level_time, rings, time_count, lives, life_count, shield, invincibility, shoes };
     score = other.score;
     level_time = other.time;
     rings = other.rings;
     time_count = other.time_count;
     lives = other.lives;
     life_count = other.life_count;
+    shield = other.shield;
+    invincibility = other.invincibility;
+    shoes = other.shoes;
     other = now;
     second_in = !second_in;
 }
@@ -81,6 +85,19 @@ void VsStats_AddPointsTo(const Sst *chr, uint16_t points) {
         VsStats_Swap();
     } else {
         AddPoints(points);
+    }
+}
+
+bool VsStats_Has(const Sst *chr, int what) {
+    const bool in_game = !vs_stats_active || (chr == TAILS_OBJ) == second_in; // (whose set is in the game's variables)
+    const Set *set = in_game ? NULL : &other;
+    switch (what) {
+    case VS_SHIELD:
+        return set ? set->shield : shield;
+    case VS_INVINCIBLE:
+        return set ? set->invincibility : invincibility;
+    default:
+        return set ? set->shoes : shoes;
     }
 }
 
