@@ -3,6 +3,8 @@
 #include "Level.h"
 #include "Object/Ring.h"
 #include "VersusStats.h"
+#include "VersusMatch.h"
+extern uint8_t two_player_mode;
 #include <string.h>
 #include "HUD.h"
 #include "Object/HUD.h"
@@ -119,6 +121,49 @@ static void VsStats_TheSecondViewsHudShowsHisOwnNumbers(void) {
     ring_collected_hook = NULL;
 }
 
+// The match joined to the game: both players' scores go to the act's results page when the end panel says the act is over, and the first act leads to the second
+static int match_pages;
+static VsPlayerStats match_p1, match_p2;
+static void MatchShow(const VsFlow *f, VsPage page, const VsPlayerStats *p1, const VsPlayerStats *p2) {
+    (void)f;
+    (void)page;
+    match_pages++;
+    match_p1 = *p1;
+    match_p2 = *p2;
+}
+
+static void VsMatch_TheActsResultsHaveBothPlayersScoresAndLeadToTheSecondAct(void) {
+    two_player_mode = 1;
+    level_id = LEVEL_ID(ZoneId_EHZ, 0);
+    restart = 0;
+    score = 0;
+    rings = 0;
+    level_time = (LevelTime){ 0 };
+    time_count = 1;
+    VersusMatch_Begin();
+    VersusMatch_LevelStart();
+    CHECK(vs_stats_active);
+    score = 50;                    // (Sonic's)
+    VsStats_Swap();
+    score = 100;                   // (Miles')
+    VsStats_Swap();
+    versus_match_show_hook = MatchShow;
+    VersusMatch_Poll();            // (the act is not over)
+    CHECK_EQ(match_pages, 0);
+    vs_act_over = true;
+    VersusMatch_Poll();
+    CHECK_EQ(match_pages, 1);
+    CHECK_EQ(match_p1.score, 50);
+    CHECK_EQ(match_p2.score, 100);
+    CHECK_EQ(LEVEL_ACT(level_id), 1);
+    CHECK(restart);
+    versus_match_show_hook = NULL;
+    two_player_mode = 0;
+    vs_stats_active = false;
+    ring_collected_hook = NULL;
+    restart = 0;
+}
+
 static void VsStats_TheSecondPlayersClockStopsOnItsOwn(void) {
     score = 0;
     rings = 0;
@@ -141,6 +186,7 @@ static void VsStats_TheSecondPlayersClockStopsOnItsOwn(void) {
 void RegisterVersusStatsTests(void) {
     RUN_TEST(VsStats_TheSecondPlayersCountersAreHisOwn);
     RUN_TEST(VsStats_TheSecondPlayersClockStopsOnItsOwn);
+    RUN_TEST(VsMatch_TheActsResultsHaveBothPlayersScoresAndLeadToTheSecondAct);
     RUN_TEST(VsStats_TheSecondViewsHudShowsHisOwnNumbers);
     RUN_TEST(VsStats_EachCharactersShieldStarsAndShoesAreHisOwn);
 }

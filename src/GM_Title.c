@@ -335,6 +335,7 @@ static const uint16_t title_demos[] = {
 #include "Resource/Art/TitleMenu.h"
 #include "Object/TitleMenu.h"
 #include "GM_VersusMenu.h"
+#include "VersusMatch.h"
 void Obj_TitleCharacters(Sst *self); // (Object/TitleCharacters.c)
 #include "Resource/Art/TitleTM.h"
 #include "Resource/Tilemap/TitleFG.h"
@@ -384,6 +385,8 @@ static void Tit_ChkLevSel(bool level_select_cheat) {
             two_player_mode = true_two_player = false;
             return;
         }
+        if (two_player_mode)
+            VersusMatch_Begin(); // (the match: its acts' results and counters)
         if (two_player_mode && VersusMenu_ChoseSpecialStage()) { // (its box: the special stage with the two players)
             PlayLevel(true);
             gamemode = GameMode_Special;

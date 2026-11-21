@@ -753,6 +753,7 @@ sources:
   - "src/SpecialStageItems.c"
   - "src/VersusFlow.c"
   - "src/VersusStats.c"
+  - "src/VersusMatch.c"
   - "src/Object/EggPrison.c"
   - "src/Object/StarPost.c"
   - "src/Object/SpecialStageObjects.c"

@@ -9,6 +9,7 @@
 #include "HTZQuake.h"
 #include "Object/DHZBoss.h"
 #include "Object/CNZBoss.h"
+#include "VersusMatch.h"
 #include "Object/OOZBoss.h"
 #include "Object/MTZBoss.h"
 #include "Object/DEZMetalSonic.h"
@@ -233,6 +234,7 @@ void LevelSizeLoad(void) {
     HTZBackground_Reset();
     NGHZBoss_Reset();
     CNZBoss_Reset();
+    VersusMatch_LevelStart(); // (the versus play: both players' counters start at zero)
     OOZBoss_Reset();
     MTZBoss_Reset();
     DHZBoss_Reset();
@@ -420,6 +422,7 @@ static void DEZ_Events(void) {
 void SFZ_Events(void); // (LevelScroll.c)
 
 void DynamicLevelEvents(void) {
+    VersusMatch_Poll(); // (the versus play: the results page when both have passed the end panel)
     // (The events follow the first camera and set limits for the whole level, which a split screen has two views of: its levels are the versus ones, without a boss, so the arena of Emerald Hill's act 2 is left out)
     if (camera_split && LEVEL_ZONE(level_id) == ZoneId_EHZ)
         return;
