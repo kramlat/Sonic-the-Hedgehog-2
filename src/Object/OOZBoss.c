@@ -52,7 +52,7 @@ void OOZBoss_Reset(void) {
 }
 
 // DynResize_OOz of act 2: X $2668 fixes the left edge and the lower limit, and the oil is raised to Y $2D8 (the oil is a level object); X $2880 shuts the arena ($2880 to $28C0), fades the music, sets Boss_Flag 8 and
-// loads the boss's list; once the camera is at Y $1D8 its top is held, and $5A frames on the boss is made and its music starts; when it is beaten, the results card
+// loads the boss's list; once the camera is at Y $1D8 its top is held, and $5A frames on the boss is made and its music starts; when it is beaten the camera is let go
 void OOZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
@@ -88,9 +88,11 @@ void OOZBoss_Events(void) {
             QueueSound1(bgm_Boss);
         }
         break;
-    case 6:
-        if (boss_status)
-            GotThroughAct();
+    case 6: // once it is beaten (Beta 4's loc_CE6C) the camera cannot go back: the left edge follows it, the right limit stays; the capsule in the layout ends the act
+        if (boss_status) {
+            limit_left2 = scrpos_x.f.u;
+            limit_right1 = limit_right2;
+        }
         break;
     }
 }
@@ -197,7 +199,7 @@ static void Dive_Run(Sst *self, Own_OOZBoss *own) {
         }
         break;
 
-    case Dive_Wreck: // Offset_0x02E606: blowing up where it is (the face turns to the wreck's $1E frames before the end), and then it sinks while the arena opens to $2D00; offscreen of the oil, the act is over
+    case Dive_Wreck: // Offset_0x02E606: blowing up where it is (the face turns to the wreck's $1E frames before the end), and then it sinks while the camera's right limit is let out to $2A00; sunk, it is gone
         if (--boss_move.timer >= 0) {
             if (boss_move.timer < 0x1E)
                 self->mapping_frame = 0x0B;
@@ -205,12 +207,16 @@ static void Dive_Run(Sst *self, Own_OOZBoss *own) {
             Sst_Draw(self);
             return;
         }
-        if (limit_right2 < 0x2CFE + SCREEN_WIDEADD2) {
+        if (!boss_status) {
+            boss_status = 1; // (Beta 4: the level's music is back and the animals' and explosions' art are loaded, as the other bosses; the capsule ends the act)
+            QueueSound1(Level_Music(level_id));
+            Boss_DefeatedLoadFlickies();
+        }
+        if (limit_right2 < 0x2A00 + SCREEN_WIDEADD2) { // (Beta 4: the camera's right limit is let out to $2A00; the pre-beta's $2D00)
             limit_right2 += 2;
         } else {
-            limit_right2 = 0x2D00 + SCREEN_WIDEADD2;
-            if (self->y_pos.f.u >= 0x2D0) {
-                boss_status = 1;
+            limit_right2 = 0x2A00 + SCREEN_WIDEADD2;
+            if (self->y_pos.f.u >= 0x2D0) { // (sunk: it is gone)
                 Sst_Delete(self);
                 return;
             }
@@ -403,6 +409,7 @@ static void Orbit_Run(Sst *self, Own_OOZBoss *own) {
             Face(self, true);
         }
         boss_move.y.f.u = 0x2A0;
+        self->height_pixels = 0x80; // (Beta 4's $E: the pre-beta's $40)
         self->mapping_frame = 2;
         self->collision_flags = 0x8A;
         boss->anim_routine += 2;

@@ -942,7 +942,7 @@ static void OOZ_TheBossBlowsUpAndSinksWhenBeaten(void) {
     }
     CHECK(boss->code == NULL);
     CHECK_EQ(boss_status, 1);
-    CHECK_EQ(limit_right2, 0x2D00 + SCREEN_WIDEADD2);
+    CHECK_EQ(limit_right2, 0x2A00 + SCREEN_WIDEADD2); // (Beta 4: the pre-beta's was $2D00)
     CHECK(frames > 0xB3);
     boss_status = 0;
     limit_right2 = kept_limits[0];
