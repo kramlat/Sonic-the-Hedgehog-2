@@ -234,6 +234,7 @@ static void Ship_Run(Sst *self, Own_CPZBoss *own) {
             self->y_vel = 0;
             boss_status = 1; // (Beta 4's Boss_Defeated_Music_Restore: the boss is beaten and the level's music is back; the capsule ends the act)
             QueueSound1(Level_Music(level_id));
+                Boss_DefeatedLoadFlickies(); // (the animals' and the explosions' art, as Beta 4's Boss_Defeated_Load_Flickies)
         } else if ((uint16_t)own->wreck >= 0x38) {
             self->routine_secondary += 2;
         }

@@ -206,6 +206,7 @@ static void Boss_Ship(Sst *self) {
                 own->step += 2;
                 boss_status = 1; // (Boss_Defeated_Music_Restore: the boss is beaten, the level's music comes back)
                 QueueSound1(Level_Music(level_id));
+                Boss_DefeatedLoadFlickies(); // (the animals' and the explosions' art, as Beta 4's Boss_Defeated_Load_Flickies)
             }
             break;
         }

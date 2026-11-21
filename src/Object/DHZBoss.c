@@ -363,8 +363,9 @@ static void Boss_Dig(Sst *self, Own_DHZBoss *own) {
                 boss_move.ysp -= 8;
             } else if (boss_move.timer == 0x18) {
                 boss_move.ysp = 0;
-                boss_status = 1; // (Beta 4's Boss_Defeated_Music_Restore: the boss is beaten and the level's music is back; the animals' art, PLC $40, is not ported yet; the capsule ends the act)
+                boss_status = 1; // (Beta 4's Boss_Defeated_Music_Restore: the boss is beaten and the level's music is back; the capsule ends the act)
                 QueueSound1(Level_Music(level_id));
+                Boss_DefeatedLoadFlickies(); // (the animals' and the explosions' art, as Beta 4's Boss_Defeated_Load_Flickies)
             } else if (boss_move.timer >= 0x20) {
                 boss_anim[7] = 0x0D;
                 boss_anim[0] = 2; // (the pre-beta writes this through a register that was left pointing there)

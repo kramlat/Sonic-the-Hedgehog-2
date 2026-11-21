@@ -170,7 +170,7 @@ static void Boss_Bob(Sst *self, Own_CNZBoss *own) {
     own->boss.angle = (uint8_t)(own->boss.angle + 2);
     if (own->boss.anim_routine >= Run_Wreck)
         return;
-    if (self->collision_property == 0) { // the hits are out: it is beaten (Beta 4 also loads the animals' art here, PLC $40, which the port does not have yet)
+    if (self->collision_property == 0) { // the hits are out: it is beaten
         AddPoints(100);
         boss_move.timer = 0xB3;
         own->boss.anim_routine = Run_Wreck;
@@ -373,8 +373,9 @@ static void Boss_Fall(Sst *self, Own_CNZBoss *own) {
         boss_move.ysp -= 8;
     } else if (boss_move.timer == 0x18) {
         boss_move.ysp = 0;
-        boss_status = 1; // (Boss_Defeated_Music_Restore: the boss is beaten and the level's music is back; the animals' art, PLC $40, is not ported yet; the capsule in the layout ends the act)
+        boss_status = 1; // (Boss_Defeated_Music_Restore: the boss is beaten and the level's music is back; the capsule in the layout ends the act)
         QueueSound1(Level_Music(level_id));
+                Boss_DefeatedLoadFlickies(); // (the animals' and the explosions' art, as Beta 4's Boss_Defeated_Load_Flickies)
     } else if ((uint16_t)boss_move.timer >= 0x20) {
         own->boss.anim_routine += 2;
     }

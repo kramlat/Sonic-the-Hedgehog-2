@@ -9,6 +9,7 @@
 #include "Level.h"
 #include "MathUtil.h"
 #include "Sound.h"
+#include "PLC.h"
 
 #include "Macros.h"
 
@@ -119,4 +120,11 @@ void Boss_Defeated(Sst *self) {
     const uint32_t rand = RandomNumber();
     exp->x_pos.f.u += (int16_t)(((rand & 0xFF) >> 2) - 0x20);
     exp->y_pos.f.u += (int16_t)((((rand >> 8) & 0xFF) >> 2) - 0x20);
+}
+
+// Boss_Defeated_Load_Flickies (Sonic2B4.asm): the zone's animals (Flickies_Select_Array) and PLC $41, the explosions' art, which the boss's own list ($B000: its explosions) took the tiles of. (Its PLC $40, the egg prison's
+// art, is the prison object's own load here.)
+void Boss_DefeatedLoadFlickies(void) {
+    AddPLC(Level_AnimalsPlc());
+    AddPLC(PlcId_Explode);
 }

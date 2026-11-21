@@ -32,6 +32,7 @@ void Boss_Move(void);
 void Boss_AnimateSprite(Sst *self, Own_AlphaBoss *boss, const uint8_t *table);
 void Boss_Hit(Sst *self, Own_AlphaBoss *boss);
 void Boss_Defeated(Sst *self);
+void Boss_DefeatedLoadFlickies(void); // Beta 4's Boss_Defeated_Load_Flickies: the zone's pair of animals and the explosions' art are loaded again (the boss's list had its tiles); the egg prison brings its own
 
 #define ObjId_BossExplosionPiece 0x58
 
