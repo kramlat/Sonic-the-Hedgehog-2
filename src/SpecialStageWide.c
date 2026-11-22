@@ -139,22 +139,27 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
     // The vanishing point: the nearly straight boundaries are lines through it (the pipe's lanes), so where they meet is it; the middle of the screen, nudged the way the track turns. Those boundaries go on as lines through it
     double vx = 128, vy = 100;
     {
-        double at[SS_MAX_BOUNDARIES]; // where each straight boundary is at the middle column: they meet at the vanishing point, so the median is its height (it follows the pitch: up when the track pitches up)
+        // where the straight boundaries cross: the least squares of vy = a + b vx over them (the point nearest all their lines); the middle of the screen on a straight track, up or down with the pitch, and to the side the track turns
+        double sbb = 0, sb = 0, sab = 0, sa = 0;
         int cnt = 0;
+        double smin = 9, smax = -9;
         for (int k = 0; k < n; k++) {
             if (bd[k].length < 24 || fabs(bd[k].c) > 0.004 || fabs(bd[k].b) < 0.1)
                 continue;
-            at[cnt++] = bd[k].a + bd[k].b * 128;
+            sbb += bd[k].b * bd[k].b;
+            sb += bd[k].b;
+            sab += bd[k].a * bd[k].b;
+            sa += bd[k].a;
+            smin = bd[k].b < smin ? bd[k].b : smin;
+            smax = bd[k].b > smax ? bd[k].b : smax;
+            cnt++;
         }
-        if (cnt >= 2) {
-            for (int i = 1; i < cnt; i++) // (a median: sorted by insertion)
-                for (int j = i; j > 0 && at[j] < at[j - 1]; j--) {
-                    const double t = at[j];
-                    at[j] = at[j - 1];
-                    at[j - 1] = t;
-                }
-            vy = at[cnt / 2];
+        const double det = sbb * cnt - sb * sb;
+        if (cnt >= 2 && det > 1e-3 && smax - smin > 0.15) {
+            vx = (-sab * cnt + sb * sa) / det; // (Cramer: sbb vx - sb vy = -sab and -sb vx + cnt vy = sa)
+            vy = (sbb * sa - sb * sab) / det;
         }
+        vx = vx < 48 ? 48 : vx > 208 ? 208 : vx;
         vy = vy < -40 ? -40 : vy > 180 ? 180 : vy;
     }
     bool radial[SS_MAX_BOUNDARIES];
