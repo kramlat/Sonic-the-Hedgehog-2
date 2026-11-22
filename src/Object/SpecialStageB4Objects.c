@@ -110,6 +110,7 @@ bool SS4Stage_Over(void) { return over; }
 bool SS4Stage_GotEmerald(void) { return emerald; }
 uint16_t SS4Stage_Speed(void) { return speed_word; }
 int SS4Stage_Rings(void) { return w2.rings[0] + w2.rings[1]; }
+int SS4Stage_RingsOf(int who) { return w2.rings[who]; }
 
 static Sst *Make(SstCode code, uint8_t subtype) {
     Sst *o = Sst_Allocate();

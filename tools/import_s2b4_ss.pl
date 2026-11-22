@@ -44,3 +44,7 @@ for my $r (['Sonic2B4.asm', 'asm_dc_mappings.pl', 'loc_7E76', 'Mappings/SSB4Coun
     system('perl', "tools/$r->[1]", "$s/$r->[0]", $r->[2], "res/$r->[3]") == 0 or die;
     print "  - \"$r->[3]\"\n";
 }
+
+# The results screen's pieces (Special_Stage_Results_Mappings, 22 frames)
+system('perl', 'tools/asm_dc_mappings.pl', "$s/Sonic2B4.asm", 'Special_Stage_Results_Mappings', 'res/Mappings/SSB4ResultsCard') == 0 or die;
+print "  - \"Mappings/SSB4ResultsCard\"\n";

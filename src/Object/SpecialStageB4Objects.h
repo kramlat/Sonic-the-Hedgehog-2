@@ -16,6 +16,7 @@ bool SS4Stage_Over(void);                       // the stage has ended (`$FFFFDB
 bool SS4Stage_PadLocked(void);                  // the end has locked the pads ($FFFFDB87)
 bool SS4Stage_GotEmerald(void);                 // and it was won
 int SS4Stage_Rings(void);                       // the rings of both characters
+int SS4Stage_RingsOf(int who);                  // one character's rings
 int SS4Stage_Required(int stage, int checkpoint); // the rings a checkpoint asks of the two together (loc_8298)
 uint16_t SS4Stage_Speed(void);                  // the stage's speed word ($FFFFDB12), which the end slows
 

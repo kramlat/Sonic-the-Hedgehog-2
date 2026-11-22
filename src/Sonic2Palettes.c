@@ -15,6 +15,7 @@
 #include "Resource/S2Palette/SSB4Vs1.h"
 #include "Resource/S2Palette/SSB4Vs2.h"
 #include "Resource/S2Palette/SSB4Vs3.h"
+#include "Resource/S2Palette/SSB4Results.h"
 #include "Resource/S2Palette/CPZ.h"
 #include "Resource/S2Palette/HPZ.h"
 #include "Resource/S2Palette/HTZ.h"
@@ -107,5 +108,6 @@ PalettePointer palette_pointers[] = {
     { (const uint16_t*)S2Palette_SSB4Vs1, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
     { (const uint16_t*)S2Palette_SSB4Vs2, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
     { (const uint16_t*)S2Palette_SSB4Vs3, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
+    /* PalId_SSB4Results */ { (const uint16_t*)S2Palette_SSB4Results, &dry_palette[0][0], 0x40, PAL_FORMAT_GENESIS },
 };
 

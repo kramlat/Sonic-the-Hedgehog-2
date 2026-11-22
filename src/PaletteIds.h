@@ -44,6 +44,7 @@ enum {
 	PalId_SSB4Main, // Beta 4's special stage's main palette (three lines: $18)
 	PalId_SSB4Stage, // its ten stage palettes, one after the other (line 3: $1B to $24), PalId_SSB4Stage + the stage
 	PalId_SSB4StageLast = PalId_SSB4Stage + 9,
+	PalId_SSB4Results, // Beta 4's special stage results' palette ($27)
 
 	PalId_EHZ = PalId_SLZ,
 	PalId_CPZ = PalId_MZ,

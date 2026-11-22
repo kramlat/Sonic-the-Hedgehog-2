@@ -159,6 +159,9 @@ void HUD_Lives(void) {
     } while (decs-- > 0);
 }
 
+// The special stage results' three numbers (Beta 4's `$FFFFFF8E`, `$FFFFF7D2` and `$FFFFF7D4`: the emerald bonus, Sonic's rings and Miles') at the same place as the act results'
+void HUD_WriteBonusCard(uint16_t first, uint16_t second, uint16_t third);
+
 // Hud_TimeRingBonus: writes a 4-digit bonus as 8x16 digits at the current VRAM position, blanking leading zeroes.
 static void HUD_WriteBonus(uint16_t value) {
     static const uint16_t places[4] = { 1000, 100, 10, 1 };
@@ -336,4 +339,11 @@ void HUD_Update(void) {
         HUD_WriteBonus(time_bonus);
         HUD_WriteBonus(ring_bonus);
     }
+}
+
+void HUD_WriteBonusCard(uint16_t first, uint16_t second, uint16_t third) {
+    VDP_SeekVRAM(0x520 * TILE_SIZE);
+    HUD_WriteBonus(first);
+    HUD_WriteBonus(second);
+    HUD_WriteBonus(third);
 }

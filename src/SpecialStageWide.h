@@ -10,7 +10,7 @@
 //   plane cells across = 4 * stride; stripe w starts at cell w * stride; its 32 cells of the track are at [stride_start + left_cells, +32); the margin cell next to the track at each side is one of the 16 solid tiles
 //   (ArtTile_SpecialStageSolid + the edge pixel's colour), the others the blank tile (ArtTile_SpecialStageBlank)
 
-#define SS_WIDE_PAD_CELLS 1 // the cells at each side of the track that carry its edge pixels out (8 pixels)
+#define SS_WIDE_PAD_CELLS 64 // the cells at each side of the track that carry its edge pixels out: all of the margin, so that the walls go on to the screen's edges (the user's picture of the final in widescreen; it was 1: 8 pixels)
 
 typedef struct {
     int screen_width;

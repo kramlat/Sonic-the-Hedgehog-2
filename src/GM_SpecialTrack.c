@@ -5,6 +5,7 @@
 #include "SpecialStageWide.h"
 #include "Object/SpecialStageB4Objects.h"
 #include "Object/StarPost.h"
+#include "SpecialResults.h"
 #include "Object/SpecialStageArt.h"
 #include "Object/SpecialStageObjects.h"
 #include "Object/Tails.h"
@@ -85,6 +86,8 @@ static void ShowPlanes(SSDisplay *d) {
     }
 }
 
+static bool resultsPending, resultsWon;
+static int resultsSonic, resultsMiles;
 int ss4_stage; // Beta 4's stage to play: 0 to 6 in the one player play (the number of emeralds won on the way: it goes on only when one is won), 7 to 9 are the versus stages
 bool ss4_emerald[7];  // $FFFFFFB2 on: which emeralds are won
 
@@ -216,12 +219,18 @@ void GM_SpecialTrack(void) {
         if (b4) {
             SS4Stage_Frame(&d);
             if (SS4Stage_Over() && !viewer) {
+                const int sonic_rings = SS4Stage_RingsOf(0), miles_rings = SS4Stage_RingsOf(1);
+                const bool won = SS4Stage_GotEmerald();
                 if (SS4Stage_GotEmerald() && ss4_stage < 7) { // (only an emerald takes the stage on)
                     ss4_emerald[ss4_stage] = true;
                     ss4_stage++;
                 }
                 gamemode = GameMode_Level; // (the way back to the level; the results are to come)
                 star_bonus_stage = false;
+                resultsPending = true;
+                resultsSonic = sonic_rings;
+                resultsMiles = miles_rings;
+                resultsWon = won;
                 break;
             }
         } else {
@@ -241,6 +250,10 @@ void GM_SpecialTrack(void) {
     }
     Viewport_SetSize(SCREEN_WIDTH, SCREEN_HEIGHT, PLANE_WIDTH, PLANE_HEIGHT);
     VDP_SetShadowHighlight(false);
+    if (resultsPending) {
+        resultsPending = false;
+        SpecialResults_Run(resultsSonic, resultsMiles, resultsWon);
+    }
     if (viewer)
         gamemode = GameMode_Sega;
 }
