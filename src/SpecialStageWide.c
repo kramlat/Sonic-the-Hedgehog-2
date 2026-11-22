@@ -1,5 +1,6 @@
 // The pre-beta's special stage track for a wide screen: see SpecialStageWide.h
 #include "SpecialStageWide.h"
+#include <math.h>
 #include "SpecialStageTables.h"
 #include "Object/SpecialStageArt.h"
 #include <stdbool.h>
@@ -135,12 +136,38 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
         }
         FitBoundary(&bd[k]);
     }
+    // The vanishing point: the nearly straight boundaries are lines through it (the pipe's lanes), so where they meet is it; the middle of the screen, nudged the way the track turns. Those boundaries go on as lines through it
+    double vx = 128, vy = 100;
+    {
+        double sx = 0, sy = 0;
+        int cnt = 0;
+        for (int k = 0; k < n; k++) {
+            if (bd[k].length < 48 || fabs(bd[k].c) > 0.002 || fabs(bd[k].b) < 0.15)
+                continue;
+            const double at_centre = bd[k].a + bd[k].b * 128; // (where the line is at the middle column)
+            sx += 128;
+            sy += at_centre;
+            cnt++;
+        }
+        if (cnt >= 2)
+            vy = sy / cnt;
+        vy = vy < 20 ? 20 : vy > 160 ? 160 : vy;
+    }
+    bool radial[SS_MAX_BOUNDARIES];
+    for (int k = 0; k < n; k++) {
+        const double m_rad = (vy - bd[k].a) / (vx - 0);
+        radial[k] = bd[k].length >= 48 && fabs(bd[k].c) <= 0.002 && fabs(bd[k].b - m_rad) <= 0.12;
+    }
     for (int col = 0; col < SS_WIDE_MC * 8; col++) {
         const double x = -(col + 1);
         double pos[SS_MAX_BOUNDARIES];
         for (int k = 0; k < n; k++) {
             // (the curve acts for the first SS_CURVE_COLUMNS columns of the margin and goes on along its tangent after them: a turn's bend does not run away)
             // (and the pipe's walls rise toward its sides: a boundary never goes down going out, so a turn's fit that would warp it down is flattened: the slope and the bend are not less than nothing)
+            if (radial[k]) { // (a line through the vanishing point)
+                pos[k] = bd[k].a + ((vy - bd[k].a) / vx) * x;
+                continue;
+            }
             const double b = bd[k].b < 0 ? 0 : bd[k].b > SS_MAX_SLOPE ? SS_MAX_SLOPE : bd[k].b;
             const double c = bd[k].c < 0 ? 0 : bd[k].c > SS_MAX_BEND ? SS_MAX_BEND : bd[k].c;
             const double xc = x < -SS_CURVE_COLUMNS ? -SS_CURVE_COLUMNS : x;
