@@ -14,6 +14,7 @@
 #include "SpecialStageItems.h"
 #include "SpecialStageB4Tables.h"
 #include "SpecialStageB4Character.h"
+#include "SpecialStageB4Items.h"
 #include "Object/SpecialStageArt.h"
 
 // The pre-beta's special stage (built in stages, see docs/Sonic2SpecialStage.md). Stage 1: its art, imported as it is: every picture of the two lists the stage loads ($3C and $3D) decodes to the tiles its header
@@ -794,7 +795,120 @@ static void SpecialStageB4_TheArtsPiecesAndTheShadowFollowTheScript(void) {
     CHECK_EQ(s.y, p.screen_y + 0x18);
 }
 
+// Beta 4's rings and bombs (stage 5 of docs/Sonic2SpecialStageB4.md): made from the stage's list a step at a time, coming nearer by the distance, taken by a character at their lane, shadows following, rings spilling
+static void SpecialStageB4_TheItemsAreMadeComeNearAndAreTakenByTheCharacterAtTheirLane(void) {
+    SS4Items items;
+    SS4Items_Reset(&items, 0);
+    SS4Player sonic, miles;
+    SS4Player_Init(&sonic, false);
+    SS4Player_Init(&miles, true);
+    SS4World2 w;
+    memset(&w, 0, sizeof(w));
+    w.frame_four = true;
+    w.segment = 0;
+    w.player[0] = &sonic;
+    w.player[1] = &miles;
+    // the steps of stage 1 up to one that has rings: what the list makes
+    size_t size;
+    const uint8_t *stream = SS4_StageObjects(0, &size);
+    size_t steps_count;
+    const uint8_t *steps = SS4_StageSteps(0, &steps_count);
+    int rings = 0, bombs = 0, step = 0;
+    size_t at = 0;
+    while (rings == 0 && step < 20) {
+        while (stream[at] < 0x80) {
+            if (stream[at] & 0x40)
+                bombs++;
+            else
+                rings++;
+            at += 2;
+        }
+        at++;
+        step++;
+    }
+    for (int s = 0; s < step; s++)
+        SS4Items_MakeStep(&items, s, SS4_KindLength(steps[s] & 0x7F));
+    int made_rings = 0, made_bombs = 0;
+    for (int i = 0; i < SS4_ITEM_MAX; i++) {
+        made_rings += items.item[i].kind == SS4Kind_Ring;
+        made_bombs += items.item[i].kind == SS4Kind_Bomb;
+    }
+    CHECK_EQ(made_rings, rings);
+    CHECK_EQ(made_bombs, bombs);
+    CHECK_EQ(items.total_rings, rings);
+    SS4Items_MakeStep(&items, step - 1, SS4_KindLength(steps[step - 1] & 0x7F)); // (the same step again makes nothing)
+    CHECK_EQ(items.total_rings, rings);
+
+    // Run until a ring is at its nearest (anim 8), put the character at its lane and it is taken: counted, with a sound, and the shadow ends
+    int ring = -1;
+    for (int f = 0; f < 600 && ring < 0; f++) {
+        SS4Items_Run(&items, &w);
+        for (int i = 0; i < SS4_ITEM_MAX && ring < 0; i++)
+            if (items.item[i].kind == SS4Kind_Ring && items.item[i].anim == 8 && items.item[i].collision)
+                ring = i;
+    }
+    CHECK(ring >= 0);
+    if (ring >= 0) {
+        const uint8_t lane = items.item[ring].lane;
+        const int shadow = items.item[ring].link;
+        CHECK(shadow >= 0);
+        CHECK_EQ(items.item[shadow].kind, SS4Kind_Shadow);
+        sonic.angle = lane;
+        miles.angle = (uint8_t)(lane + 0x40); // (Miles is elsewhere)
+        SS4Items_Run(&items, &w);
+        CHECK_EQ(w.rings[0], 1);
+        CHECK_EQ(w.digits[0][2], 1);
+        CHECK_EQ(w.rings[1], 0);
+        CHECK(w.sounds > 0 && w.sound[0] == 0xB5);
+        CHECK_EQ(items.item[ring].routine, 6);
+        CHECK_EQ(items.item[ring].collision, 0);
+        SS4Items_Run(&items, &w);
+        CHECK(items.item[shadow].kind == SS4Kind_None || items.item[shadow].kind != SS4Kind_Shadow || items.item[shadow].end);
+    }
+
+    // A bomb touches a character at its lane: the character's hit flag is set
+    SS4Items_Reset(&items, 0);
+    memset(&w.rings, 0, sizeof(w.rings));
+    w.sounds = 0;
+    SS4Item *bomb = &items.item[0];
+    bomb->kind = SS4Kind_Bomb;
+    bomb->link = -1;
+    bomb->lane = 0x40;
+    bomb->distance = (int32_t)(40 << 16);
+    sonic.angle = 0x42;
+    sonic.hit = 0;
+    for (int f = 0; f < 200 && !sonic.hit; f++)
+        SS4Items_Run(&items, &w);
+    CHECK_EQ(sonic.hit, 1);
+    CHECK(w.sounds > 0 && w.sound[w.sounds - 1] == 0xCB);
+
+    // Spill: the tens first, then the hundreds, then the ones; the count comes off
+    SS4Items_Reset(&items, 0);
+    w.rings[0] = 123;
+    w.digits[0][0] = 1;
+    w.digits[0][1] = 2;
+    w.digits[0][2] = 3;
+    CHECK_EQ(SS4Items_Spill(&items, &w, 0), 10);
+    CHECK_EQ(w.rings[0], 113);
+    CHECK_EQ(w.digits[0][1], 1);
+    w.digits[0][1] = 0;
+    CHECK_EQ(SS4Items_Spill(&items, &w, 0), 10); // (a hundred is broken: the tens are 9)
+    CHECK_EQ(w.digits[0][0], 0);
+    CHECK_EQ(w.digits[0][1], 9);
+    w.digits[0][1] = 0;
+    CHECK_EQ(SS4Items_Spill(&items, &w, 0), 3); // (the ones)
+    CHECK_EQ(w.digits[0][2], 0);
+    // spilled rings fly off the screen
+    for (int f = 0; f < 400; f++)
+        SS4Items_Run(&items, &w);
+    int left = 0;
+    for (int i = 0; i < SS4_ITEM_MAX; i++)
+        left += items.item[i].kind == SS4Kind_Spilled;
+    CHECK_EQ(left, 0);
+}
+
 void RegisterSpecialStageTests(void) {
+    RUN_TEST(SpecialStageB4_TheItemsAreMadeComeNearAndAreTakenByTheCharacterAtTheirLane);
     RUN_TEST(SpecialStageB4_TheCharacterRunsJumpsLandsAndTumbles);
     RUN_TEST(SpecialStageB4_TheArtsPiecesAndTheShadowFollowTheScript);
     RUN_TEST(SpecialStageB4_TheSegmentsComeInTheStagesStepsAndTurnByTheirFlags);

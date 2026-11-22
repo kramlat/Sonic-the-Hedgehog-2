@@ -30,3 +30,9 @@ my $s = $src; $s =~ s{/data/ss$}{};
 system('perl', 'tools/asm_dc_mappings.pl', "$s/Sonic2B4.asm", 'loc_306FC', 'res/Mappings/SSB4Sonic') == 0 or die;
 system('perl', 'tools/asm_dc_region.pl', "$s/Sonic2B4.asm", 'loc_30AE4', 'loc_30CCC', 'res/SSData/B4CharacterArtScript') == 0 or die;
 print "  - \"Mappings/SSB4Sonic\"\n  - \"SSData/B4CharacterArtScript\"\n";
+
+# The rings' and bombs' mappings and animations (loc_324D2, loc_326B0, loc_3247A, loc_32676)
+for my $r (['asm_dc_mappings.pl', 'loc_324D2', 'Mappings/SSB4Rings'], ['asm_dc_mappings.pl', 'loc_326B0', 'Mappings/SSB4Bombs'], ['asm_dc_animation.pl', 'loc_3247A', 'Animation/SSB4Rings'], ['asm_dc_animation.pl', 'loc_32676', 'Animation/SSB4Bombs']) {
+    system('perl', "tools/$r->[0]", "$s/Sonic2B4.asm", $r->[1], "res/$r->[2]") == 0 or die;
+    print "  - \"$r->[2]\"\n";
+}
