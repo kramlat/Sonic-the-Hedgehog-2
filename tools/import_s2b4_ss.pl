@@ -48,3 +48,8 @@ for my $r (['Sonic2B4.asm', 'asm_dc_mappings.pl', 'loc_7E76', 'Mappings/SSB4Coun
 # The results screen's pieces (Special_Stage_Results_Mappings, 22 frames)
 system('perl', 'tools/asm_dc_mappings.pl', "$s/Sonic2B4.asm", 'Special_Stage_Results_Mappings', 'res/Mappings/SSB4ResultsCard') == 0 or die;
 print "  - \"Mappings/SSB4ResultsCard\"\n";
+# (the gems bonus line, frame 16: its number and the zero after it are 8 pixels further right than Beta 4 has them, so that the number ends where the ring lines' do: the user's alignment fix)
+{ open my $mf, "<:raw", "res/Mappings/SSB4ResultsCard" or die; local $/; my $md = <$mf>; close $mf;
+  my $o = unpack("n", substr($md, 2 * 16, 2));
+  for my $i (0 .. unpack("n", substr($md, $o, 2)) - 1) { my $x = unpack("n", substr($md, $o + 2 + 8 * $i + 6, 2)); substr($md, $o + 2 + 8 * $i + 6, 2) = pack("n", $x + 8) if $x == 0x38 || $x == 0x58 }
+  open my $mo, ">:raw", "res/Mappings/SSB4ResultsCard" or die; print $mo $md; close $mo; }
