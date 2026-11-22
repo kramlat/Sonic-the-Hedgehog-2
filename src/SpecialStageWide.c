@@ -4,6 +4,7 @@
 #include <string.h>
 #include "SpecialStageTables.h"
 #include "Object/SpecialStageArt.h"
+#include "EnginePalette.h"
 #include <stdbool.h>
 
 void SSWide_Layout(SSWide *wide, int screen_width) {
@@ -117,7 +118,7 @@ static void FitBoundary(Boundary *bd) {
 // ("the same distance", the user), B then A. The picture is in the frame's own colours, a pixel of the Genesis's for each pixel.
 
 #define SS_TUBE_MAX_W 0.08 // the deepest depth looked at (a ring of 12.5 pixels)
-#define SS_TUBE_PERIOD 0.0056 // the pipe's segment length in 1/r (see FitRings)
+#define SS_TUBE_PERIOD 0.0059 // the pipe's segment length in 1/r (see FitRings)
 
 typedef struct {
     double c0x, c0y, c1x, c1y; // the axis: c(w) = c0 + c1 w
@@ -369,6 +370,20 @@ static bool FitRings(const uint8_t img[SS_IMG_H][SS_IMG_W], Rings *rings) {
 }
 
 // The colour of the pipe at (x, y) beyond the edge (x negative): its depth and its lane; only where its lane meets the edge on the wall's colours (the half pipe's shape: elsewhere the sky, the rim, a lane)
+// The pipe's colour at the depth w by the rings: -1 deeper than the last two (what the lane has there)
+static int RingPattern(const Rings *rings, double w) {
+    if (w >= rings->w0 + rings->step)
+        return -1;
+    if (w >= rings->w0)
+        return rings->a;
+    if (rings->period <= 0) // (no rings: the edge's band all the way)
+        return rings->b;
+    // outward from w0 a segment at a time: the edge's band (B), then the inner one (A). The narrower of the two is the ring, the other the wall: an inner band under half a segment is the ring (the wall B
+    // takes the rest of the segment); a wider one is the wall, and B is the ring, of a fifth of a segment (its thickness does not show: it is cut by the edge)
+    const double b_width = rings->step < rings->period / 2 ? rings->period - rings->step : rings->period / 5;
+    return fmod(rings->w0 - w, rings->period) < b_width ? rings->b : rings->a;
+}
+
 static int RingColour(const uint8_t img[SS_IMG_H][SS_IMG_W], const Rings *rings, double x, double y) {
     const double w = DepthAt(rings, x, y);
     double ux, uy;
@@ -384,14 +399,17 @@ static int RingColour(const uint8_t img[SS_IMG_H][SS_IMG_W], const Rings *rings,
     const int edge = img[(int)ye][0];
     if (edge != rings->a && edge != rings->b)
         return -1;
-    if (w >= rings->w0 + rings->step) // (deeper than the last two rings: what the lane has at the edge)
-        return edge;
-    if (w >= rings->w0)
-        return rings->a;
-    if (rings->period <= 0) // (no rings: the edge's band all the way)
-        return rings->b;
-    // outward from w0: the edge's band for the period less the inner band, then the inner band, and so on
-    return fmod(rings->w0 - w, rings->period) < rings->period - rings->step ? rings->b : rings->a;
+    // the lane is the pipe's ringed wall only if it has at the edge the colour the rings give there (give or take a little depth: an edge just at a ring's boundary); otherwise it is something else: the rim, the upper wall
+    bool fits = false, known = false;
+    for (int k = -1; k <= 1; k++) {
+        const int expected = RingPattern(rings, we + k * 0.0006);
+        known |= expected >= 0;
+        fits |= expected == edge;
+    }
+    if (known && !fits)
+        return -1;
+    const int colour = RingPattern(rings, w);
+    return colour >= 0 ? colour : edge;
 }
 
 // The pixels beyond the left edge: out[y][k] is the pixel k + 1 to the left of the picture
@@ -455,31 +473,8 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
         vx = vx < 48 ? 48 : vx > 208 ? 208 : vx;
         vy = vy < -40 ? -40 : vy > 180 ? 180 : vy;
     }
-    // The boundaries that are not at the edge column but a little way in (the thin outlines): each is a ray from V too, so where it would cross the edge column is where it starts, if no boundary there is its own already
-    int total = n;
-    const int seed_limit = n + 12; // (not many: a wrong vanishing point would fill the margin with stripes)
-    for (int xs = 4; xs <= 48 && have_v && total < seed_limit && vx > 72 && vx < 184; xs += 4) {
-        int sy[SS_MAX_BOUNDARIES], sa[SS_MAX_BOUNDARIES], sb[SS_MAX_BOUNDARIES];
-        const int m = ColumnBoundaries(img, xs, sy, sa, sb, SS_MAX_BOUNDARIES);
-        for (int i = 0; i < m && total < seed_limit; i++) {
-            const double y0 = vy + (sy[i] - vy) * vx / (vx - xs);
-            if (y0 < -60 || y0 > 290)
-                continue;
-            bool known = false;
-            for (int k = 0; k < total; k++)
-                if (bd[k].above == sa[i] && bd[k].below == sb[i] && fabs(bd[k].a - y0) <= 3)
-                    known = true;
-            if (known)
-                continue;
-            bd[total].above = sa[i];
-            bd[total].below = sb[i];
-            bd[total].a = y0;
-            bd[total].length = 0;
-            bd[total].lane = false;
-            bd[total].b = bd[total].c = 0;
-            total++;
-        }
-    }
+    // (the thin outlines a little way in used to be seeded as rays too; the rings do their job now, and inside the rim they broke its band: gone)
+    const int total = n;
     for (int i = 1; i < total; i++) // (by height, so that the bands are in order)
         for (int j = i; j > 0 && bd[j].a < bd[j - 1].a; j--) {
             const Boundary t = bd[j];
@@ -499,8 +494,17 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
                 floor_top = pos[k];
                 break;
             }
+        // the rim: the first band under the sky (the pipe's upper edge) goes on as rays, as the lanes do; the rings are below it (the user's drawing: the ring rises to meet it)
+        // (its bottom: the first boundary followed from the edge column itself that is not the sky's; the seeded thin outlines inside the rim do not count)
+        double rim_bottom = -1e9;
+        if (top_colour == 0)
+            for (int k = 0; k < n; k++)
+                if (bd[k].above != 0 && bd[k].length > 0) {
+                    rim_bottom = pos[k];
+                    break;
+                }
         for (int y = 0; y < SS_IMG_H; y++) {
-            const int ring = rings != NULL && y < floor_top ? RingColour(img, rings, x, y) : -1;
+            const int ring = rings != NULL && y >= rim_bottom && y < floor_top ? RingColour(img, rings, x, y) : -1;
             if (ring >= 0) { // the wall: the ring the point is on, by its depth
                 out[y][col] = (uint8_t)ring;
                 continue;
@@ -511,6 +515,48 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
             out[y][col] = (uint8_t)colour;
         }
     }
+}
+
+// The margin is nearer than anything the picture shows, and the pipe's shading is by depth (deeper is darker; the user: "remove improper shadows"), so a shaded colour is lit in the margin: the colour of the
+// track's palette line of the same hue that is the next brighter, if the picture has it and it is at most 1.6 times as bright (not a highlight); greys are left alone (the white highlights are greys too)
+static void LitColours(const uint8_t img[SS_IMG_H][SS_IMG_W], const uint16_t *pal, uint8_t lit[16]) {
+    bool used[16] = {false};
+    for (int y = 0; y < SS_IMG_H; y++)
+        for (int x = 0; x < SS_IMG_W; x++)
+            used[img[y][x] & 15] = true;
+    double c[16][3], v[16], len[16];
+    for (int i = 0; i < 16; i++) {
+        c[i][0] = (pal[i] >> 1) & 7;
+        c[i][1] = (pal[i] >> 5) & 7;
+        c[i][2] = (pal[i] >> 9) & 7;
+        v[i] = c[i][0] + c[i][1] + c[i][2];
+        len[i] = sqrt(c[i][0] * c[i][0] + c[i][1] * c[i][1] + c[i][2] * c[i][2]);
+    }
+    for (int i = 0; i < 16; i++) {
+        lit[i] = (uint8_t)i;
+        const double mx = fmax(c[i][0], fmax(c[i][1], c[i][2])), mn = fmin(c[i][0], fmin(c[i][1], c[i][2]));
+        if (i == 0 || v[i] == 0 || mx - mn < 2) // (the transparent colour, black, greys)
+            continue;
+        int best = -1;
+        for (int j = 1; j < 16; j++) {
+            if (j == i || !used[j] || v[j] <= v[i] || v[j] > v[i] * 1.6)
+                continue;
+            if (c[j][0] < c[i][0] || c[j][1] < c[i][1] || c[j][2] < c[i][2]) // (every part at least as bright)
+                continue;
+            if ((c[i][0] * c[j][0] + c[i][1] * c[j][1] + c[i][2] * c[j][2]) / (len[i] * len[j]) < 0.97) // (the same hue)
+                continue;
+            if (best < 0 || v[j] < v[best])
+                best = j;
+        }
+        if (best >= 0)
+            lit[i] = (uint8_t)best;
+    }
+}
+
+static void LightUp(uint8_t out[SS_IMG_H][SS_WIDE_MC * 8], const uint8_t lit[16]) {
+    for (int y = 0; y < SS_IMG_H; y++)
+        for (int x = 0; x < SS_WIDE_MC * 8; x++)
+            out[y][x] = lit[out[y][x] & 15];
 }
 
 static void PutTiles(uint8_t *tiles, const uint8_t out[SS_IMG_H][SS_WIDE_MC * 8], bool right) {
@@ -530,19 +576,25 @@ static void PutTiles(uint8_t *tiles, const uint8_t out[SS_IMG_H][SS_WIDE_MC * 8]
 void SSWide_BuildMargins(const uint16_t *plane, const int16_t (*hscroll)[2], uint8_t *tiles) {
     static uint8_t img[SS_IMG_H][SS_IMG_W], prev[SS_IMG_H][SS_IMG_W], mirrored[SS_IMG_H][SS_IMG_W], out[SS_IMG_H][SS_WIDE_MC * 8];
     static uint8_t made[2 * SS_WIDE_ROWS * SS_WIDE_MC * 32];
+    static uint16_t prev_pal[16];
     static bool have_made = false;
     ComposeImage(plane, hscroll, img);
-    if (have_made && memcmp(img, prev, sizeof img) == 0) { // (the picture of the track changes every few frames: the same picture, the same margins)
+    if (have_made && memcmp(img, prev, sizeof img) == 0 && memcmp(dry_palette[3], prev_pal, sizeof prev_pal) == 0) { // (the picture of the track changes every few frames: the same picture and colours, the same margins)
         memcpy(tiles, made, sizeof made);
         return;
     }
     memcpy(prev, img, sizeof img);
+    memcpy(prev_pal, dry_palette[3], sizeof prev_pal);
+    uint8_t lit[16];
+    LitColours(img, dry_palette[3], lit);
     for (int y = 0; y < SS_IMG_H; y++)
         for (int x = 0; x < SS_IMG_W; x++)
             mirrored[y][x] = img[y][SS_IMG_W - 1 - x];
     ExtendLeft(img, out);
+    LightUp(out, lit);
     PutTiles(tiles, out, false);
     ExtendLeft(mirrored, out);
+    LightUp(out, lit);
     PutTiles(tiles + (size_t)SS_WIDE_ROWS * SS_WIDE_MC * 32, out, true);
     memcpy(made, tiles, sizeof made);
     have_made = true;
