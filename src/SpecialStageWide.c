@@ -109,17 +109,20 @@ static void FitBoundary(Boundary *bd) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// The pipe's rings (one point perspective: the pipe's cross sections are circles about the vanishing point C, a ring at the depth z has the radius k / z, so along every ray from C a ring is at the same 1/r; rings the
-// same distance apart in depth are the same step apart in 1/r). The boundaries between the colours are fitted with circles (each pair of colours its own); those that are circles (most of the pixels within a couple
-// of pixels of it) give C. Along the rays from C through the edge column the last boundary before the edge (w0, in 1/r) and the one before it (w1) are where the last two rings are; beyond the edge the rings go
-// on outward the same step apart (w1 - w0: "the same distance", the user), each the thin band (B, the colour at the edge: the green arcs where the next half ring of spheres is) and the wide one (A, the colour
-// inside it) after it.
+// The half pipe drawn for real beyond the edge (one-point perspective, the user: "draw the half pipe for real and pixelate it based on the data used to fake it"). The pipe is a tube: its cross section at the depth
+// w (w = 1/r: a ring of the radius r is at the depth k r^-1... the same thing as 1/r) is a circle of the radius 1/w about the axis's point c(w) = c0 + c1 w (on a straight track c1 is 0, every ring about the same
+// centre; on a turn the axis bends: "just pitched slightly in the turn direction"). The data is the frame itself: the boundaries between the colours are fitted with circles (each pair of colours its own), the
+// ones that are circles are the rings, and the axis is fitted through their centres by their depths. A lane is a fixed angle about the axis (the point c(w) + u / w for one unit vector u at every depth). Along the
+// lanes from the edge column inward the last ring (w0) and the one before it (w0 + step) are found; beyond the edge the rings go on the same step apart ("the same distance", the user), each a thin band of the
+// colour at the edge (B: the green arcs where the next half ring of spheres is) and then the colour inside it (A). The picture is in the frame's own colours, a pixel of the Genesis's for each pixel.
+
+#define SS_TUBE_MAX_W 0.08 // the deepest depth looked at (a ring of 12.5 pixels)
 
 typedef struct {
-    double cx, cy;     // C
-    double w0, step;   // the last ring's 1/r and the step between rings
-    double thin;       // the thin band's part of the step
-    int a, b;          // the colours: A (between the rings) and B (the ring)
+    double c0x, c0y, c1x, c1y; // the axis: c(w) = c0 + c1 w
+    double w0, step;           // the last ring's depth and the step between rings
+    double thin;               // the thin band's part of the step
+    int a, b;                  // the colours: A (between the rings) and B (the ring)
 } Rings;
 
 typedef struct { double n, sx, sy, sxx, syy, sxy, sxz, syz, sz, err; double cx, cy, r; } CircleSums;
@@ -178,14 +181,76 @@ static bool IsBoundary(const uint8_t img[SS_IMG_H][SS_IMG_W], int x, int y, int 
     return false;
 }
 
-// the colour runs along the ray from the edge column's point (0, ye) to C: the colour at the edge and where (the distance from C) each run inward begins; runs under 3 pixels are not counted (outlines)
-static int RayRuns(const uint8_t img[SS_IMG_H][SS_IMG_W], double cx, double cy, double ye, int *colour, double *dist, int max) {
-    const double dx = cx, dy = cy - ye, len = sqrt(dx * dx + dy * dy);
-    int raw_c[512];
-    double raw_d[512];
-    int raw_len[512], m = 0;
-    for (double t = 0; t < len - 2 && m < 512; t += 0.5) {
-        const int x = (int)(t * dx / len), y = (int)(ye + t * dy / len);
+static void AxisAt(const Rings *t, double w, double *cx, double *cy) {
+    *cx = t->c0x + t->c1x * w;
+    *cy = t->c0y + t->c1y * w;
+}
+
+// the depth of the pipe's point that is seen at (x, y): the w whose ring passes through it (w |p - c(w)| = 1)
+static double DepthAt(const Rings *t, double x, double y) {
+    // w = 1 / |p - c(w)|, by iterating it (the axis moves little for a change of the depth: it settles in a few steps); if it does not settle, by halves
+    double w = 0;
+    for (int i = 0; i < 8; i++) {
+        double cx, cy;
+        AxisAt(t, w, &cx, &cy);
+        const double d = sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+        const double next = d > 0 ? 1 / d : SS_TUBE_MAX_W;
+        if (fabs(next - w) < 1e-7)
+            return next;
+        w = next;
+    }
+    double lo = 1e-4, hi = SS_TUBE_MAX_W;
+    for (int i = 0; i < 40; i++) {
+        const double m = (lo + hi) / 2;
+        double cx, cy;
+        AxisAt(t, m, &cx, &cy);
+        if (m * sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) < 1)
+            lo = m;
+        else
+            hi = m;
+    }
+    return (lo + hi) / 2;
+}
+
+// the lane through (x, y): its unit vector about the axis
+static void LaneAt(const Rings *t, double x, double y, double w, double *ux, double *uy) {
+    double cx, cy;
+    AxisAt(t, w, &cx, &cy);
+    const double len = sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+    *ux = len > 0 ? (x - cx) / len : -1;
+    *uy = len > 0 ? (y - cy) / len : 0;
+}
+
+// where the lane u, going deeper from the depth w, crosses the edge column (x = 0): its depth there, or -1
+static double LaneAtEdge(const Rings *t, double ux, double uy, double w) {
+    // c0x + c1x m + ux / m = 0, times m: c1x m m + c0x m + ux = 0; the first root deeper than w
+    (void)uy;
+    double best = -1;
+    if (fabs(t->c1x) < 1e-9) {
+        if (t->c0x != 0)
+            best = -ux / t->c0x;
+    } else {
+        const double disc = t->c0x * t->c0x - 4 * t->c1x * ux;
+        if (disc < 0)
+            return -1;
+        const double s = sqrt(disc), r1 = (-t->c0x - s) / (2 * t->c1x), r2 = (-t->c0x + s) / (2 * t->c1x);
+        const double lo = r1 < r2 ? r1 : r2, hi = r1 < r2 ? r2 : r1;
+        best = lo >= w ? lo : hi >= w ? hi : -1;
+    }
+    return best >= w && best <= SS_TUBE_MAX_W ? best : -1;
+}
+
+// the colour runs along the lane from the edge column's point (0, ye) inward: the colour of each run and the depth where it begins (runs under 3 pixels are outlines, not rings)
+static int LaneRuns(const uint8_t img[SS_IMG_H][SS_IMG_W], const Rings *t, double ye, int *colour, double *depth, int max) {
+    const double we = DepthAt(t, 0, ye);
+    double ux, uy;
+    LaneAt(t, 0, ye, we, &ux, &uy);
+    int raw_c[1024], raw_len[1024], m = 0;
+    double raw_w[1024];
+    for (double w = we; w < SS_TUBE_MAX_W && m < 1024; w += 0.5 * w * w) { // (half a pixel a step: dr = dw / w^2)
+        double cx, cy;
+        AxisAt(t, w, &cx, &cy);
+        const int x = (int)floor(cx + ux / w), y = (int)floor(cy + uy / w);
         if (x < 0 || x >= SS_IMG_W || y < 0 || y >= SS_IMG_H)
             continue;
         const int c = img[y][x];
@@ -194,21 +259,21 @@ static int RayRuns(const uint8_t img[SS_IMG_H][SS_IMG_W], double cx, double cy, 
             continue;
         }
         raw_c[m] = c;
-        raw_d[m] = len - t;
+        raw_w[m] = w;
         raw_len[m] = 1;
         m++;
     }
     int n = 0;
     for (int i = 0; i < m && n < max; i++) {
-        if (i > 0 && raw_len[i] < 6) // (under 3 pixels: an outline, not a ring)
+        if (i > 0 && raw_len[i] < 6)
             continue;
         if (n > 0 && colour[n - 1] == raw_c[i])
             continue;
         colour[n] = raw_c[i];
-        dist[n] = raw_d[i];
+        depth[n] = raw_w[i];
         n++;
     }
-    return n; // dist[i]: the distance from C where run i (from the edge inward) begins; dist[0] is the edge's
+    return n;
 }
 
 static bool FitRings(const uint8_t img[SS_IMG_H][SS_IMG_W], Rings *rings) {
@@ -227,40 +292,47 @@ static bool FitRings(const uint8_t img[SS_IMG_H][SS_IMG_W], Rings *rings) {
         for (int x = 0; x < SS_IMG_W; x++)
             if (IsBoundary(img, x, y, &pair, &px, &py) && fitted[pair])
                 sums[pair].err += fabs(sqrt((px - sums[pair].cx) * (px - sums[pair].cx) + (py - sums[pair].cy) * (py - sums[pair].cy)) - sums[pair].r);
-    double wsum = 0, cx = 0, cy = 0;
     int good[256], ngood = 0;
     for (int p = 0; p < 256; p++)
-        if (fitted[p] && sums[p].err / sums[p].n < 2.5 && sums[p].cx > 32 && sums[p].cx < 224 && sums[p].cy > -120 && sums[p].cy < 200)
+        if (fitted[p] && sums[p].err / sums[p].n < 2.5 && sums[p].cx > 0 && sums[p].cx < 256 && sums[p].cy > -120 && sums[p].cy < 200)
             good[ngood++] = p;
-    // a pipe: two circles or more about the same centre, of different sizes (one circle alone can be anything round)
+    // a pipe: two rings or more of different sizes, near each other (one circle alone can be anything round)
     bool pipe = false;
     for (int i = 0; i < ngood; i++)
         for (int j = i + 1; j < ngood; j++)
-            if (fabs(sums[good[i]].cx - sums[good[j]].cx) < 8 && fabs(sums[good[i]].cy - sums[good[j]].cy) < 8 && fabs(sums[good[i]].r - sums[good[j]].r) > 15)
+            if (fabs(sums[good[i]].cx - sums[good[j]].cx) < 64 && fabs(sums[good[i]].cy - sums[good[j]].cy) < 64 && fabs(sums[good[i]].r - sums[good[j]].r) > 15)
                 pipe = true;
     if (!pipe)
         return false;
+    // the axis: the rings' centres against their depths (least squares of c = c0 + c1 w, by the rings' pixels)
+    double sn = 0, sw = 0, sww = 0, sx = 0, sy = 0, swx = 0, swy = 0;
     for (int i = 0; i < ngood; i++) {
-        const int p = good[i];
-        wsum += sums[p].n;
-        cx += sums[p].cx * sums[p].n;
-        cy += sums[p].cy * sums[p].n;
+        const CircleSums *s = &sums[good[i]];
+        const double w = 1 / s->r, k = s->n;
+        sn += k; sw += k * w; sww += k * w * w;
+        sx += k * s->cx; sy += k * s->cy; swx += k * w * s->cx; swy += k * w * s->cy;
     }
-    rings->cx = cx / wsum;
-    rings->cy = cy / wsum;
-    // the last two rings: along the rays from C through the edge column, the colour at the edge (B), the next run in (A) and where each begins; the pair most rays agree on, at the median of their 1/r
+    const double det = sn * sww - sw * sw;
+    if (fabs(det) < 1e-12)
+        return false;
+    rings->c1x = (sn * swx - sw * sx) / det;
+    rings->c1y = (sn * swy - sw * sy) / det;
+    rings->c0x = (sx - rings->c1x * sw) / sn;
+    rings->c0y = (sy - rings->c1y * sw) / sn;
+    // the last two rings: along the lanes from the edge column inward, the colour at the edge (B), the next run in (A) and their depths; the pair most lanes agree on, at the median of their depths
     static int votes[256];
-    static double w0s[256][SS_IMG_H], w1s[256][SS_IMG_H];
+    static double w0s[256][SS_IMG_H], w1s[256][SS_IMG_H], bs[256][SS_IMG_H];
     memset(votes, 0, sizeof votes);
     for (int ye = 0; ye < SS_IMG_H; ye += 2) {
         int colour[8];
-        double dist[8];
-        const int m = RayRuns(img, rings->cx, rings->cy, ye, colour, dist, 8);
+        double depth[8];
+        const int m = LaneRuns(img, rings, ye, colour, depth, 8);
         if (m < 3)
             continue;
         const int key = colour[1] * 16 + colour[0];
-        w0s[key][votes[key]] = 1 / dist[1];
-        w1s[key][votes[key]] = 1 / dist[2];
+        w0s[key][votes[key]] = depth[1];
+        w1s[key][votes[key]] = depth[2];
+        bs[key][votes[key]] = depth[1] - depth[0]; // (how much of the ring at the edge shows)
         votes[key]++;
     }
     int best = -1;
@@ -281,20 +353,33 @@ static bool FitRings(const uint8_t img[SS_IMG_H][SS_IMG_W], Rings *rings) {
     rings->step = w1s[best][votes[best] / 2] - rings->w0;
     rings->a = best / 16;
     rings->b = best % 16;
-    rings->thin = 0.25; // (the user's drawing: the green arc is about a quarter of the step)
+    for (int i = 1; i < votes[best]; i++)
+        for (int j = i; j > 0 && bs[best][j] < bs[best][j - 1]; j--) {
+            const double t = bs[best][j]; bs[best][j] = bs[best][j - 1]; bs[best][j - 1] = t;
+        }
+    // the ring's thickness: at least what shows of it at the edge (the median of the lanes), a quarter of the step if less shows (the user's drawing of the green arcs), and not all of it
+    const double shown = rings->step > 0 ? bs[best][votes[best] / 2] / rings->step : 0;
+    rings->thin = shown < 0.25 ? 0.25 : shown > 0.9 ? 0.9 : shown;
     return rings->step > 1e-4;
 }
 
-// The colour of the wall at (x, y) beyond the edge (x negative): its depth along its ray from C, the rings going on the same step apart
+// The colour of the pipe at (x, y) beyond the edge (x negative): its depth and its lane; only where its lane meets the edge on the wall's colours (the half pipe's shape: elsewhere the sky, the rim, a lane)
 static int RingColour(const uint8_t img[SS_IMG_H][SS_IMG_W], const Rings *rings, double x, double y) {
-    const double w = 1 / sqrt((x - rings->cx) * (x - rings->cx) + (y - rings->cy) * (y - rings->cy));
-    const double ye = rings->cy + (y - rings->cy) * rings->cx / (rings->cx - x); // where its ray from C crosses the edge
+    const double w = DepthAt(rings, x, y);
+    double ux, uy;
+    LaneAt(rings, x, y, w, &ux, &uy);
+    const double we = LaneAtEdge(rings, ux, uy, w);
+    if (we < 0)
+        return -1;
+    double cx, cy;
+    AxisAt(rings, we, &cx, &cy);
+    const double ye = cy + uy / we;
     if (ye < 0 || ye > SS_IMG_H - 1)
         return -1;
     const int edge = img[(int)ye][0];
-    if (edge != rings->a && edge != rings->b) // (the half pipe is not there: the sky, the rim, a lane)
+    if (edge != rings->a && edge != rings->b)
         return -1;
-    if (w >= rings->w0 + rings->step) // (deeper than the last two rings: what the ray has at the edge)
+    if (w >= rings->w0 + rings->step) // (deeper than the last two rings: what the lane has at the edge)
         return edge;
     if (w >= rings->w0)
         return rings->a;
@@ -402,7 +487,7 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
         // the floor: below the first lane ray under the rings' centre (the lanes run on the floor; above them is the pipe's wall, which is the rings')
         double floor_top = 1e9;
         for (int k = 0; k < n && rings; k++)
-            if (bd[k].lane && bd[k].a > rings->cy) {
+            if (bd[k].lane && bd[k].a > rings->c0y + rings->c1y * rings->w0) { // (the axis at the last ring)
                 floor_top = pos[k];
                 break;
             }
@@ -435,8 +520,15 @@ static void PutTiles(uint8_t *tiles, const uint8_t out[SS_IMG_H][SS_WIDE_MC * 8]
 }
 
 void SSWide_BuildMargins(const uint16_t *plane, const int16_t (*hscroll)[2], uint8_t *tiles) {
-    static uint8_t img[SS_IMG_H][SS_IMG_W], mirrored[SS_IMG_H][SS_IMG_W], out[SS_IMG_H][SS_WIDE_MC * 8];
+    static uint8_t img[SS_IMG_H][SS_IMG_W], prev[SS_IMG_H][SS_IMG_W], mirrored[SS_IMG_H][SS_IMG_W], out[SS_IMG_H][SS_WIDE_MC * 8];
+    static uint8_t made[2 * SS_WIDE_ROWS * SS_WIDE_MC * 32];
+    static bool have_made = false;
     ComposeImage(plane, hscroll, img);
+    if (have_made && memcmp(img, prev, sizeof img) == 0) { // (the picture of the track changes every few frames: the same picture, the same margins)
+        memcpy(tiles, made, sizeof made);
+        return;
+    }
+    memcpy(prev, img, sizeof img);
     for (int y = 0; y < SS_IMG_H; y++)
         for (int x = 0; x < SS_IMG_W; x++)
             mirrored[y][x] = img[y][SS_IMG_W - 1 - x];
@@ -444,6 +536,8 @@ void SSWide_BuildMargins(const uint16_t *plane, const int16_t (*hscroll)[2], uin
     PutTiles(tiles, out, false);
     ExtendLeft(mirrored, out);
     PutTiles(tiles + (size_t)SS_WIDE_ROWS * SS_WIDE_MC * 32, out, true);
+    memcpy(made, tiles, sizeof made);
+    have_made = true;
 }
 
 void SSWide_ExpandRow(const SSWide *wide, const uint16_t *unit, int row, uint16_t *out) {
