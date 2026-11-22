@@ -38,6 +38,7 @@ void SSWide_Layout(SSWide *wide, int screen_width) {
 #define SS_TRACK_COLUMNS 96 // how far in a boundary is followed
 #define SS_MAX_BOUNDARIES 64
 #define SS_CURVE_COLUMNS 32 // how far out the fitted curve is followed before it goes on straight
+#define SS_THIN_BAND 6        // a band this thin (lines) at the edge keeps its thickness in the margin
 
 static void ComposeImage(const uint16_t *plane, const int16_t (*hscroll)[2], uint8_t img[SS_IMG_H][SS_IMG_W]) {
     size_t count;
@@ -147,6 +148,11 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
                 v = bd[k].a;
             v = v < -400 ? -400 : v > 700 ? 700 : v;
             pos[k] = v;
+        }
+        for (int k = 1; k < n; k++) { // (a thin band keeps its thickness: its two boundaries go on side by side, or the fits of the two would pull them apart into a spike)
+            const double gap = bd[k].a - bd[k - 1].a;
+            if (gap >= 0 && gap <= SS_THIN_BAND)
+                pos[k] = pos[k - 1] + gap;
         }
         for (int y = 0; y < SS_IMG_H; y++) { // the colour of the band the line is in: the bands keep their order (a boundary that has passed another is held at it)
             int colour = top_colour;
