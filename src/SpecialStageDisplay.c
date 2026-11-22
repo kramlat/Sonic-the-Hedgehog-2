@@ -41,6 +41,12 @@ void SSDisplay_Reset(SSDisplay *d) {
             d->plane_b[row * SS_PLANE_WIDTH + column] = block[row * 32 + (column % 32)];
 }
 
+void SSDisplay_ResetStage(SSDisplay *d, int stage) {
+    SSDisplay_Reset(d);
+    d->b4 = true;
+    SSTrack_ResetStage(&d->track, stage);
+}
+
 // Offset_0x00112C
 int SSDisplay_Pace(SSDisplay *d) {
     if (d->current_speed != d->speed) { // (the speed changed: the pattern starts again)
@@ -52,6 +58,13 @@ int SSDisplay_Pace(SSDisplay *d) {
     d->counter--;
     if ((int8_t)d->counter > 0)
         return d->period_less + 1;
+    if (d->b4) { // loc_11BE: the speed picks the period
+        static const uint8_t periods[8] = { 0x3C, 0x1E, 0x0F, 0x0A, 0x08, 0x06, 0x05, 0x00 };
+        const int period = periods[(d->current_speed >> 1) & 7];
+        d->counter = (uint8_t)period;
+        d->period_less = (uint8_t)(period - 1);
+        return period;
+    }
     int pattern = (int)d->current_speed - 8;
     if (pattern > 4) {
         pattern += 4;
@@ -183,7 +196,56 @@ static void ScrollBackgroundY(SSDisplay *d) {
         d->b_vscroll -= step;
 }
 
+// Beta 4's curves (loc_79EA: 11 of 5 bytes, one for each frame of a segment's time) and the lists of which curve a place in a segment's list uses
+static const uint8_t b4_curves[11][5] = {
+    { 2, 2, 2, 2, 2 }, { 4, 4, 5, 4, 5 }, { 0xB, 0xB, 0xB, 0xB, 0xC }, { 0, 0, 1, 0, 0 }, { 1, 1, 1, 1, 1 }, { 9, 9, 8, 9, 9 },
+    { 9, 9, 9, 9, 0xA }, { 7, 7, 6, 7, 7 }, { 0, 1, 1, 1, 0 }, { 4, 3, 3, 3, 4 }, { 0, 0, 0xFF, 0, 0 },
+};
+
+// loc_7A38: the background's X: the same curves for the first three lists by the place in the list; every line of the buffer in use goes by it (the turned track's buffer the other way)
+static void ScrollBackgroundXB4(SSDisplay *d) {
+    if (d->list > 2)
+        return;
+    int curve;
+    if (d->index < 1) curve = 0;
+    else if (d->index < 2) curve = 1;
+    else if (d->index < 0x0A) curve = 2;
+    else if (d->index < 0x0B) curve = 1;
+    else if (d->index < 0x0C) curve = 0;
+    else return;
+    int step = b4_curves[curve][d->frame < 5 ? d->frame : 4];
+    if (d->display_flipped)
+        step = -step;
+    for (int line = 0; line < SS_SCROLL_LINES; line++)
+        d->hscroll[d->display_flipped ? 1 : 0][line][1] = (int16_t)(d->hscroll[d->display_flipped ? 1 : 0][line][1] - step);
+}
+
+// loc_7ADC: the background's Y: the list the segment is of and its place give a curve (or none), which is taken from the Y (the second list adds)
+static void ScrollBackgroundYB4(SSDisplay *d) {
+    static const int8_t first[24] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 4, 4, 1, 2, 2, 2, 2, 2, 2, 5, 6, 7, 9, 8 };
+    static const int8_t second[24] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 8, 9, 7, 6, 5, 2, 2, 2, 2, 2, 2, 1, 0 };
+    static const int8_t fourth[16] = { 3, 3, 10, 10, 3, 3, 10, 10, 3, 3, 10, 10, 3, 3, 10, 10 };
+    int curve = -1;
+    bool add = false;
+    const int i = d->index;
+    switch (d->list) {
+    case 0: curve = i < 24 ? first[i] : -1; break;
+    case 1: add = true; curve = i < 24 ? second[i] : -1; break;
+    case 3: curve = i < 16 ? fourth[i] : -1; break;
+    default: break;
+    }
+    if (curve < 0)
+        return;
+    const int step = b4_curves[curve][d->frame < 5 ? d->frame : 4];
+    d->b_vscroll += (int32_t)(add ? step : -step) * 65536;
+}
+
 void SSDisplay_Scroll(SSDisplay *d) {
+    if (d->b4) {
+        ScrollBackgroundXB4(d);
+        ScrollBackgroundYB4(d);
+        return;
+    }
     ScrollBackgroundX(d);
     ScrollBackgroundY(d);
 }

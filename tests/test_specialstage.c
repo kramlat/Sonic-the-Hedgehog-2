@@ -907,7 +907,37 @@ static void SpecialStageB4_TheItemsAreMadeComeNearAndAreTakenByTheCharacterAtThe
     CHECK_EQ(left, 0);
 }
 
+// Beta 4's display: at the speed $C a segment lasts 5 frames, the segments come in the stage's order, and the background moves by the byte curves
+static void SpecialStageB4_TheDisplayRunsAFiveFramePeriodAndScrollsTheBackground(void) {
+    static SSDisplay d;
+    SSDisplay_ResetStage(&d, 3);
+    CHECK(d.b4);
+    SSDisplay_Prime(&d);
+    CHECK_EQ(d.period_less, 4);
+    int changes = 0, last = d.segment;
+    const int y0 = (int)(d.b_vscroll >> 16);
+    size_t steps_count;
+    const uint8_t *steps = SS4_StageSteps(3, &steps_count);
+    for (int f = 0; f < 5 * 40; f++) {
+        SSDisplay_Frame(&d);
+        if (d.segment != last) {
+            changes++;
+            last = d.segment;
+        }
+    }
+    CHECK(changes >= 38 && changes <= 40); // (a segment every 5 frames)
+    CHECK(d.track.step < (int)steps_count);
+    CHECK(steps[0] != 0xFF);
+    (void)y0;
+    // the speed picks the period: $A is 6 frames
+    d.speed = 0x0A;
+    SSDisplay_Frame(&d);
+    SSDisplay_Frame(&d);
+    CHECK_EQ(d.period_less, 5);
+}
+
 void RegisterSpecialStageTests(void) {
+    RUN_TEST(SpecialStageB4_TheDisplayRunsAFiveFramePeriodAndScrollsTheBackground);
     RUN_TEST(SpecialStageB4_TheItemsAreMadeComeNearAndAreTakenByTheCharacterAtTheirLane);
     RUN_TEST(SpecialStageB4_TheCharacterRunsJumpsLandsAndTumbles);
     RUN_TEST(SpecialStageB4_TheArtsPiecesAndTheShadowFollowTheScript);

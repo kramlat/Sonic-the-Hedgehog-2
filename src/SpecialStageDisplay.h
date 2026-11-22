@@ -37,6 +37,7 @@ typedef struct {
     int list, index;       // 9B08, 9B09: the current segment's list and its place in it
     int32_t b_hscroll;     // 9B24: the background's X (16.16)
     int32_t b_vscroll;     // 9B30: its Y
+    bool b4;               // Beta 4's stage: its pace (one period for the speed) and its scrolling of the background by byte tables
 
     uint16_t plane_a[2][SS_PLANE_WORDS];
     int16_t hscroll[2][SS_SCROLL_LINES][2]; // [0] the table at $FFFFE000, [1] the turned track's at $FFFF9700: each line's A and B X (the VDP's: how far the plane is moved, a negative number to show cells further on)
@@ -44,6 +45,8 @@ typedef struct {
 } SSDisplay;
 
 void SSDisplay_Reset(SSDisplay *display);
+// Beta 4's stage `stage`: the same display with Beta 4's order of segments, its pace ($FFFFDB12's word picks a period: $3C, $1E, $F, $A, 8, 6, 5 frames for the speeds 0, 2 .. $C) and its background scrolling (loc_7A38 and loc_7ADC)
+void SSDisplay_ResetStage(SSDisplay *display, int stage);
 // The pace (Offset_0x00112C): how many frames the segment now being shown lasts
 int SSDisplay_Pace(SSDisplay *display);
 // The blank's part of a frame (Offset_0x000F5C on): the pace, and the frame of the time on; when the time is out the plane is changed to the buffer decoded and the other is decoded next
