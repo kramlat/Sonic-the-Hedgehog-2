@@ -1,6 +1,7 @@
 // The pre-beta's special stage track for a wide screen: see SpecialStageWide.h
 #include "SpecialStageWide.h"
 #include <math.h>
+#include <string.h>
 #include "SpecialStageTables.h"
 #include "Object/SpecialStageArt.h"
 #include <stdbool.h>
@@ -65,6 +66,7 @@ typedef struct {
     int above, below;            // the colours either side (a boundary is between the line y - 1 and the line y)
     double y[SS_TRACK_COLUMNS];  // where it was in each column going in (column 0 is the edge's)
     int length;                  // how many columns it was followed
+    bool lane;                   // a straight one (a lane's edge: a ray from V)
     double a, b, c;              // y(x) = a + b x + c x x, x going in; the margin is at negative x
 } Boundary;
 
@@ -106,9 +108,204 @@ static void FitBoundary(Boundary *bd) {
     bd->c = (s0 * (s2 * t2 - t1 * s3) - s1 * (s1 * t2 - t1 * s2) + t0 * (s1 * s3 - s2 * s2)) / det;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// The pipe's rings (one point perspective: the pipe's cross sections are circles about the vanishing point C, a ring at the depth z has the radius k / z, so along every ray from C a ring is at the same 1/r; rings the
+// same distance apart in depth are the same step apart in 1/r). The boundaries between the colours are fitted with circles (each pair of colours its own); those that are circles (most of the pixels within a couple
+// of pixels of it) give C. Along the rays from C through the edge column the last boundary before the edge (w0, in 1/r) and the one before it (w1) are where the last two rings are; beyond the edge the rings go
+// on outward the same step apart (w1 - w0: "the same distance", the user), each the thin band (B, the colour at the edge: the green arcs where the next half ring of spheres is) and the wide one (A, the colour
+// inside it) after it.
+
+typedef struct {
+    double cx, cy;     // C
+    double w0, step;   // the last ring's 1/r and the step between rings
+    double thin;       // the thin band's part of the step
+    int a, b;          // the colours: A (between the rings) and B (the ring)
+} Rings;
+
+typedef struct { double n, sx, sy, sxx, syy, sxy, sxz, syz, sz, err; double cx, cy, r; } CircleSums;
+
+static void AddCirclePoint(CircleSums *s, double x, double y) {
+    const double z = x * x + y * y;
+    s->n += 1;
+    s->sx += x; s->sy += y; s->sxx += x * x; s->syy += y * y; s->sxy += x * y;
+    s->sxz += x * z; s->syz += y * z; s->sz += z;
+}
+
+static double Det3(const double m[3][3]) {
+    return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+}
+
+// the circle x x + y y + D x + E y + F = 0 nearest the points (least squares, by Cramer's rule)
+static bool SolveCircle(CircleSums *s) {
+    const double m[3][3] = {{s->sxx, s->sxy, s->sx}, {s->sxy, s->syy, s->sy}, {s->sx, s->sy, s->n}};
+    const double v[3] = {-s->sxz, -s->syz, -s->sz};
+    const double det = Det3(m);
+    if (fabs(det) < 1e-6)
+        return false;
+    double sol[3];
+    for (int i = 0; i < 3; i++) {
+        double t[3][3];
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                t[r][c] = c == i ? v[r] : m[r][c];
+        sol[i] = Det3(t) / det;
+    }
+    s->cx = -sol[0] / 2;
+    s->cy = -sol[1] / 2;
+    const double rr = s->cx * s->cx + s->cy * s->cy - sol[2];
+    if (rr <= 0)
+        return false;
+    s->r = sqrt(rr);
+    return true;
+}
+
+static bool IsBoundary(const uint8_t img[SS_IMG_H][SS_IMG_W], int x, int y, int *pair, double *px, double *py) {
+    const int c = img[y][x];
+    if (x > 0 && img[y][x - 1] != c) {
+        const int o = img[y][x - 1];
+        *pair = c < o ? c * 16 + o : o * 16 + c;
+        *px = x - 0.5;
+        *py = y;
+        return true;
+    }
+    if (y > 0 && img[y - 1][x] != c) {
+        const int o = img[y - 1][x];
+        *pair = c < o ? c * 16 + o : o * 16 + c;
+        *px = x;
+        *py = y - 0.5;
+        return true;
+    }
+    return false;
+}
+
+// the colour runs along the ray from the edge column's point (0, ye) to C: the colour at the edge and where (the distance from C) each run inward begins; runs under 3 pixels are not counted (outlines)
+static int RayRuns(const uint8_t img[SS_IMG_H][SS_IMG_W], double cx, double cy, double ye, int *colour, double *dist, int max) {
+    const double dx = cx, dy = cy - ye, len = sqrt(dx * dx + dy * dy);
+    int raw_c[512];
+    double raw_d[512];
+    int raw_len[512], m = 0;
+    for (double t = 0; t < len - 2 && m < 512; t += 0.5) {
+        const int x = (int)(t * dx / len), y = (int)(ye + t * dy / len);
+        if (x < 0 || x >= SS_IMG_W || y < 0 || y >= SS_IMG_H)
+            continue;
+        const int c = img[y][x];
+        if (m > 0 && raw_c[m - 1] == c) {
+            raw_len[m - 1]++;
+            continue;
+        }
+        raw_c[m] = c;
+        raw_d[m] = len - t;
+        raw_len[m] = 1;
+        m++;
+    }
+    int n = 0;
+    for (int i = 0; i < m && n < max; i++) {
+        if (i > 0 && raw_len[i] < 6) // (under 3 pixels: an outline, not a ring)
+            continue;
+        if (n > 0 && colour[n - 1] == raw_c[i])
+            continue;
+        colour[n] = raw_c[i];
+        dist[n] = raw_d[i];
+        n++;
+    }
+    return n; // dist[i]: the distance from C where run i (from the edge inward) begins; dist[0] is the edge's
+}
+
+static bool FitRings(const uint8_t img[SS_IMG_H][SS_IMG_W], Rings *rings) {
+    static CircleSums sums[256];
+    memset(sums, 0, sizeof sums);
+    int pair;
+    double px, py;
+    for (int y = 0; y < SS_IMG_H; y++)
+        for (int x = 0; x < SS_IMG_W; x++)
+            if (IsBoundary(img, x, y, &pair, &px, &py))
+                AddCirclePoint(&sums[pair], px, py);
+    bool fitted[256] = {false};
+    for (int p = 0; p < 256; p++)
+        fitted[p] = sums[p].n >= 80 && SolveCircle(&sums[p]) && sums[p].r > 24 && sums[p].r < 400;
+    for (int y = 0; y < SS_IMG_H; y++) // how far the points are from their circle
+        for (int x = 0; x < SS_IMG_W; x++)
+            if (IsBoundary(img, x, y, &pair, &px, &py) && fitted[pair])
+                sums[pair].err += fabs(sqrt((px - sums[pair].cx) * (px - sums[pair].cx) + (py - sums[pair].cy) * (py - sums[pair].cy)) - sums[pair].r);
+    double wsum = 0, cx = 0, cy = 0;
+    int good[256], ngood = 0;
+    for (int p = 0; p < 256; p++)
+        if (fitted[p] && sums[p].err / sums[p].n < 2.5 && sums[p].cx > 32 && sums[p].cx < 224 && sums[p].cy > -120 && sums[p].cy < 200)
+            good[ngood++] = p;
+    // a pipe: two circles or more about the same centre, of different sizes (one circle alone can be anything round)
+    bool pipe = false;
+    for (int i = 0; i < ngood; i++)
+        for (int j = i + 1; j < ngood; j++)
+            if (fabs(sums[good[i]].cx - sums[good[j]].cx) < 8 && fabs(sums[good[i]].cy - sums[good[j]].cy) < 8 && fabs(sums[good[i]].r - sums[good[j]].r) > 15)
+                pipe = true;
+    if (!pipe)
+        return false;
+    for (int i = 0; i < ngood; i++) {
+        const int p = good[i];
+        wsum += sums[p].n;
+        cx += sums[p].cx * sums[p].n;
+        cy += sums[p].cy * sums[p].n;
+    }
+    rings->cx = cx / wsum;
+    rings->cy = cy / wsum;
+    // the last two rings: along the rays from C through the edge column, the colour at the edge (B), the next run in (A) and where each begins; the pair most rays agree on, at the median of their 1/r
+    static int votes[256];
+    static double w0s[256][SS_IMG_H], w1s[256][SS_IMG_H];
+    memset(votes, 0, sizeof votes);
+    for (int ye = 0; ye < SS_IMG_H; ye += 2) {
+        int colour[8];
+        double dist[8];
+        const int m = RayRuns(img, rings->cx, rings->cy, ye, colour, dist, 8);
+        if (m < 3)
+            continue;
+        const int key = colour[1] * 16 + colour[0];
+        w0s[key][votes[key]] = 1 / dist[1];
+        w1s[key][votes[key]] = 1 / dist[2];
+        votes[key]++;
+    }
+    int best = -1;
+    for (int k = 0; k < 256; k++)
+        if (votes[k] >= 4 && (best < 0 || votes[k] > votes[best]))
+            best = k;
+    if (best < 0)
+        return false;
+    for (int i = 1; i < votes[best]; i++) // (sorted, for the medians)
+        for (int j = i; j > 0 && w0s[best][j] < w0s[best][j - 1]; j--) {
+            const double t = w0s[best][j]; w0s[best][j] = w0s[best][j - 1]; w0s[best][j - 1] = t;
+        }
+    for (int i = 1; i < votes[best]; i++)
+        for (int j = i; j > 0 && w1s[best][j] < w1s[best][j - 1]; j--) {
+            const double t = w1s[best][j]; w1s[best][j] = w1s[best][j - 1]; w1s[best][j - 1] = t;
+        }
+    rings->w0 = w0s[best][votes[best] / 2];
+    rings->step = w1s[best][votes[best] / 2] - rings->w0;
+    rings->a = best / 16;
+    rings->b = best % 16;
+    rings->thin = 0.25; // (the user's drawing: the green arc is about a quarter of the step)
+    return rings->step > 1e-4;
+}
+
+// The colour of the wall at (x, y) beyond the edge (x negative): its depth along its ray from C, the rings going on the same step apart
+static int RingColour(const uint8_t img[SS_IMG_H][SS_IMG_W], const Rings *rings, double x, double y) {
+    const double w = 1 / sqrt((x - rings->cx) * (x - rings->cx) + (y - rings->cy) * (y - rings->cy));
+    const double ye = rings->cy + (y - rings->cy) * rings->cx / (rings->cx - x); // where its ray from C crosses the edge
+    if (ye < 0 || ye > SS_IMG_H - 1)
+        return -1;
+    const int edge = img[(int)ye][0];
+    if (edge != rings->a && edge != rings->b) // (the half pipe is not there: the sky, the rim, a lane)
+        return -1;
+    if (w >= rings->w0 + rings->step) // (deeper than the last two rings: what the ray has at the edge)
+        return edge;
+    if (w >= rings->w0)
+        return rings->a;
+    return fmod(rings->w0 - w, rings->step) < rings->thin * rings->step ? rings->b : rings->a;
+}
+
 // The pixels beyond the left edge: out[y][k] is the pixel k + 1 to the left of the picture
 static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG_H][SS_WIDE_MC * 8]) {
     static Boundary bd[SS_MAX_BOUNDARIES];
+    Rings ring_fit;
+    const Rings *rings = FitRings(img, &ring_fit) ? &ring_fit : NULL;
     int ys[SS_MAX_BOUNDARIES], above[SS_MAX_BOUNDARIES], below[SS_MAX_BOUNDARIES];
     int n = ColumnBoundaries(img, 0, ys, above, below, SS_MAX_BOUNDARIES);
     const int top_colour = img[0][0];
@@ -145,7 +342,8 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
         int cnt = 0;
         double smin = 9, smax = -9;
         for (int k = 0; k < n; k++) {
-            if (bd[k].length < 24 || fabs(bd[k].c) > 0.004 || fabs(bd[k].b) < 0.1)
+            bd[k].lane = !(bd[k].length < 24 || fabs(bd[k].c) > 0.004 || fabs(bd[k].b) < 0.1);
+            if (!bd[k].lane)
                 continue;
             sbb += bd[k].b * bd[k].b;
             sb += bd[k].b;
@@ -184,6 +382,7 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
             bd[total].below = sb[i];
             bd[total].a = y0;
             bd[total].length = 0;
+            bd[total].lane = false;
             bd[total].b = bd[total].c = 0;
             total++;
         }
@@ -200,17 +399,22 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
         double pos[SS_MAX_BOUNDARIES];
         for (int k = 0; k < n; k++) // vector math: the line from the vanishing point V through the boundary's point at the track's edge (x = 0), carried out to x (negative: past the edge)
             pos[k] = bd[k].a + ((vy - bd[k].a) / vx) * x;
-        for (int y = 0; y < SS_IMG_H; y++) { // the colour of the band the line is in: the bands keep their order (a boundary that has passed another is held at it)
-            int colour = top_colour;
-            double floor_y = -1000;
-            for (int k = 0; k < n; k++) {
-                const double p = pos[k] < floor_y ? floor_y : pos[k];
-                floor_y = p;
-                if (y >= p)
-                    colour = bd[k].below;
-                else
-                    break;
+        // the floor: below the first lane ray under the rings' centre (the lanes run on the floor; above them is the pipe's wall, which is the rings')
+        double floor_top = 1e9;
+        for (int k = 0; k < n && rings; k++)
+            if (bd[k].lane && bd[k].a > rings->cy) {
+                floor_top = pos[k];
+                break;
             }
+        for (int y = 0; y < SS_IMG_H; y++) {
+            const int ring = rings != NULL && y < floor_top ? RingColour(img, rings, x, y) : -1;
+            if (ring >= 0) { // the wall: the ring the point is on, by its depth
+                out[y][col] = (uint8_t)ring;
+                continue;
+            }
+            int colour = top_colour; // the colour of the band the point is in (rays from one point keep their order beyond the edge)
+            for (int k = 0; k < n && y >= pos[k]; k++)
+                colour = bd[k].below;
             out[y][col] = (uint8_t)colour;
         }
     }
