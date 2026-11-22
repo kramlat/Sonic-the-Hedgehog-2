@@ -523,12 +523,14 @@ static void BeginGate(void) {
 // What the gate's end does (loc_31B0C, loc_31BE4 and what follows): the sound, the colours back, the rings against what is asked; the words of the result; a fail ends the stage after them
 static void EndGate(void) {
     GateColours(false);
-    QueueSound2(SFX(0xA1));
     items.flash = false;
     gate_step = -1;
+    const bool failed = SS4Stage_Rings() < required_now;
+    // (Beta 4 plays $A1, the lamp post, for both; the final plays $EE, what this build calls sfx_Error, for an earlier gate's fail: the one byte the user named)
+    QueueSound2(failed ? sfx_Error : SFX(0xA1));
     for (int k = 0; k < 2; k++)
-        Make(Obj_SS4Emblem, (uint8_t)(k | (SS4Stage_Rings() < required_now ? 2 : 0)));
-    if (SS4Stage_Rings() < required_now) {
+        Make(Obj_SS4Emblem, (uint8_t)(k | (failed ? 2 : 0)));
+    if (failed) {
         SpawnSentence(3, 0x5E, 0x68);
         end_state = 4;
         end_timer = 0x3C; // (loc_31C5E: the emblem is gone, the music stops, the stage is over)
