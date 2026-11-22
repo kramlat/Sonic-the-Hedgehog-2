@@ -139,24 +139,28 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
     // The vanishing point: the nearly straight boundaries are lines through it (the pipe's lanes), so where they meet is it; the middle of the screen, nudged the way the track turns. Those boundaries go on as lines through it
     double vx = 128, vy = 100;
     {
-        double sx = 0, sy = 0;
+        double at[SS_MAX_BOUNDARIES]; // where each straight boundary is at the middle column: they meet at the vanishing point, so the median is its height (it follows the pitch: up when the track pitches up)
         int cnt = 0;
         for (int k = 0; k < n; k++) {
-            if (bd[k].length < 48 || fabs(bd[k].c) > 0.002 || fabs(bd[k].b) < 0.15)
+            if (bd[k].length < 24 || fabs(bd[k].c) > 0.004 || fabs(bd[k].b) < 0.1)
                 continue;
-            const double at_centre = bd[k].a + bd[k].b * 128; // (where the line is at the middle column)
-            sx += 128;
-            sy += at_centre;
-            cnt++;
+            at[cnt++] = bd[k].a + bd[k].b * 128;
         }
-        if (cnt >= 2)
-            vy = sy / cnt;
-        vy = vy < 20 ? 20 : vy > 160 ? 160 : vy;
+        if (cnt >= 2) {
+            for (int i = 1; i < cnt; i++) // (a median: sorted by insertion)
+                for (int j = i; j > 0 && at[j] < at[j - 1]; j--) {
+                    const double t = at[j];
+                    at[j] = at[j - 1];
+                    at[j - 1] = t;
+                }
+            vy = at[cnt / 2];
+        }
+        vy = vy < -40 ? -40 : vy > 180 ? 180 : vy;
     }
     bool radial[SS_MAX_BOUNDARIES];
     for (int k = 0; k < n; k++) {
         const double m_rad = (vy - bd[k].a) / (vx - 0);
-        radial[k] = bd[k].length >= 48 && fabs(bd[k].c) <= 0.002 && fabs(bd[k].b - m_rad) <= 0.12;
+        radial[k] = bd[k].length >= 24 && fabs(bd[k].c) <= 0.004 && fabs(bd[k].b - m_rad) <= 0.15;
     }
     for (int col = 0; col < SS_WIDE_MC * 8; col++) {
         const double x = -(col + 1);
