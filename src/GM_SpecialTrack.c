@@ -84,10 +84,28 @@ static void ShowPlanes(SSDisplay *d) {
     }
 }
 
-int ss4_stage; // Beta 4's stage to play (0 to 9)
+int ss4_stage; // Beta 4's stage to play: 0 to 6 in the one player play (the number of emeralds won on the way: it goes on only when one is won), 7 to 9 are the versus stages
+bool ss4_emerald[7];  // $FFFFFFB2 on: which emeralds are won
+
+// loc_82D4: a stage number of 7 or more (the entry from the level) is the first stage whose emerald is not won; with all seven won the game starts again (false)
+static bool ChooseStage(void) {
+    if (ss4_stage >= 7) {
+        int n = 0;
+        while (n < 7 && ss4_emerald[n])
+            n++;
+        if (n == 7)
+            return false;
+        ss4_stage = n;
+    }
+    return true;
+}
 
 void GM_SpecialTrack(void) {
     const bool b4 = getenv("SONIC2_SS_PREBETA") == NULL; // (Beta 4's stage is the stage; the pre-beta's stays while it is checked)
+    if (b4 && !ChooseStage()) {
+        gamemode = GameMode_Sega; // (all seven emeralds are won: the original starts the game again)
+        return;
+    }
     static SSDisplay d;
     PaletteWhiteOut(); // (the palette goes to white and then fades in to the stage's)
     ClearScreen();
@@ -196,6 +214,10 @@ void GM_SpecialTrack(void) {
         if (b4) {
             SS4Stage_Frame(&d);
             if (SS4Stage_Over() && !viewer) {
+                if (SS4Stage_GotEmerald() && ss4_stage < 7) { // (only an emerald takes the stage on)
+                    ss4_emerald[ss4_stage] = true;
+                    ss4_stage++;
+                }
                 gamemode = GameMode_Level; // (the way back to the level; the results are to come)
                 break;
             }
