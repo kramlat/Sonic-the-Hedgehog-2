@@ -13,6 +13,7 @@
 #include "Palette.h"
 #include "PaletteCycle.h"
 #include "SpecialStage.h"
+#include "GM_SpecialTrack.h"
 #include "Video.h"
 #include "SplitScreen.h"
 
@@ -361,6 +362,8 @@ static void PlayLevel(bool new_game) {
         last_special = 0;
         emeralds = 0;
         memset(emerald_list, 0, sizeof(emerald_list));
+        ss4_stage = 0; // (Beta 4's stage: PlayLevel clears Current_Special_Stage and the emeralds' flags)
+        memset(ss4_emerald, 0, sizeof(ss4_emerald));
     }
     continues = 0;
     score_life = 5000;
@@ -390,6 +393,7 @@ static void Tit_ChkLevSel(bool level_select_cheat) {
             VersusMatch_Begin(); // (the match: its acts' results and counters)
         }
         if (true_two_player && VersusMenu_ChoseSpecialStage()) { // (its box: the special stage with the two players)
+            ss4_stage = 7; // (the versus stages are 7 to 9)
             PlayLevel(true);
             gamemode = GameMode_Special;
             level_id = 0;
@@ -633,6 +637,8 @@ void GM_Title(void) {
                 gamemode = GameMode_Special;
                 level_id = 0;
                 last_special = 0;
+                ss4_stage = 0;
+                memset(ss4_emerald, 0, sizeof(ss4_emerald));
             }
 
             two_player_mode = level_id == LEVEL_ID(ZoneId_EHZ, 0); // (only the Emerald Hill demo is a two player one, in the split screen)

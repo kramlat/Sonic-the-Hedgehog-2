@@ -1,4 +1,6 @@
 #include "Demo.h"
+#include "GM_SpecialTrack.h"
+#include <string.h>
 
 #include "Game.h"
 #include "SplitScreen.h"
@@ -214,6 +216,8 @@ void Demo_ServiceRequests(void) {
     two_player_mode = !r->special && r->split_screen;
     true_two_player = two_player_mode;
     last_special = r->special ? (uint8_t)r->special_stage : 0;
+    ss4_stage = r->special ? (r->special_stage % 7) : 0; // (the demo of the special stage starts at its stage with no emeralds)
+    memset(ss4_emerald, 0, sizeof(ss4_emerald));
     lives = 3;
     rings = 0;
     level_time.pad = level_time.min = level_time.sec = level_time.frame = 0;

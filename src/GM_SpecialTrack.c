@@ -4,6 +4,7 @@
 #include "SpecialStageTables.h"
 #include "SpecialStageWide.h"
 #include "Object/SpecialStageB4Objects.h"
+#include "Object/StarPost.h"
 #include "Object/SpecialStageArt.h"
 #include "Object/SpecialStageObjects.h"
 #include "Object/Tails.h"
@@ -220,6 +221,7 @@ void GM_SpecialTrack(void) {
                     ss4_stage++;
                 }
                 gamemode = GameMode_Level; // (the way back to the level; the results are to come)
+                star_bonus_stage = false;
                 break;
             }
         } else {
