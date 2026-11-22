@@ -36,3 +36,11 @@ for my $r (['asm_dc_mappings.pl', 'loc_324D2', 'Mappings/SSB4Rings'], ['asm_dc_m
     system('perl', "tools/$r->[0]", "$s/Sonic2B4.asm", $r->[1], "res/$r->[2]") == 0 or die;
     print "  - \"$r->[2]\"\n";
 }
+
+# The HUD, the START banner, the ring counters' digits, the letters of the end's texts and the checkpoint's pictures
+for my $r (['Sonic2B4.asm', 'asm_dc_mappings.pl', 'loc_7E76', 'Mappings/SSB4Counter'], ['Sonic2B4.asm', 'asm_dc_mappings.pl', 'loc_31FF2', 'Mappings/SSB4Letters'],
+           ['objects/obj_0x5E.asm', 'asm_dc_mappings.pl', 'SS_Head_Up_Display_Mappings', 'Mappings/SSB4Hud'], ['objects/obj_0x5F.asm', 'asm_dc_mappings.pl', 'SS_Start_Flag_Mappings', 'Mappings/SSB4Start'],
+           ['objects/obj_0x59.asm', 'asm_dc_mappings.pl', 'loc_32402', 'Mappings/SSB4Checkpoint'], ['objects/obj_0x59.asm', 'asm_dc_animation.pl', 'loc_323D0', 'Animation/SSB4Checkpoint']) {
+    system('perl', "tools/$r->[1]", "$s/$r->[0]", $r->[2], "res/$r->[3]") == 0 or die;
+    print "  - \"$r->[3]\"\n";
+}

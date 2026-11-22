@@ -4,6 +4,17 @@
 #include "Resource/S2Palette/EHZ.h"
 #include "Resource/S2Palette/Sonic.h"
 #include "Resource/S2Palette/SpecialStage.h"
+#include "Resource/S2Palette/SSB4Main.h"
+#include "Resource/S2Palette/SSB4Stage1.h"
+#include "Resource/S2Palette/SSB4Stage2.h"
+#include "Resource/S2Palette/SSB4Stage3.h"
+#include "Resource/S2Palette/SSB4Stage4.h"
+#include "Resource/S2Palette/SSB4Stage5.h"
+#include "Resource/S2Palette/SSB4Stage6.h"
+#include "Resource/S2Palette/SSB4Stage7.h"
+#include "Resource/S2Palette/SSB4Vs1.h"
+#include "Resource/S2Palette/SSB4Vs2.h"
+#include "Resource/S2Palette/SSB4Vs3.h"
 #include "Resource/S2Palette/CPZ.h"
 #include "Resource/S2Palette/HPZ.h"
 #include "Resource/S2Palette/HTZ.h"
@@ -85,5 +96,16 @@ PalettePointer palette_pointers[] = {
     /* PalId_DEZ       */ { (const uint16_t*)S2Palette_DEZ, &dry_palette[1][0], 0x30, PAL_FORMAT_GENESIS },
     /* PalId_SCZ       */ { (const uint16_t*)S2Palette_SCZ, &dry_palette[1][0], 0x30, PAL_FORMAT_GENESIS },
     /* PalId_SpecialStage2 */ { (const uint16_t*)S2Palette_SpecialStage, &dry_palette[0][0], 0x40, PAL_FORMAT_GENESIS },
+    /* PalId_SSB4Main  */ { (const uint16_t*)S2Palette_SSB4Main, &dry_palette[0][0], 0x30, PAL_FORMAT_GENESIS },
+    /* PalId_SSB4Stage */ { (const uint16_t*)S2Palette_SSB4Stage1, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
+    { (const uint16_t*)S2Palette_SSB4Stage2, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
+    { (const uint16_t*)S2Palette_SSB4Stage3, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
+    { (const uint16_t*)S2Palette_SSB4Stage4, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
+    { (const uint16_t*)S2Palette_SSB4Stage5, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
+    { (const uint16_t*)S2Palette_SSB4Stage6, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
+    { (const uint16_t*)S2Palette_SSB4Stage7, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
+    { (const uint16_t*)S2Palette_SSB4Vs1, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
+    { (const uint16_t*)S2Palette_SSB4Vs2, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
+    { (const uint16_t*)S2Palette_SSB4Vs3, &dry_palette[3][0], 0x10, PAL_FORMAT_GENESIS },
 };
 

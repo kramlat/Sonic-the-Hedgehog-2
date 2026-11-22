@@ -41,6 +41,9 @@ enum {
 	PalId_DEZ,  // Death Egg's
 	PalId_SCZ,  // Sky Chase's
 	PalId_SpecialStage2, // the pre-beta's special stage's (the four lines of its main palette)
+	PalId_SSB4Main, // Beta 4's special stage's main palette (three lines: $18)
+	PalId_SSB4Stage, // its ten stage palettes, one after the other (line 3: $1B to $24), PalId_SSB4Stage + the stage
+	PalId_SSB4StageLast = PalId_SSB4Stage + 9,
 
 	PalId_EHZ = PalId_SLZ,
 	PalId_CPZ = PalId_MZ,

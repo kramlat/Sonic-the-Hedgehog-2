@@ -27,6 +27,14 @@
 #include "Resource/Art/DEZRobotnik.h"
 #include "Resource/Art/DEZRobotnikBody.h"
 #include "Resource/Art/DEZFinalBoss.h"
+#include "Resource/Art/SSB4WingsHand.h"
+#include "Resource/Art/SSB4HudFont.h"
+#include "Resource/Art/SSB4Rings.h"
+#include "Resource/Art/SSB4Start.h"
+#include "Resource/Art/SSB4PaymwVs.h"
+#include "Resource/Art/SSB4Stars.h"
+#include "Object/SpecialStageB4Art.h"
+extern const uint8_t Art_SpecialStageBombs[]; // (SpecialStageObjects.c has the data)
 #include "Resource/Art/DEZRobotnikFaces.h"
 #include "Resource/Art/DEZRobotnikWindow.h"
 #include "Resource/Art/Nebula.h"
@@ -1037,6 +1045,31 @@ static const PLCList PLC_SSMain = { // the pre-beta's list $3C: the special stag
     }
 };
 
+static const PLCList PLC_SSB4Main = { // Beta 4's list $3C: the special stage's art
+    12,
+    (const PLC[]) {
+        { Art_SpecialStageEmerald,        ART_VRAM(ArtTile_SS4Emerald) },
+        { Art_SSB4WingsHand,              ART_VRAM(ArtTile_SS4WingsHand) },
+        { Art_SSB4HudFont,                ART_VRAM(ArtTile_SS4HudFont) },
+        { Art_SpecialStagePlayerShadow,   ART_VRAM(ArtTile_SS4Shadow) },
+        { Art_SpecialStageDiagonalShadow, ART_VRAM(ArtTile_SS4ShadowDiag) },
+        { Art_SpecialStageVerticalShadow, ART_VRAM(ArtTile_SS4ShadowVert) },
+        { Art_SpecialStageBombsExplosion, ART_VRAM(ArtTile_SS4Explosion) },
+        { Art_SSB4Rings,                  ART_VRAM(ArtTile_SS4Rings) },
+        { Art_SSB4Start,                  ART_VRAM(ArtTile_SS4Start) },
+        { Art_SSB4PaymwVs,                ART_VRAM(ArtTile_SS4PaymwVs) },
+        { Art_SpecialStageBackground,     ART_VRAM(ArtTile_SS4Background) },
+        { Art_SSB4Stars,                  ART_VRAM(ArtTile_SS4Stars) },
+    }
+};
+
+static const PLCList PLC_SSB4Bombs = { // Beta 4's list $3D: the bombs, over the START banner
+    1,
+    (const PLC[]) {
+        { Art_SpecialStageBombs, ART_VRAM(ArtTile_SS4Bombs) },
+    }
+};
+
 static const PLCList PLC_SSRings = { // the pre-beta's list $3D: the rings, over the traffic lights
     1,
     (const PLC[]) {
@@ -1199,5 +1232,7 @@ const PLCList* plcs[PlcId_Num] = {
     /* PlcId_SSRings     */ &PLC_SSRings,
     /* PlcId_SFZBoss     */ &PLC_SFZBoss,
     /* PlcId_SFZTornado  */ &PLC_SFZTornado,
+    /* PlcId_SSB4Main    */ &PLC_SSB4Main,
+    /* PlcId_SSB4Bombs   */ &PLC_SSB4Bombs,
 };
 
