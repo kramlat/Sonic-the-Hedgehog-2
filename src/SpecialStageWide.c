@@ -110,7 +110,7 @@ static void FitBoundary(Boundary *bd) {
 static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG_H][SS_WIDE_MC * 8]) {
     static Boundary bd[SS_MAX_BOUNDARIES];
     int ys[SS_MAX_BOUNDARIES], above[SS_MAX_BOUNDARIES], below[SS_MAX_BOUNDARIES];
-    const int n = ColumnBoundaries(img, 0, ys, above, below, SS_MAX_BOUNDARIES);
+    int n = ColumnBoundaries(img, 0, ys, above, below, SS_MAX_BOUNDARIES);
     const int top_colour = img[0][0];
     for (int k = 0; k < n; k++) { // follow each boundary inward
         bd[k].above = above[k];
@@ -138,6 +138,7 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
     }
     // The vanishing point: the nearly straight boundaries are lines through it (the pipe's lanes), so where they meet is it; the middle of the screen, nudged the way the track turns. Those boundaries go on as lines through it
     double vx = 128, vy = 100;
+    bool have_v = false;
     {
         // where the straight boundaries cross: the least squares of vy = a + b vx over them (the point nearest all their lines); the middle of the screen on a straight track, up or down with the pitch, and to the side the track turns
         double sbb = 0, sb = 0, sab = 0, sa = 0;
@@ -156,12 +157,44 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
         }
         const double det = sbb * cnt - sb * sb;
         if (cnt >= 2 && det > 1e-3 && smax - smin > 0.15) {
+            have_v = true;
             vx = (-sab * cnt + sb * sa) / det; // (Cramer: sbb vx - sb vy = -sab and -sb vx + cnt vy = sa)
             vy = (sbb * sa - sb * sab) / det;
         }
         vx = vx < 48 ? 48 : vx > 208 ? 208 : vx;
         vy = vy < -40 ? -40 : vy > 180 ? 180 : vy;
     }
+    // The boundaries that are not at the edge column but a little way in (the thin outlines): each is a ray from V too, so where it would cross the edge column is where it starts, if no boundary there is its own already
+    int total = n;
+    const int seed_limit = n + 12; // (not many: a wrong vanishing point would fill the margin with stripes)
+    for (int xs = 4; xs <= 48 && have_v && total < seed_limit && vx > 72 && vx < 184; xs += 4) {
+        int sy[SS_MAX_BOUNDARIES], sa[SS_MAX_BOUNDARIES], sb[SS_MAX_BOUNDARIES];
+        const int m = ColumnBoundaries(img, xs, sy, sa, sb, SS_MAX_BOUNDARIES);
+        for (int i = 0; i < m && total < seed_limit; i++) {
+            const double y0 = vy + (sy[i] - vy) * vx / (vx - xs);
+            if (y0 < -60 || y0 > 290)
+                continue;
+            bool known = false;
+            for (int k = 0; k < total; k++)
+                if (bd[k].above == sa[i] && bd[k].below == sb[i] && fabs(bd[k].a - y0) <= 3)
+                    known = true;
+            if (known)
+                continue;
+            bd[total].above = sa[i];
+            bd[total].below = sb[i];
+            bd[total].a = y0;
+            bd[total].length = 0;
+            bd[total].b = bd[total].c = 0;
+            total++;
+        }
+    }
+    for (int i = 1; i < total; i++) // (by height, so that the bands are in order)
+        for (int j = i; j > 0 && bd[j].a < bd[j - 1].a; j--) {
+            const Boundary t = bd[j];
+            bd[j] = bd[j - 1];
+            bd[j - 1] = t;
+        }
+    n = total;
     for (int col = 0; col < SS_WIDE_MC * 8; col++) {
         const double x = -(col + 1);
         double pos[SS_MAX_BOUNDARIES];
