@@ -6,6 +6,7 @@
 #include "Object/SpecialStageB4Objects.h"
 #include "Object/StarPost.h"
 #include "SpecialResults.h"
+#include "VersusMatch.h"
 #include "Object/SpecialStageArt.h"
 #include "Object/SpecialStageObjects.h"
 #include "Object/Tails.h"
@@ -92,9 +93,11 @@ static void ShowPlanes(SSDisplay *d) {
     }
 }
 
-static bool resultsPending, resultsWon;
+static bool resultsPending, resultsWon, versusDone;
+static uint16_t versusSonic[3], versusMiles[3];
 static int resultsSonic, resultsMiles;
 int ss4_stage; // Beta 4's stage to play: 0 to 6 in the one player play (the number of emeralds won on the way: it goes on only when one is won), 7 to 9 are the versus stages
+bool ss4_versus;      // $FFFFFE00: the stage is the versus play's (the match's three stages 7 to 9, a round at each checkpoint)
 bool ss4_emerald[7];  // $FFFFFFB2 on: which emeralds are won
 
 // loc_82D4: a stage number of 7 or more (the entry from the level) is the first stage whose emerald is not won; with all seven won the game starts again (false)
@@ -112,7 +115,7 @@ static bool ChooseStage(void) {
 
 void GM_SpecialTrack(void) {
     const bool b4 = getenv("SONIC2_SS_PREBETA") == NULL; // (Beta 4's stage is the stage; the pre-beta's stays while it is checked)
-    if (b4 && !ChooseStage()) {
+    if (b4 && !ss4_versus && !ChooseStage()) {
         gamemode = GameMode_Sega; // (all seven emeralds are won: the original starts the game again)
         return;
     }
@@ -148,7 +151,7 @@ void GM_SpecialTrack(void) {
                 Plane_Put(&b, ((size_t)row * wide.plane_width + column) * 2, d.plane_b[row * SS_PLANE_WIDTH + (column % 32)]);
     }
     if (b4) {
-        SS4Stage_Begin(ss4_stage);
+        SS4Stage_Begin(ss4_stage, ss4_versus);
         SS4Stage_Spawn();
     } else {
     for (int i = 0; i < SS_ITEM_SLOTS; i++) { // (the rings and bombs, and their shadows: each follows a place in the layout)
@@ -224,6 +227,18 @@ void GM_SpecialTrack(void) {
         ShowPlanes(&d);
         if (b4) {
             SS4Stage_Frame(&d);
+            if (SS4Stage_Over() && !viewer && ss4_versus) { // the versus play: no results card of the single player's; the match's page for the stage, and where it leads
+                uint16_t sonic[3], miles[3];
+                for (int r = 0; r < 3; r++) {
+                    sonic[r] = SS4Stage_RoundRings(r, 0);
+                    miles[r] = SS4Stage_RoundRings(r, 1);
+                }
+                star_bonus_stage = false;
+                versusDone = true;
+                memcpy(versusSonic, sonic, sizeof(sonic));
+                memcpy(versusMiles, miles, sizeof(miles));
+                break;
+            }
             if (SS4Stage_Over() && !viewer) {
                 const int sonic_rings = SS4Stage_RingsOf(0), miles_rings = SS4Stage_RingsOf(1);
                 const bool won = SS4Stage_GotEmerald();
@@ -260,7 +275,11 @@ void GM_SpecialTrack(void) {
         resultsPending = false;
         SpecialResults_Run(resultsSonic, resultsMiles, resultsWon);
     }
-    if (viewer)
+    if (versusDone) {
+        versusDone = false;
+        gamemode = GameMode_Title; // (the match decides where it goes on: VersusMatch_SpecialDone)
+        VersusMatch_SpecialDone(versusSonic, versusMiles);
+    } else if (viewer)
         gamemode = GameMode_Sega;
     else
         QuickPLC(PlcId_Main); // (the stage and its results wiped VRAM: the standard art (the lives icon, the rings, the star post) is back before the level, which loads only its own)

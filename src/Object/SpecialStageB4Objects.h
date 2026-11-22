@@ -8,12 +8,15 @@
 // for each that is in it), the HUD ($5E), the ring counters ($87), the START banner ($5F), and the stage's end: the rings' checks at the checkpoints ($5A) and the emerald ($59). The models are in SpecialStageB4Character.c
 // and SpecialStageB4Items.c; this file feeds them the stage's variables and draws them.
 
-void SS4Stage_Begin(int stage);                 // the models and the art start (call before the objects are made)
+void SS4Stage_Begin(int stage, bool versus_play);               // the models and the art start (call before the objects are made)
 void SS4Stage_Spawn(void);                      // the objects of the stage, in the order of the original's slots
 void SS4Stage_Frame(const SSDisplay *d);        // once a frame before the objects run: what the stage tells them
 bool SS4Stage_Started(void);                    // the START banner is gone
 bool SS4Stage_Over(void);                       // the stage has ended (`$FFFFDB86`)
 bool SS4Stage_PadLocked(void);                  // the end has locked the pads ($FFFFDB87)
+bool SS4Stage_Versus(void);                     // the versus play
+int SS4Stage_RoundsPlayed(void);                // its rounds so far (three end the stage)
+uint16_t SS4Stage_RoundRings(int round, int who); // a round's rings of one character
 bool SS4Stage_GotEmerald(void);                 // and it was won
 int SS4Stage_Rings(void);                       // the rings of both characters
 int SS4Stage_RingsOf(int who);                  // one character's rings

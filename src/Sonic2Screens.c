@@ -12,6 +12,7 @@
 #endif
 #include "GM_Special.h"
 #include "GM_SpecialTrack.h"
+#include "VersusMatch.h"
 #include <stdlib.h>
 #include "GM_Title.h"
 
@@ -49,6 +50,11 @@ static void Screen_Sega(void) {
     const char *start = getenv("SONIC2_START_SS");
     if (start != NULL) {
         ss4_stage = atoi(start);
+        if (getenv("SONIC2_SS_VERSUS") != NULL) { // (the match's special stage: SONIC2_START_SS is its stage, 7 to 9)
+            true_two_player = true;
+            VersusMatch_BeginSpecial();
+            ss4_stage = atoi(start);
+        }
         gamemode = GameMode_Special;
         return;
     }

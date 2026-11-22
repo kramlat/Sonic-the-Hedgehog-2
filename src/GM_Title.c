@@ -354,6 +354,7 @@ static void PlayLevel(bool new_game) {
     // already held by the time PlayLevel() runs. Special Stage is now its
     // own row in the menu, same as on real hardware.)
     gamemode = GameMode_Level;
+    ss4_versus = false; // (a single player's play, or the match's level: not the versus special stage)
     lives = 3;
     rings = 0;
     level_time.pad = level_time.min = level_time.sec = level_time.frame = 0;
@@ -393,8 +394,8 @@ static void Tit_ChkLevSel(bool level_select_cheat) {
             VersusMatch_Begin(); // (the match: its acts' results and counters)
         }
         if (true_two_player && VersusMenu_ChoseSpecialStage()) { // (its box: the special stage with the two players)
-            ss4_stage = 7; // (the versus stages are 7 to 9)
             PlayLevel(true);
+            VersusMatch_BeginSpecial(); // (the versus stages are 7 to 9: the match's flow stands on the special stage box)
             gamemode = GameMode_Special;
             level_id = 0;
             return;

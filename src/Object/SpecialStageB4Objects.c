@@ -55,6 +55,14 @@ static int stage_number;
 static bool started, over, emerald;
 static uint16_t speed_word;
 static int checkpoint;
+// The versus play (Beta 4's `$FFFFFE00`, set by the entry from the match): a round at each of the stage's three checkpoints, in which each character's rings are his own and the one with more wins it
+static bool versus;
+static int round_count;                 // $FFFFFE17: the rounds played
+static uint16_t round_rings[3][2];      // $FFFFFFA0 on: each round's rings, Sonic's then Miles'
+static uint8_t round_wins[2];           // $FFFFDB93: the rounds each has won (it is the high nibble for Sonic, the low for Miles)
+bool SS4Stage_Versus(void) { return versus; }
+int SS4Stage_RoundsPlayed(void) { return round_count; }
+uint16_t SS4Stage_RoundRings(int round, int who) { return round_rings[round][who]; }
 static uint16_t pad_history[16]; // Sonic's pad, the newest first: Miles does what he did 16 frames ago when nobody works his own (loc_2FE20, loc_30E24)
 static uint16_t miles_wait;
 static int segments_seen_step = -1;
@@ -76,8 +84,12 @@ int SS4Stage_Required(int stage, int cp) {
     return required[(stage * 4 + cp) % 40];
 }
 
-void SS4Stage_Begin(int stage) {
+void SS4Stage_Begin(int stage, bool versus_play) {
     stage_number = stage;
+    versus = versus_play;
+    round_count = 0;
+    memset(round_rings, 0, sizeof(round_rings));
+    memset(round_wins, 0, sizeof(round_wins));
     SS4Items_Reset(&items, stage);
     memset(&w2, 0, sizeof(w2));
     memset(&wrld, 0, sizeof(wrld));
@@ -129,7 +141,7 @@ void SS4Stage_Spawn(void) {
     Make(Obj_SS4Hud, 0);
     Make(Obj_SS4Start, 0);
     Make(Obj_SS4Counter, 0);
-    Make(Obj_SS4Counter, 1);
+    Make(Obj_SS4Counter, versus ? 2 : 1); // (the versus play has no total: the rounds each has won instead)
     Make(Obj_SS4Controller, 0);
 }
 
@@ -405,6 +417,14 @@ static void SpawnSentence(int index, int x, int y) { // loc_31F50
     }
 }
 
+// loc_31F8C: a sentence of the versus play (`index` is the original's d0: 8 and $A the words before the round and at its start, $C Sonic's round, $E Miles', $10 a draw, $12 the next round), from the x of its table
+static void VersusSentence(int d0) {
+    static const uint8_t xs[6] = { 0x44, 0x44, 0x58, 0x58, 0x74, 0x3C };
+    int x = xs[(d0 - 8) >> 1];
+    for (const uint8_t *c = sentences[d0 >> 1]; *c != 0xFF; c++)
+        x = SpawnChunk(*c, x, 0x48) + 8;
+}
+
 // loc_31ED8 with loc_8248: the rings the next check asks, in words: the number's digits, with words before and after it
 static void ShowRequirement(void) {
     required_now = SS4Stage_Required(stage_number, checkpoint);
@@ -468,10 +488,13 @@ void Obj_SS4Emblem(Sst *self) {
         self->render_flags |= SST_RENDER_LEVEL;
         self->priority = (hand ? 0 : 1) * 0x80;
         self->mapping_frame = hand ? 0x15 : 0x14;
+        const int y = (self->subtype & 4) ? 0x1C : 0x48; // (the versus play's is higher: loc_31CB6's d4)
+        if (self->subtype & 8)
+            self->art_tile = TILE_MAP(0, 2, 0, 0, ArtTile_SS4WingsHand); // (a round Miles won: the other palette line, loc_31BA2)
         self->x_pos.f.u = 0x80;
-        self->y_pos.f.u = 0x48;
+        self->y_pos.f.u = (int16_t)y;
         self->own.u16[1] = 0x3C;
-        self->own.u16[2] = 0x48; // the place it bobs about
+        self->own.u16[2] = (uint16_t)y; // the place it bobs about
         if (hand && fail)
             self->render_flags |= SST_RENDER_Y_FLIP;
     }
@@ -493,6 +516,14 @@ void Obj_SS4Emblem(Sst *self) {
         self->y_pos.f.u = y;
     }
     if (--self->own.u16[1] == 0) {
+        if (hand && versus) { // loc_31C7A: the third round ends the stage, any other has the words of the next one
+            if (round_count >= 3) {
+                PlayMusic(bgm_Stop);
+                over = true;
+            } else {
+                VersusSentence(0x12);
+            }
+        }
         Sst_Delete(self);
         return;
     }
@@ -522,10 +553,36 @@ static void BeginGate(void) {
 }
 
 // What the gate's end does (loc_31B0C, loc_31BE4 and what follows): the sound, the colours back, the rings against what is asked; the words of the result; a fail ends the stage after them
+static void EndVersusRound(void) { // loc_31B0C on, the versus branch: the round's rings are kept and counted again from nothing; the character with more has won it
+    const int sonic = w2.rings[0], miles = w2.rings[1];
+    round_rings[round_count][0] = (uint16_t)sonic;
+    round_rings[round_count][1] = (uint16_t)miles;
+    w2.rings[0] = w2.rings[1] = 0;
+    round_count++;
+    if (sonic == miles) { // (a draw: only its words, and after the third round the stage is over at once)
+        VersusSentence(0x10);
+        if (round_count >= 3) {
+            PlayMusic(bgm_Stop);
+            over = true;
+        }
+        return;
+    }
+    const bool sonic_won = sonic > miles;
+    round_wins[sonic_won ? 0 : 1]++;
+    for (int k = 0; k < 2; k++)
+        Make(Obj_SS4Emblem, (uint8_t)(k | 4 | (sonic_won ? 0 : 8)));
+    VersusSentence(sonic_won ? 0xC : 0xE);
+}
+
 static void EndGate(void) {
     GateColours(false);
     items.flash = false;
     gate_step = -1;
+    if (versus) {
+        QueueSound2(SFX(0xA1));
+        EndVersusRound();
+        return;
+    }
     const bool failed = SS4Stage_Rings() < required_now;
     // (Beta 4 plays $A1, the lamp post, for both; the final plays $EE, what this build calls sfx_Error, for an earlier gate's fail: the one byte the user named)
     QueueSound2(failed ? sfx_Error : SFX(0xA1));
@@ -700,7 +757,7 @@ void Obj_SS4Hud(Sst *self) { // $5E
         self->priority = 0;
         self->x_pos.f.u = 0x80;
         self->y_pos.f.u = 0;
-        self->mapping_frame = 0;
+        self->mapping_frame = versus ? 1 : 0; // (the frame without the TOTAL box)
     }
     Sst_Draw(self);
 }
@@ -733,6 +790,14 @@ void Obj_SS4Counter(Sst *self) {
                 n++;
             }
         }
+    } else if (self->subtype == 2) { // loc_814A: an icon for each round a character has won, from his side of the HUD toward the middle ($20 and $30 for Sonic, $B8 and $C8 for Miles; frame $A)
+        for (int who = 0; who < 2; who++)
+            for (int k = 0; k < round_wins[who]; k++) {
+                self->children[n].x = (int16_t)(who == 0 ? 0x20 + 0x10 * k : 0xB8 + 0x10 * k);
+                self->children[n].y = 0x2C;
+                self->children[n].frame = 0xA;
+                n++;
+            }
     } else {
         int ones = w2.digits[0][2] + w2.digits[1][2], tens = w2.digits[0][1] + w2.digits[1][1], hundreds = w2.digits[0][0] + w2.digits[1][0];
         if (ones >= 10) {
@@ -762,6 +827,8 @@ void Obj_SS4Counter(Sst *self) {
 void Obj_SS4Start(Sst *self) {
     switch (self->routine) {
     case 0:
+        if (versus)
+            VersusSentence(8); // (the words before the round: loc_7CEE)
         self->routine = 2;
         self->x_pos.f.u = 0x80;
         self->y_pos.f.u = (int16_t)-0x40;
@@ -805,7 +872,10 @@ void Obj_SS4Start(Sst *self) {
     case 6:
         if ((int16_t)--self->own.u16[1] < 0) {
             started = true;
-            ShowRequirement();
+            if (versus)
+                VersusSentence(0xA);
+            else
+                ShowRequirement();
             Sst_Delete(self);
             return;
         }

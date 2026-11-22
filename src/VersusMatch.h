@@ -1,6 +1,7 @@
 #ifndef _VERSUSMATCH_H
 #define _VERSUSMATCH_H
 
+#include <stdint.h>
 #include "VersusFlow.h"
 
 // The two player versus play joined to the game: the match's state (VersusFlow.h) between its acts, each player's own counters (VersusStats.h) from the start of an act, and the results page when both players have
@@ -11,6 +12,11 @@
 void VersusMatch_Begin(void);
 // A level starts: in the versus play both players' counters are zero (Sonic's are the game's variables, Miles' the second set), otherwise nothing is kept
 void VersusMatch_LevelStart(void);
+// The special stage box of the zone menu was chosen: the match's flow stands on it (three stages)
+void VersusMatch_BeginSpecial(void);
+// A versus special stage has ended: the rings of its three rounds (Sonic's and Miles'); shows its results and starts what follows
+void VersusMatch_SpecialDone(const uint16_t ss1[3], const uint16_t ss2[3]);
+
 // Every frame of the level: when the end panel says the act is over, the results page of the act and what follows it
 void VersusMatch_Poll(void);
 

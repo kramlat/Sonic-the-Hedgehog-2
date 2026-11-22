@@ -7,6 +7,7 @@
 // place while the switch SONIC2_SS_TRACK is set in the environment, until the stage itself is built (the pre-beta's replaces Sonic 1's in the last stage).
 extern int ss4_stage;
 extern bool ss4_emerald[7];
+extern bool ss4_versus; // the match's stage (7 to 9), a round at each checkpoint
 void GM_SpecialTrack(void);
 
 #endif //_GM_SPECIALTRACK_H
