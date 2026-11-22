@@ -582,16 +582,18 @@ static void Order_TheActsFollowThePreBetasSequence(void) {
         if (i + 1 < sizeof(zones) / sizeof(zones[0]))
             CHECK_EQ(next, LEVEL_ID(zones[i + 1], 0));
         else
-            CHECK_EQ(next, LEVEL_ID(ZoneId_SCZ, 0)); // (Metropolis 2: the pre-beta's entry is Sky Chase)
+            CHECK_EQ(next, LEVEL_ID(ZoneId_MTZ, 2)); // (Metropolis 2 leads to its third act)
     }
+    level_id = LEVEL_ID(ZoneId_MTZ, 2); // (the third act: the pre-beta's entry is Sky Chase)
+    CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_SCZ, 0));
     level_id = LEVEL_ID(ZoneId_SCZ, 0);
     CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_SFZ, 0));
     level_id = LEVEL_ID(ZoneId_SFZ, 0);
+    CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_SFZ, 1));
+    level_id = LEVEL_ID(ZoneId_SFZ, 1);
     CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_DEZ, 0));
     level_id = LEVEL_ID(ZoneId_DEZ, 0);
     CHECK_EQ(TitleCard_NextLevel(), 0xFFFF);
-    level_id = LEVEL_ID(ZoneId_MTZ, 2); // (the third act is the pre-beta's zone 5: Neo Green Hill)
-    CHECK_EQ(TitleCard_NextLevel(), LEVEL_ID(ZoneId_ARZ, 0));
     // versus (the true 2 player mode, not the split screen alone): Emerald Hill 2 goes to Casino Night, Dust Hill 2 ends it
     true_two_player = 1;
     level_id = LEVEL_ID(ZoneId_EHZ, 1);

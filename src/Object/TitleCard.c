@@ -36,34 +36,41 @@ struct TitleCard_Config {
     int16_t x0, x1;
 };
 
-// What each act leads to: the pre-beta's Level_Sequence_List (and Level_Sequence_List_2P, for the versus play) as a list of the order of play, each level written as the level select writes it (LEVEL_ID(zone, act)):
-// a level goes to the one after it in its list, and the last of a list ends the game (the Sega screen). The one player order: Emerald Hill, Chemical Plant, Neo Green Hill, Casino Night, Hill Top, Mystic Cave, Oil
-// Ocean, Metropolis, then Sky Chase (the pre-beta's own entry), Sky Fortress and Death Egg. The versus order has three zones. The levels that lead into an order from outside it are in the lists after it.
+// What each act leads to, as the ROM has it: a row for each zone slot and a column for each act, the level (written as the level select writes it) that is loaded when the act is done; LEVEL_END where there is no next
+// level. First the one player order, then the versus play's; the rows of the zones that a table leaves out are 0 (the first act of Emerald Hill), as the original's are.
 #define LEVEL_END 0xFFFF
-static const uint16_t order_one_player[] = {
-    LEVEL_ID(ZoneId_EHZ, 0), LEVEL_ID(ZoneId_EHZ, 1), LEVEL_ID(ZoneId_CPZ, 0), LEVEL_ID(ZoneId_CPZ, 1), LEVEL_ID(ZoneId_ARZ, 0), LEVEL_ID(ZoneId_ARZ, 1), LEVEL_ID(ZoneId_CNZ, 0), LEVEL_ID(ZoneId_CNZ, 1),
-    LEVEL_ID(ZoneId_HTZ, 0), LEVEL_ID(ZoneId_HTZ, 1), LEVEL_ID(ZoneId_MCZ, 0), LEVEL_ID(ZoneId_MCZ, 1), LEVEL_ID(ZoneId_OOZ, 0), LEVEL_ID(ZoneId_OOZ, 1), LEVEL_ID(ZoneId_MTZ, 0), LEVEL_ID(ZoneId_MTZ, 1),
-    LEVEL_ID(ZoneId_SCZ, 0), LEVEL_ID(ZoneId_SFZ, 0), LEVEL_ID(ZoneId_DEZ, 0), LEVEL_END,
+#define ORDER_ZONES 0x11
+#define ORDER_ACTS 4
+static const uint16_t order_one_player[ORDER_ZONES][ORDER_ACTS] = {
+    [ZoneId_EHZ] = { LEVEL_ID(ZoneId_EHZ, 1), LEVEL_ID(ZoneId_CPZ, 0), LEVEL_END, LEVEL_END },
+    [ZoneId_WZ]  = { LEVEL_ID(ZoneId_WZ, 1),  LEVEL_END,               LEVEL_END, LEVEL_END },
+    [ZoneId_SSZ] = { LEVEL_ID(ZoneId_SSZ, 1), LEVEL_END,               LEVEL_END, LEVEL_END },
+    [ZoneId_MTZ] = { LEVEL_ID(ZoneId_MTZ, 1), LEVEL_ID(ZoneId_MTZ, 2), LEVEL_ID(ZoneId_SCZ, 0), LEVEL_END },
+    [ZoneId_SFZ] = { LEVEL_ID(ZoneId_SFZ, 1), LEVEL_ID(ZoneId_DEZ, 0), LEVEL_END, LEVEL_END },
+    [ZoneId_HTZ] = { LEVEL_ID(ZoneId_HTZ, 1), LEVEL_ID(ZoneId_MCZ, 0), LEVEL_END, LEVEL_END },
+    [ZoneId_HPZ] = { LEVEL_ID(ZoneId_HPZ, 1), LEVEL_END,               LEVEL_END, LEVEL_END },
+    [ZoneId_GCZ] = { LEVEL_ID(ZoneId_GCZ, 1), LEVEL_END,               LEVEL_END, LEVEL_END },
+    [ZoneId_OOZ] = { LEVEL_ID(ZoneId_OOZ, 1), LEVEL_ID(ZoneId_MTZ, 0), LEVEL_END, LEVEL_END },
+    [ZoneId_MCZ] = { LEVEL_ID(ZoneId_MCZ, 1), LEVEL_ID(ZoneId_OOZ, 0), LEVEL_END, LEVEL_END },
+    [ZoneId_CNZ] = { LEVEL_ID(ZoneId_CNZ, 1), LEVEL_ID(ZoneId_HTZ, 0), LEVEL_END, LEVEL_END },
+    [ZoneId_CPZ] = { LEVEL_ID(ZoneId_CPZ, 1), LEVEL_ID(ZoneId_ARZ, 0), LEVEL_END, LEVEL_END },
+    [ZoneId_DEZ] = { LEVEL_END, LEVEL_END, LEVEL_END, LEVEL_END },
+    [ZoneId_ARZ] = { LEVEL_ID(ZoneId_ARZ, 1), LEVEL_ID(ZoneId_CNZ, 0), LEVEL_END, LEVEL_END },
+    [ZoneId_SCZ] = { LEVEL_ID(ZoneId_SFZ, 0), LEVEL_END,               LEVEL_END, LEVEL_END },
 };
-static const uint16_t order_versus[] = {
-    LEVEL_ID(ZoneId_EHZ, 0), LEVEL_ID(ZoneId_EHZ, 1), LEVEL_ID(ZoneId_CNZ, 0), LEVEL_ID(ZoneId_CNZ, 1), LEVEL_ID(ZoneId_MCZ, 0), LEVEL_ID(ZoneId_MCZ, 1), LEVEL_END,
-};
-// (the levels that are not in the lists above, each with its own: Wood Zone and Hidden Palace lead into Metropolis and Oil Ocean, and the third act of Metropolis, the pre-beta\'s zone 5, into Neo Green Hill)
-static const struct { uint16_t level, next; } order_extra[] = {
-    { LEVEL_ID(ZoneId_WZ, 0), LEVEL_ID(ZoneId_WZ, 1) }, { LEVEL_ID(ZoneId_WZ, 1), LEVEL_ID(ZoneId_MTZ, 0) }, { LEVEL_ID(ZoneId_HPZ, 0), LEVEL_ID(ZoneId_HPZ, 1) }, { LEVEL_ID(ZoneId_HPZ, 1), LEVEL_ID(ZoneId_OOZ, 0) },
-    { LEVEL_ID(ZoneId_MTZ, 2), LEVEL_ID(ZoneId_ARZ, 0) },
+
+static const uint16_t order_versus[ORDER_ZONES][ORDER_ACTS] = {
+    [ZoneId_EHZ] = { LEVEL_ID(ZoneId_EHZ, 1), LEVEL_ID(ZoneId_CNZ, 0), LEVEL_END, LEVEL_END },
+    [ZoneId_MCZ] = { LEVEL_ID(ZoneId_MCZ, 1), LEVEL_END,               LEVEL_END, LEVEL_END },
+    [ZoneId_CNZ] = { LEVEL_ID(ZoneId_CNZ, 1), LEVEL_ID(ZoneId_MCZ, 0), LEVEL_END, LEVEL_END },
 };
 
 // The act after this one, in the form the level id has it, or 0xFFFF for the end of the game
 uint16_t TitleCard_NextLevel(void) {
-    const uint16_t *order = true_two_player ? order_versus : order_one_player;
-    for (int i = 0; order[i] != LEVEL_END; i++)
-        if (order[i] == level_id)
-            return order[i + 1];
-    for (size_t i = 0; i < sizeof(order_extra) / sizeof(order_extra[0]); i++)
-        if (order_extra[i].level == level_id)
-            return order_extra[i].next;
-    return 0; // (a level of no list: the first act of Emerald Hill, as the pre-beta\'s table has for the zones it has none of)
+    const int zone = LEVEL_ZONE(level_id), act = LEVEL_ACT(level_id);
+    if (zone >= ORDER_ZONES || act >= ORDER_ACTS)
+        return 0;
+    return (true_two_player ? order_versus : order_one_player)[zone][act]; // (the versus play's order: the true 2 player flag, not the split screen)
 }
 
 const uint8_t *EndCard_ZoneArt(void); // (Sonic2PLC.c, which has the art)
