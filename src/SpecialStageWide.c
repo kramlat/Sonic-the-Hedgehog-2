@@ -137,10 +137,14 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
         double pos[SS_MAX_BOUNDARIES];
         for (int k = 0; k < n; k++) {
             // (the curve acts for the first SS_CURVE_COLUMNS columns of the margin and goes on along its tangent after them: a turn's bend does not run away)
+            // (and the pipe's walls rise toward its sides: a boundary never goes down going out, so a turn's fit that would warp it down is flattened: the slope and the bend are not less than nothing)
+            const double b = bd[k].b < 0 ? 0 : bd[k].b, c = bd[k].c < 0 ? 0 : bd[k].c;
             const double xc = x < -SS_CURVE_COLUMNS ? -SS_CURVE_COLUMNS : x;
-            double v = bd[k].a + bd[k].b * xc + bd[k].c * xc * xc;
+            double v = bd[k].a + b * xc + c * xc * xc;
             if (x < xc)
-                v += (bd[k].b + 2 * bd[k].c * xc) * (x - xc);
+                v += (b + 2 * c * xc) * (x - xc);
+            if (v > bd[k].a)
+                v = bd[k].a;
             v = v < -400 ? -400 : v > 700 ? 700 : v;
             pos[k] = v;
         }
