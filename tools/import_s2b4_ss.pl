@@ -23,3 +23,10 @@ for my $f (sort keys %art) { copy("$src/$f", "res/Art/$art{$f}") or die "$f: $!\
 for my $f (sort keys %pal) { copy("$src/$f", "res/S2Palette/$pal{$f}") or die "$f: $!\n"; push @yml, "S2Palette/$pal{$f}" }
 for my $f (sort keys %data) { copy("$src/$f", "res/SSData/$data{$f}") or die "$f: $!\n"; push @yml, "SSData/$data{$f}" }
 print "  - \"$_\"\n" for @yml;
+
+# The characters' data, read out of the disassembly's source with the asm tools (the rest of the characters' mappings and animations, the shadows' and Miles' tails, are the pre-beta's, byte for byte):
+#   Mappings/SSB4Sonic (loc_306FC: one late frame differs from the pre-beta's) and SSData/B4CharacterArtScript (loc_30AE4: 55 entries for Sonic, Miles and his tails; the art is one picture, SSB4SonicMiles)
+my $s = $src; $s =~ s{/data/ss$}{};
+system('perl', 'tools/asm_dc_mappings.pl', "$s/Sonic2B4.asm", 'loc_306FC', 'res/Mappings/SSB4Sonic') == 0 or die;
+system('perl', 'tools/asm_dc_region.pl', "$s/Sonic2B4.asm", 'loc_30AE4', 'loc_30CCC', 'res/SSData/B4CharacterArtScript') == 0 or die;
+print "  - \"Mappings/SSB4Sonic\"\n  - \"SSData/B4CharacterArtScript\"\n";

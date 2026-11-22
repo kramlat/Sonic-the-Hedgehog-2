@@ -13,6 +13,7 @@
 #include "SpecialStageCharacter.h"
 #include "SpecialStageItems.h"
 #include "SpecialStageB4Tables.h"
+#include "SpecialStageB4Character.h"
 #include "Object/SpecialStageArt.h"
 
 // The pre-beta's special stage (built in stages, see docs/Sonic2SpecialStage.md). Stage 1: its art, imported as it is: every picture of the two lists the stage loads ($3C and $3D) decodes to the tiles its header
@@ -696,7 +697,106 @@ static void SpecialStageB4_TheSegmentsComeInTheStagesStepsAndTurnByTheirFlags(vo
     }
 }
 
+// Beta 4's character (stage 4 of docs/Sonic2SpecialStageB4.md): runs round the pipe by the pad, jumps and lands on the circle, falls from the top, tumbles when hit, has the art's pieces and the shadow
+extern const uint8_t Animation_SpecialStageSonic[];
+static void SpecialStageB4_TheCharacterRunsJumpsLandsAndTumbles(void) {
+    SS4Player p;
+    SS4World world = { 11, false };
+    SS4Player_Init(&p, false);
+    CHECK_EQ(p.radius, 0x6E);
+    CHECK_EQ(p.priority, 3);
+    SS4Player_Step(&p, &world, 0, 0, 0, Animation_SpecialStageSonic);
+    CHECK_EQ(p.angle, 0x40); // (the bottom)
+    CHECK_EQ(p.screen_y, 0x6E + SS4_ORIGIN_Y);
+    CHECK_EQ(p.screen_x, SS4_ORIGIN_X);
+
+    // The pad: the left adds to the inertia ($60 a frame to $600) and the angle goes on
+    for (int i = 0; i < 20; i++)
+        SS4Player_Step(&p, &world, 0x04, 0, 0, Animation_SpecialStageSonic);
+    CHECK(p.inertia > 0x400);
+    CHECK(p.angle > 0x40 || p.angle < 0x10); // (went round to the left side)
+    CHECK(p.screen_x < SS4_ORIGIN_X);
+    // let go: it slows by an eighth a frame
+    const int16_t before = p.inertia;
+    SS4Player_Step(&p, &world, 0, 0, 0, Animation_SpecialStageSonic);
+    CHECK(p.inertia < before);
+    for (int i = 0; i < 400; i++)
+        SS4Player_Step(&p, &world, 0, 0, 0, Animation_SpecialStageSonic);
+    CHECK(p.angle >= 0x38 && p.angle <= 0x48); // (the slope pulled it back to near the bottom: the slow decay and the pull balance a little off it)
+
+    // A jump: thrown up across the circle, and landing on it again
+    SS4Player_Init(&p, false);
+    SS4Player_Step(&p, &world, 0, 0, 0, Animation_SpecialStageSonic);
+    SS4Player_Step(&p, &world, 0, 0x40, 0, Animation_SpecialStageSonic);
+    CHECK_EQ(p.routine, 4);
+    CHECK(p.sound_jump);
+    CHECK(p.y_vel < 0);
+    CHECK(p.status & SS4_STATUS_AIR);
+    int frames = 0;
+    while (p.routine == 4 && frames < 300) {
+        SS4Player_Step(&p, &world, 0, 0, 0, Animation_SpecialStageSonic);
+        frames++;
+    }
+    CHECK_EQ(p.routine, 2);
+    CHECK(frames > 20 && frames < 100);
+    CHECK(!(p.status & SS4_STATUS_AIR));
+
+    // At the top with no speed it falls
+    SS4Player_Init(&p, false);
+    SS4Player_Step(&p, &world, 0, 0, 0, Animation_SpecialStageSonic);
+    p.angle = 0xC0;
+    p.inertia = 0;
+    p.let_go_time = 0xFF; // (no pull)
+    SS4Player_Step(&p, &world, 0, 0, 0, Animation_SpecialStageSonic);
+    CHECK_EQ(p.routine, 8);
+
+    // A bomb: it tumbles for $20 frames, the rings spill on the first step, and the other one comes to the front
+    SS4Player_Init(&p, false);
+    SS4Player_Step(&p, &world, 0, 0, 0, Animation_SpecialStageSonic);
+    p.hit = 1;
+    SS4Player_Step(&p, &world, 0, 0, 5, Animation_SpecialStageSonic);
+    CHECK_EQ(p.hurt, 2);
+    CHECK(p.sound_ring_loss);
+    CHECK(world.front); // (Sonic hit: he becomes the larger)
+    p.sound_ring_loss = false;
+    bool spilled = false;
+    int steps = 0;
+    while (p.hurt != 0 && steps < 100) {
+        SS4Player_Step(&p, &world, 0, 0, 5, Animation_SpecialStageSonic);
+        spilled |= p.spill;
+        steps++;
+    }
+    CHECK(spilled);
+    CHECK_EQ(steps, 32);
+    CHECK(!p.sound_ring_loss);
+    CHECK(p.radius > 0x6E); // (he grows)
+    world.front = false;
+}
+
+static void SpecialStageB4_TheArtsPiecesAndTheShadowFollowTheScript(void) {
+    SS4ArtPiece pieces[8];
+    const int n = SS4_FramePieces(0, 0, pieces, 8);
+    CHECK_EQ(n, 3);
+    CHECK_EQ(pieces[0].source, 0);
+    CHECK_EQ(pieces[0].bytes, 0x200); // (16 tiles)
+    CHECK_EQ(pieces[1].source, 0x200);
+    CHECK_EQ(pieces[1].bytes, 0x120); // (9 tiles)
+    CHECK(SS4_FramePieces(1, 0, pieces, 8) > 0 && pieces[0].source >= 0x3060); // (Miles' picture is after Sonic's)
+    CHECK(SS4_FramePieces(2, 0x14, pieces, 8) > 0 && pieces[0].source >= 0x5C60 + 0); // (his tails' last frames)
+    SS4Player p;
+    SS4Player_Init(&p, false);
+    SS4World world = { 11, false };
+    SS4Player_Step(&p, &world, 0, 0, 0, Animation_SpecialStageSonic);
+    SS4Shadow s;
+    SS4Player_Shadow(&p, &s);
+    CHECK_EQ(s.art_tile, 0x623C); // (on the bottom: the player's shadow, 24 below)
+    CHECK_EQ(s.x, p.screen_x);
+    CHECK_EQ(s.y, p.screen_y + 0x18);
+}
+
 void RegisterSpecialStageTests(void) {
+    RUN_TEST(SpecialStageB4_TheCharacterRunsJumpsLandsAndTumbles);
+    RUN_TEST(SpecialStageB4_TheArtsPiecesAndTheShadowFollowTheScript);
     RUN_TEST(SpecialStageB4_TheSegmentsComeInTheStagesStepsAndTurnByTheirFlags);
     RUN_TEST(SpecialStageB4_TheStagesTheirObjectsAndTheSegmentsPlacesAreConsistent);
     RUN_TEST(SpecialStage_TheMainListsArtDecodesAndGoesWherePreBetaPutsIt);
