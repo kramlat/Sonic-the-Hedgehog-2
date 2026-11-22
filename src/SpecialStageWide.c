@@ -177,13 +177,15 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
                 pos[k] = bd[k].a + ((vy - bd[k].a) / vx) * x;
                 continue;
             }
-            const double b = bd[k].b < 0 ? 0 : bd[k].b > SS_MAX_SLOPE ? SS_MAX_SLOPE : bd[k].b;
-            const double c = bd[k].c < 0 ? 0 : bd[k].c > SS_MAX_BEND ? SS_MAX_BEND : bd[k].c;
+            // (away from the vanishing point: a boundary above it goes up going out, one below it goes down, as the wedges of the sky, the walls and the floor open out)
+            const double away = bd[k].a >= vy ? -1 : 1;
+            const double b = fabs(bd[k].b) > SS_MAX_SLOPE ? SS_MAX_SLOPE : fabs(bd[k].b);
+            const double c = fabs(bd[k].c) > SS_MAX_BEND ? SS_MAX_BEND : fabs(bd[k].c);
             const double xc = x < -SS_CURVE_COLUMNS ? -SS_CURVE_COLUMNS : x;
-            double v = bd[k].a + b * xc + c * xc * xc;
+            double v = bd[k].a + away * (b * xc + c * xc * xc);
             if (x < xc)
-                v += (b + 2 * c * xc) * (x - xc);
-            if (v > bd[k].a)
+                v += away * (b + 2 * c * xc) * (x - xc);
+            if (away > 0 ? v > bd[k].a : v < bd[k].a)
                 v = bd[k].a;
             v = v < -400 ? -400 : v > 700 ? 700 : v;
             pos[k] = v;
