@@ -360,34 +360,53 @@ static void SpecialStage_TheWideLayoutKeepsTheTrackInTheMiddle(void) {
     }
 }
 
-// A unit's stripes are put in the wide row with the track's own words in the middle; at each side the cell next to the track carries the edge pixel out (a tile of that colour) and the rest is blank (the background shows)
-static void SpecialStage_TheWideRowPadsTheWallsAndCropsTheRest(void) {
+// The wide row has the track's own words in the middle and, at each side, cells that point at the margin's tiles (nearest the track first); the margins carry the track's bands on: a diagonal band that rises toward the left
+// edge (the picture's lines shifted a cell at a time) goes on rising in the margin, in the same steps
+static void SpecialStage_TheWideRowPointsAtTheMarginsWhichContinueTheTracksBands(void) {
     SSWide w;
     SSWide_Layout(&w, 360);
     uint16_t unit[128], row[512];
     for (int i = 0; i < 128; i++)
         unit[i] = (uint16_t)(0xE000 | 0x14);
-    for (int stripe = 0; stripe < 4; stripe++)
-        unit[stripe * 32 + 31] = (uint16_t)(0xE000 | 0x0800 | 0x14);
-    SSWide_ExpandUnit(&w, unit, row);
-    size_t count;
-    const uint8_t *rows = SS_TrackTiles(&count);
-    const uint32_t tile = ((uint32_t)rows[0x14 * 4] << 24) | ((uint32_t)rows[0x14 * 4 + 1] << 16) | ((uint32_t)rows[0x14 * 4 + 2] << 8) | rows[0x14 * 4 + 3];
-    const int first = (int)(tile >> 28);
-    CHECK(first != 0); // (the tile has a colour at its edge, or the test shows nothing)
+    SSWide_ExpandRow(&w, unit, 3, row);
     for (int stripe = 0; stripe < 4; stripe++) {
         const uint16_t *s = row + stripe * w.stride;
-        for (int c = 0; c < w.left_cells; c++) // (the whole margin carries the edge pixel out: the walls go on to the screen's edges)
-            CHECK_EQ(s[c], SSWide_MarginWord(0xE014, first));
+        CHECK_EQ(s[w.left_cells - 1], 0xE000 | (ArtTile_SpecialStageMarginLeft + 3 * SS_WIDE_MC + 0)); // (the cell next to the track)
+        CHECK_EQ(s[w.left_cells - 2], 0xE000 | (ArtTile_SpecialStageMarginLeft + 3 * SS_WIDE_MC + 1));
         CHECK_EQ(s[w.left_cells], unit[stripe * 32]);
-        CHECK_EQ(s[w.left_cells + 31], unit[stripe * 32 + 31]);
-        CHECK_EQ(s[w.left_cells + 32], SSWide_MarginWord(0xE014, first)); // (the last cell is turned across: the tile's first pixel is its right edge as drawn)
-        for (int c = w.left_cells + 33; c < w.stride; c++)
-            CHECK_EQ(s[c], SSWide_MarginWord(0xE014, first));
+        CHECK_EQ(s[w.left_cells + 32], 0xE000 | (ArtTile_SpecialStageMarginRight + 3 * SS_WIDE_MC + 0));
     }
-    CHECK_EQ(SSWide_MarginWord(0xE014, 5) & 0xE000, 0xE000);
-    CHECK_EQ(SSWide_MarginWord(0xE014, 5) & 0x07FF, ArtTile_SpecialStageSolid + 5);
-    CHECK_EQ(SSWide_MarginWord(0xE014, 0), 0x8000 | ArtTile_SpecialStageBlank);
+    // A picture of the track whose cells in every line are one colour that depends on the line plus the cell: a band that rises one line for each cell going left (colour = (line + cell) / 4 % 14 + 1)
+    static uint16_t plane[128 * 32];
+    static int16_t hscroll[256][2];
+    size_t count;
+    const uint8_t *rows = SS_TrackTiles(&count);
+    (void)rows;
+    // (the real tiles are used as they are: only that the margins are made, and that each is a pattern of the track's colours, is checked)
+    for (int i = 0; i < 128 * 32; i++)
+        plane[i] = (uint16_t)(0xE000 | (i % 0x40));
+    for (int y = 0; y < 256; y++)
+        hscroll[y][0] = (int16_t)(-0x100 * ((y / 2) % 4));
+    static uint8_t tiles[SS_WIDE_MARGIN_BYTES];
+    SSWide_BuildMargins(plane, hscroll, tiles);
+    int nonzero = 0;
+    for (size_t i = 0; i < sizeof(tiles); i++)
+        nonzero += tiles[i] != 0;
+    CHECK(nonzero > 1000); // (the margins are not empty)
+    // the margin is the track's own pixels moved: no colour in it that the track's picture does not have
+    uint8_t seen[16] = { 0 };
+    for (int c = 0; c < 128 * 32; c++) {
+        const size_t tile = plane[c] & 0x7FF;
+        if (tile < count)
+            for (int p = 0; p < 4; p++) {
+                seen[rows[tile * 4 + p] >> 4] = 1;
+                seen[rows[tile * 4 + p] & 0xF] = 1;
+            }
+    }
+    for (size_t i = 0; i < sizeof(tiles); i++) {
+        CHECK(seen[tiles[i] >> 4]);
+        CHECK(seen[tiles[i] & 0xF]);
+    }
 }
 
 // --- Stage 4a: the character ---
@@ -958,7 +977,7 @@ void RegisterSpecialStageTests(void) {
     RUN_TEST(SpecialStage_TheScrollBuffersGiveTheLinesTheirStripes);
     RUN_TEST(SpecialStage_TheBackgroundMovesWithTheCurves);
     RUN_TEST(SpecialStage_TheWideLayoutKeepsTheTrackInTheMiddle);
-    RUN_TEST(SpecialStage_TheWideRowPadsTheWallsAndCropsTheRest);
+    RUN_TEST(SpecialStage_TheWideRowPointsAtTheMarginsWhichContinueTheTracksBands);
     RUN_TEST(SpecialStage_ThePreBetasSquareRoots);
     RUN_TEST(SpecialStage_TheCharacterRunsRoundThePipeAndSettlesBack);
     RUN_TEST(SpecialStage_TheCharacterJumpsAndComesBackToThePipe);

@@ -18,5 +18,7 @@
 #define ArtTile_SpecialStageMilesTail     0x375 // $6EA0: his tails'
 #define ArtTile_SpecialStageBlank         0x7C0 // (this port's: a tile with nothing in it, which the widescreen track's sides are made of: the background shows)
 #define ArtTile_SpecialStageSolid         0x7D0 // (this port's: 16 tiles, each of one colour: the walls' padding at the sides of the widescreen track is the edge pixel of each line carried out, 8 pixels)
+#define ArtTile_SpecialStageMarginLeft  0x400 // (this port's: the widescreen's margins of the track, a tile for each row and cell: 280 at each side, rewritten every frame)
+#define ArtTile_SpecialStageMarginRight 0x518
 
 #endif //_SPECIALSTAGEART_H

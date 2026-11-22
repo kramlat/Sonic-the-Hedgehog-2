@@ -67,13 +67,19 @@ static void PutRows(const SSDisplay *d, int bank, int first_row, int rows) {
     Plane_UseScratchAt(&buffer, BufferAt(bank));
     static uint16_t row[512];
     for (int r = first_row; r < first_row + rows; r++) {
-        SSWide_ExpandUnit(&wide, &d->plane_a[bank][r * SS_PLANE_WIDTH], row);
+        SSWide_ExpandRow(&wide, &d->plane_a[bank][r * SS_PLANE_WIDTH], r, row);
         for (int i = 0; i < wide.plane_width; i++)
             Plane_Put(&buffer, ((size_t)r * wide.plane_width + i) * 2, row[i]);
     }
 }
 
 static void ShowPlanes(SSDisplay *d) {
+    if (wide.screen_width > 256) { // (the margins: the track's geometry carried out to the screen's edges, as it is shown)
+        static uint8_t margins[SS_WIDE_MARGIN_BYTES];
+        SSWide_BuildMargins(d->plane_a[d->shown], d->hscroll[d->display_flipped ? 1 : 0], margins);
+        VDP_SeekVRAM((size_t)ArtTile_SpecialStageMarginLeft * 32);
+        VDP_WriteVRAM(margins, sizeof(margins));
+    }
     Plane_UseScratchAt(&screen1p.plane_a, BufferAt(d->shown));
     Plane_UseScratchAt(&screen1p.plane_b, BackgroundAt());
     // (the game's blank uploads its own scroll buffer and vertical scrolls every frame: they are what the picture is made from)

@@ -10,7 +10,8 @@
 //   plane cells across = 4 * stride; stripe w starts at cell w * stride; its 32 cells of the track are at [stride_start + left_cells, +32); the margin cell next to the track at each side is one of the 16 solid tiles
 //   (ArtTile_SpecialStageSolid + the edge pixel's colour), the others the blank tile (ArtTile_SpecialStageBlank)
 
-#define SS_WIDE_PAD_CELLS 64 // the cells at each side of the track that carry its edge pixels out: all of the margin, so that the walls go on to the screen's edges (the user's picture of the final in widescreen; it was 1: 8 pixels)
+#define SS_WIDE_MC 10   // the margin cells at each side that the track's geometry is carried into (80 pixels: what 16:9 needs)
+#define SS_WIDE_ROWS 28 // the rows of the screen
 
 typedef struct {
     int screen_width;
@@ -21,13 +22,14 @@ typedef struct {
 } SSWide;
 
 void SSWide_Layout(SSWide *wide, int screen_width);
-// A unit (the 128 words the decoder gives for a row of tiles) into a row of the wide plane (wide->plane_width words)
-void SSWide_ExpandUnit(const SSWide *wide, const uint16_t *unit, uint16_t *row);
+// A row (the 128 words the decoder gives, `row` its number) into a row of the wide plane (wide->plane_width words): the margins are the cells that SSWide_BuildMargins makes
+void SSWide_ExpandRow(const SSWide *wide, const uint16_t *unit, int row, uint16_t *out);
+// The margins of what is shown (the plane's words and the line scroll's stripes): 2 * SS_WIDE_ROWS * SS_WIDE_MC tiles of 32 bytes, the left side's first, to be written to VRAM at ArtTile_SpecialStageMarginLeft
+void SSWide_BuildMargins(const uint16_t *plane, const int16_t (*hscroll)[2], uint8_t *tiles);
+#define SS_WIDE_MARGIN_BYTES (2 * SS_WIDE_ROWS * SS_WIDE_MC * 32)
 // The line scroll for a stripe: the plane's X where the stripe's track begins is put at the screen's x0 (the unwide table's is -$100 times the stripe's number)
 int16_t SSWide_ScrollA(const SSWide *wide, int stripe);
 // A background's scroll with the track's 256 pixels put at x0
 int16_t SSWide_ScrollB(const SSWide *wide, int16_t b);
-// The name table word of a margin cell: the blank tile, or with a colour the solid tile that carries an edge pixel out (the palette and priority of the word it continues)
-uint16_t SSWide_MarginWord(uint16_t edge_word, int colour);
 
 #endif //_SPECIALSTAGEWIDE_H
