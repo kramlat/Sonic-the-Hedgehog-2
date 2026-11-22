@@ -93,7 +93,7 @@ void SS4Stage_Begin(int stage) {
     miles_wait = 0;
     started = over = emerald = false;
     if (getenv("SONIC2_SS_CHEAT") != NULL) // (a check of the end: plenty of rings)
-        w2.rings[0] = 999;
+        w2.rings[0] = (uint16_t)atoi(getenv("SONIC2_SS_CHEAT"));
     speed_word = 0x0C;
     checkpoint = 0;
     segments_seen_step = -1;
@@ -626,6 +626,7 @@ static void RunEnd(void) {
                 }
             } else {
                 speed_word = (uint16_t)(speed_word - 4);
+                SpawnSentence(3, 0x5E, 0x68); // (the final gate's fail: the words only, no emblem and no sound: loc_3230C calls loc_31F50 itself; the emerald stays where it is)
                 end_timer = 0x45;
                 end_state = 4;
             }
