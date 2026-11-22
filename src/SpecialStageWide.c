@@ -113,15 +113,16 @@ static void FitBoundary(Boundary *bd) {
 // w (w = 1/r: a ring of the radius r is at the depth k r^-1... the same thing as 1/r) is a circle of the radius 1/w about the axis's point c(w) = c0 + c1 w (on a straight track c1 is 0, every ring about the same
 // centre; on a turn the axis bends: "just pitched slightly in the turn direction"). The data is the frame itself: the boundaries between the colours are fitted with circles (each pair of colours its own), the
 // ones that are circles are the rings, and the axis is fitted through their centres by their depths. A lane is a fixed angle about the axis (the point c(w) + u / w for one unit vector u at every depth). Along the
-// lanes from the edge column inward the last ring (w0) and the one before it (w0 + step) are found; beyond the edge the rings go on the same step apart ("the same distance", the user), each a thin band of the
-// colour at the edge (B: the green arcs where the next half ring of spheres is) and then the colour inside it (A). The picture is in the frame's own colours, a pixel of the Genesis's for each pixel.
+// lanes from the edge column inward the last ring (w0) and the band inside it (A, to w0 + step) are found; beyond the edge the band at the edge (B) goes on, and the rings come again a segment's length apart
+// ("the same distance", the user), B then A. The picture is in the frame's own colours, a pixel of the Genesis's for each pixel.
 
 #define SS_TUBE_MAX_W 0.08 // the deepest depth looked at (a ring of 12.5 pixels)
+#define SS_TUBE_PERIOD 0.0056 // the pipe's segment length in 1/r (see FitRings)
 
 typedef struct {
     double c0x, c0y, c1x, c1y; // the axis: c(w) = c0 + c1 w
-    double w0, step;           // the last ring's depth and the step between rings
-    double thin;               // the thin band's part of the step
+    double w0, step;           // the last ring's depth and the inner band's (A's) width
+    double period;             // the depth from a ring to the next of its kind (0: no more rings)
     int a, b;                  // the colours: A (between the rings) and B (the ring)
 } Rings;
 
@@ -321,7 +322,7 @@ static bool FitRings(const uint8_t img[SS_IMG_H][SS_IMG_W], Rings *rings) {
     rings->c0y = (sy - rings->c1y * sw) / sn;
     // the last two rings: along the lanes from the edge column inward, the colour at the edge (B), the next run in (A) and their depths; the pair most lanes agree on, at the median of their depths
     static int votes[256];
-    static double w0s[256][SS_IMG_H], w1s[256][SS_IMG_H], bs[256][SS_IMG_H];
+    static double w0s[256][SS_IMG_H], w1s[256][SS_IMG_H];
     memset(votes, 0, sizeof votes);
     for (int ye = 0; ye < SS_IMG_H; ye += 2) {
         int colour[8];
@@ -332,7 +333,6 @@ static bool FitRings(const uint8_t img[SS_IMG_H][SS_IMG_W], Rings *rings) {
         const int key = colour[1] * 16 + colour[0];
         w0s[key][votes[key]] = depth[1];
         w1s[key][votes[key]] = depth[2];
-        bs[key][votes[key]] = depth[1] - depth[0]; // (how much of the ring at the edge shows)
         votes[key]++;
     }
     int best = -1;
@@ -353,13 +353,18 @@ static bool FitRings(const uint8_t img[SS_IMG_H][SS_IMG_W], Rings *rings) {
     rings->step = w1s[best][votes[best] / 2] - rings->w0;
     rings->a = best / 16;
     rings->b = best % 16;
-    for (int i = 1; i < votes[best]; i++)
-        for (int j = i; j > 0 && bs[best][j] < bs[best][j - 1]; j--) {
-            const double t = bs[best][j]; bs[best][j] = bs[best][j - 1]; bs[best][j - 1] = t;
-        }
-    // the ring's thickness: at least what shows of it at the edge (the median of the lanes), a quarter of the step if less shows (the user's drawing of the green arcs), and not all of it
-    const double shown = rings->step > 0 ? bs[best][votes[best] / 2] / rings->step : 0;
-    rings->thin = shown < 0.25 ? 0.25 : shown > 0.9 ? 0.9 : shown;
+    // the band inside the edge's (A) ends at the next ring circle deeper than w0, when one was fitted (a lane can cross a lane's stripe first)
+    double next = -1;
+    for (int i = 0; i < ngood; i++) {
+        const double w = 1 / sums[good[i]].r;
+        if (w > rings->w0 + 0.0005 && (next < 0 || w < next))
+            next = w;
+    }
+    if (next > 0)
+        rings->step = next - rings->w0;
+    // the pipe's segments are the same length in every stage: one period in depth from a ring to the next of its kind (measured on the user's corrected pictures of the stages 0, 2 and 5: 5.4 to 5.85 thousandths
+    // of 1/r); a band inside the edge's that is wider than that is not a ring (the turn's shading): then the edge's band goes on to the screen's edge
+    rings->period = rings->step < SS_TUBE_PERIOD ? SS_TUBE_PERIOD : 0;
     return rings->step > 1e-4;
 }
 
@@ -383,7 +388,10 @@ static int RingColour(const uint8_t img[SS_IMG_H][SS_IMG_W], const Rings *rings,
         return edge;
     if (w >= rings->w0)
         return rings->a;
-    return fmod(rings->w0 - w, rings->step) < rings->thin * rings->step ? rings->b : rings->a;
+    if (rings->period <= 0) // (no rings: the edge's band all the way)
+        return rings->b;
+    // outward from w0: the edge's band for the period less the inner band, then the inner band, and so on
+    return fmod(rings->w0 - w, rings->period) < rings->period - rings->step ? rings->b : rings->a;
 }
 
 // The pixels beyond the left edge: out[y][k] is the pixel k + 1 to the left of the picture
