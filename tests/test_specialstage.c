@@ -783,7 +783,8 @@ static void SpecialStageB4_TheArtsPiecesAndTheShadowFollowTheScript(void) {
     CHECK_EQ(pieces[1].source, 0x200);
     CHECK_EQ(pieces[1].bytes, 0x120); // (9 tiles)
     CHECK(SS4_FramePieces(1, 0, pieces, 8) > 0 && pieces[0].source >= 0x3060); // (Miles' picture is after Sonic's)
-    CHECK(SS4_FramePieces(2, 0x14, pieces, 8) > 0 && pieces[0].source >= 0x5C60 + 0); // (his tails' last frames)
+    CHECK_EQ(SS4_FramePieces(2, 0x14, pieces, 8), 1);
+    CHECK(pieces[0].source >= 0x63C0 && pieces[0].bytes <= 0x400); // (his tails' last frames)
     SS4Player p;
     SS4Player_Init(&p, false);
     SS4World world = { 11, false };

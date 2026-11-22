@@ -403,6 +403,12 @@ int SS4_FramePieces(int who, int frame, SS4ArtPiece *out, int max) { // loc_2FFD
     }
     const uint8_t *table = SSData_B4CharacterArtScript;
     const uint8_t *entry = table + ((table[entry_index * 2] << 8) | table[entry_index * 2 + 1]);
+    if (who == 2) { // (his tails: the entry is a single word, not a count and words)
+        const uint16_t word = (uint16_t)((entry[0] << 8) | entry[1]);
+        out[0].bytes = (uint32_t)(((word >> 8) & 0xF0) + 0x10) * 2;
+        out[0].source = base + (uint32_t)(word & 0xFFF) * 2;
+        return 1;
+    }
     const int count = (entry[0] << 8) | entry[1];
     entry += 2;
     int n = 0;
