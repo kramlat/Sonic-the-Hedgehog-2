@@ -16,6 +16,8 @@
 #include "MathUtil.h"
 #include "Object/Tails.h"
 #include "Backend/VDP.h"
+#include "GameInterface.h"
+#include "EnginePalette.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -54,6 +56,11 @@ static int checkpoint;
 static uint16_t pad_history[16]; // Sonic's pad, the newest first: Miles does what he did 16 frames ago when nobody works his own (loc_2FE20, loc_30E24)
 static uint16_t miles_wait;
 static int segments_seen_step = -1;
+static int gate_step = -1;    // the gate's row (-1: none)
+static int gate_waiting;
+static int pass_pending;     // a checkpoint was passed: frames until the next one's words
+static uint16_t ss_frames; // the stage's own frame counter (the level's `$FFFFFE0F`)
+static int prev_segment = -1, cur_segment = -1; // the segment shown now and the one before it ()
 
 // The rings that the stage asks for at each of the checkpoints (loc_8298: four for each stage)
 static const uint8_t required[40] = {
@@ -84,6 +91,10 @@ void SS4Stage_Begin(int stage) {
     speed_word = 0x0C;
     checkpoint = 0;
     segments_seen_step = -1;
+    prev_segment = cur_segment = -1;
+    gate_step = -1;
+    gate_waiting = 0;
+    pass_pending = 0;
 }
 
 bool SS4Stage_Started(void) { return started; }
@@ -113,11 +124,38 @@ void SS4Stage_Spawn(void) {
     Make(Obj_SS4Controller, 0);
 }
 
+// loc_6056: after a $FC in the stage's list the track's edge colour (colour 7 of the third line) flashes through 16 colours, quicker each time a list begins; it goes on until the colour is back to $EE
+static uint8_t flash_mask = 7, flash_index;
+static void PaletteFlash(const SSDisplay *d) {
+    static const uint16_t table[16] = { 0xEE, 0x2EE, 0x4EE, 0x6EE, 0x8EE, 0xAEE, 0xCEE, 0xEEE, 0x0C, 0xAEA, 0x48E, 0x6E6, 0x6E8, 0x4EA, 0x2EC, 0xEC };
+    if (!items.flash) {
+        if (dry_palette[3][7] == 0xEE) {
+            flash_mask = 7;
+            flash_index = 0;
+            return;
+        }
+    }
+    if ((ss_frames & flash_mask) == 0) {
+        dry_palette[3][7] = table[flash_index++ & 0xF];
+        if (d->track.index == 0 && d->frame == 0) {
+            flash_mask = (uint8_t)(flash_mask - 4);
+            if (flash_mask & 0x80)
+                flash_mask = 1;
+        }
+    }
+}
+
 void SS4Stage_Frame(const SSDisplay *d) {
+    ss_frames++;
+    PaletteFlash(d);
     wrld.period_less = d->period_less;
     w2.frame_four = d->frame == 4;
     w2.flipped = d->display_flipped;
     w2.segment = d->segment < 0 ? 0 : d->segment;
+    if (d->segment != cur_segment) {
+        prev_segment = cur_segment;
+        cur_segment = d->segment;
+    }
     speed_word = d->speed;
     if (d->frame == 4 && d->segment >= 0) { // loc_6148: a new step has come: its objects are made
         size_t count;
@@ -275,13 +313,186 @@ void Obj_SS4Item(Sst *self) {
 static int end_timer, end_state;
 static int32_t emerald_distance;
 
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// The words of the stage (loc_31E14, loc_31F48, loc_31ED8): what it asks, and what a checkpoint says
+
+static int required_now;      // $FFFFDB8C: the rings the next check asks (the two characters' together)
+
+// The letters of each chunk of words (loc_31E62: 17 of them), and which chunks make each of the stage's sentences (loc_31FBE; the byte is the chunk's number times 2)
+static const uint8_t chunks[17][7] = {
+    { 0, 1, 2, 0xFF }, { 3, 4, 5, 0, 6, 0xFF }, { 7, 8, 8, 9, 0x11, 0xFF }, { 5, 8, 2, 0xFF }, { 1, 5, 8, 0xA, 0, 0xB, 0xFF }, { 0xC, 9, 0xD, 0xE, 1, 3, 0xFF }, { 0xF, 8, 6, 2, 0xFF },
+    { 0x10, 4, 5, 6, 0x11, 0xFF }, { 6, 8, 5, 4, 7, 0xFF }, { 0xF, 4, 9, 1, 6, 0xFF }, { 2, 4, 1, 0xFF }, { 0x10, 4, 5, 0xFF }, { 2, 0x10, 4, 7, 1, 0xFF }, { 0xD, 9, 9, 0x11, 0xFF },
+    { 0x11, 0xFF }, { 0x12, 0x12, 0x12, 0xFF }, { 0x13, 0xFF },
+};
+static const uint8_t sentences[10][6] = {
+    { 0xFF }, { 2, 0x1C, 0xFF }, { 4, 0xFF }, { 6, 8, 2, 0x1E, 0xFF }, { 0xA, 0x20, 0xA, 0xFF }, { 0xC, 2, 0xE, 0xFF }, { 0x10, 0xE, 0xFF }, { 0x12, 0xE, 0xFF }, { 0x14, 0xFF }, { 0x16, 0x18, 0x16, 0x1A, 0xFF },
+};
+
+// A piece of the words: a letter (or a digit: `digit`) that stays for $3C frames and then flies off away from the middle (loc_31D5A, loc_31D96)
+void Obj_SS4Banner(Sst *self) {
+    switch (self->routine) {
+    case 4:
+        if (--self->own.u16[1] != 0) {
+            Sst_Draw(self);
+            return;
+        }
+        if (self->mapping_frame > 0x13 && self->own.u8[0] == 0) {
+            Sst_Delete(self);
+            return;
+        }
+        self->routine = 8;
+        self->angle = (uint8_t)CalcAngle((int16_t)(self->x_pos.f.u - 0x80), (int16_t)(self->y_pos.f.u - 0x70));
+        Sst_Draw(self);
+        return;
+    case 8: {
+        int16_t sin, cos;
+        CalcSine(self->angle, &sin, &cos);
+        self->x_pos.f.u = (int16_t)(self->x_pos.f.u + ((cos * 8) >> 8));
+        self->y_pos.f.u = (int16_t)(self->y_pos.f.u + ((sin * 8) >> 8));
+        if (self->x_pos.f.u < 0 || self->x_pos.f.u > 0x100 || self->y_pos.f.u < 0) {
+            Sst_Delete(self);
+            return;
+        }
+        Sst_Draw(self);
+        return;
+    }
+    }
+}
+
+static Sst *SpawnPiece(int frame, bool digit, int x, int y) { // loc_31DD6 and the letters of loc_31E14
+    Sst *o = Sst_Allocate();
+    if (o == NULL)
+        return NULL;
+    o->code = Obj_SS4Banner;
+    o->routine = 4;
+    o->mapping_frame = (uint8_t)frame;
+    o->mappings = digit ? Mappings_SSB4Counter : Mappings_SSB4Letters;
+    o->art_tile = digit ? TILE_MAP(0, 2, 0, 0, ArtTile_SS4HudFont) : TILE_MAP(0, 2, 0, 0, ArtTile_SS4WingsHand);
+    o->render_flags |= SST_RENDER_LEVEL;
+    o->priority = 1 * 0x80;
+    o->x_pos.f.u = (int16_t)x;
+    o->y_pos.f.u = (int16_t)y;
+    o->own.u16[1] = 0x3C;
+    o->own.u8[0] = digit ? 1 : 0;
+    return o;
+}
+
+static int SpawnChunk(int byte, int x, int y) { // loc_31E14: a chunk's letters, 8 apart; the x it ends at
+    for (const uint8_t *l = chunks[byte >> 1]; *l != 0xFF; l++, x += 8)
+        SpawnPiece(*l, false, x, y);
+    return x;
+}
+
+static void SpawnSentence(int index, int x, int y) { // loc_31F50
+    if (index != 2)
+        x = 0x5E;
+    for (const uint8_t *s = sentences[index]; *s != 0xFF; s++) {
+        if (*s == 2) {
+            x = 0x5E;
+            y = 0x7E;
+        }
+        x = SpawnChunk(*s, x, y) + 8;
+    }
+}
+
+// loc_31ED8 with loc_8248: the rings the next check asks, in words: the number's digits, with words before and after it
+static void ShowRequirement(void) {
+    required_now = SS4Stage_Required(stage_number, checkpoint);
+    checkpoint++;
+    int n = required_now;
+    const int digits = n >= 100 ? 3 : 2;
+    int x = digits == 3 ? 0x80 : 0x78;
+    SpawnChunk(0, 0x54, 0x48);
+    for (int k = 0; k < digits; k++, x -= 8) {
+        SpawnPiece(n % 10, true, x, 0x48);
+        n /= 10;
+    }
+    int tx = digits == 3 ? 0x8C : 0x84; // (the sentence after it: loc_31FBE's second: the chunks 2 and $1C)
+    for (const uint8_t *s = sentences[1]; *s != 0xFF; s++)
+        tx = SpawnChunk(*s, tx, 0x48) + 8;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// The gate of a checkpoint ($5A): seven rings come in an arch from the middle to the sides (the gate's table, one row for each step of a segment's time) and, at the end, the rings are counted
+
+static const uint8_t gate_table[9][14] = {
+    { 0xF6, 0xF6, 0x70, 0x5E, 0x76, 0x58, 0x7E, 0x56, 0x88, 0x58, 0x8E, 0x5E, 0xF6, 0xF6 }, { 0xF6, 0xF6, 0x6D, 0x5A, 0x74, 0x54, 0x7E, 0x50, 0x8A, 0x54, 0x92, 0x5A, 0xF6, 0xF6 },
+    { 0xF6, 0xF6, 0x6A, 0x58, 0x72, 0x50, 0x7E, 0x4C, 0x8C, 0x50, 0x94, 0x58, 0xF6, 0xF6 }, { 0xF6, 0xF6, 0x68, 0x56, 0x70, 0x4C, 0x7E, 0x48, 0x8E, 0x4C, 0x96, 0x56, 0xF6, 0xF6 },
+    { 0x62, 0x5E, 0x66, 0x50, 0x70, 0x46, 0x7E, 0x42, 0x8E, 0x46, 0x98, 0x50, 0x9C, 0x5E }, { 0x5C, 0x5A, 0x62, 0x4A, 0x70, 0x3E, 0x7E, 0x38, 0x8E, 0x3E, 0x9C, 0x4A, 0xA2, 0x5A },
+    { 0x54, 0x54, 0x5A, 0x3E, 0x6A, 0x30, 0x7E, 0x2A, 0x94, 0x30, 0xA4, 0x3E, 0xAA, 0x54 }, { 0x42, 0x4A, 0x4C, 0x28, 0x62, 0x12, 0x7E, 0x0A, 0x9C, 0x12, 0xB2, 0x28, 0xBC, 0x4A },
+    { 0x16, 0x26, 0x28, 0xFC, 0xEC, 0xEC, 0xEC, 0xEC, 0xEC, 0xEC, 0xD6, 0xFC, 0xE8, 0x26 },
+};
+static const uint8_t gate_frames[9] = { 0, 1, 1, 1, 2, 4, 6, 8, 9 };
+static int gate_wait;           // the check is waiting for the segment the gate begins in
+static int after_gate;          // frames until the words of the result are done
+
+void Obj_SS4GateRing(Sst *self) {
+    if (gate_step < 0 || gate_step > 8) {
+        Sst_Delete(self);
+        return;
+    }
+    const uint8_t *row = gate_table[gate_step];
+    const int k = self->subtype;
+    if (self->routine == 0) {
+        self->routine = 2;
+        self->mappings = Mappings_SSB4Rings;
+        self->art_tile = TILE_MAP(0, 3, 0, 0, ArtTile_SS4Rings);
+        self->render_flags |= SST_RENDER_LEVEL;
+        self->priority = 5 * 0x80;
+    }
+    if (row[k * 2] == 0xF6)
+        return;
+    self->x_pos.f.u = row[k * 2];
+    self->y_pos.f.u = row[k * 2 + 1];
+    self->mapping_frame = gate_frames[gate_step];
+    Sst_Draw(self);
+}
+
+// loc_60F8 on: while the gate is on the track's three lights cycle through four sets of colours every 4 frames; loc_319A4 puts the plain ones back
+static int gate_cycle;
+static bool gate_lit;
+static void GateColours(bool on) {
+    static const uint16_t sets[4][3] = { { 0xEE, 0xCC, 0x88 }, { 0xE0, 0xC0, 0x80 }, { 0xEE0, 0xCC0, 0x880 }, { 0xE0E, 0xC0C, 0x808 } };
+    static const uint16_t plain[3] = { 0xEE, 0x88, 0x44 };
+    gate_lit = on;
+    if (on && (ss_frames & 3) != 0)
+        return;
+    for (int i = 0; i < 3; i++)
+        dry_palette[3][11 + i] = on ? sets[gate_cycle & 3][i] : plain[i];
+    if (on)
+        gate_cycle++;
+}
+
+static void BeginGate(void) {
+    gate_step = 0;
+    GateColours(true);
+    for (int k = 0; k < 7; k++)
+        Make(Obj_SS4GateRing, (uint8_t)k);
+}
+
+// What the gate's end does (loc_31B0C, loc_31BE4 and what follows): the sound, the colours back, the rings against what is asked; the words of the result; a fail ends the stage after them
+static void EndGate(void) {
+    GateColours(false);
+    QueueSound2(SFX(0xA1));
+    items.flash = false;
+    gate_step = -1;
+    if (SS4Stage_Rings() < required_now) {
+        SpawnSentence(3, 0x5E, 0x68);
+        end_state = 4;
+        end_timer = 0x3C + 0x45;
+    } else {
+        SpawnSentence(2, 0x74, 0x68);
+        pass_pending = 0x3C;
+        end_state = 0;
+    }
+}
+
 static void StartCheck(int kind) {
     if (kind == 0x59) {
         end_state = 1;
         end_timer = 0;
     } else {
-        end_state = 10;
-        end_timer = 0x78;
+        gate_waiting = 1; // (the gate begins when the segment that has the gate's place has gone: loc_319DC)
     }
 }
 
@@ -327,17 +538,6 @@ static void RunEnd(void) {
             end_state = 0;
         }
         break;
-    case 10: // loc_31BE4 on: a checkpoint: the rings against what it asks; too few and the stage ends after the words
-        if (--end_timer < 0) {
-            if (SS4Stage_Rings() < SS4Stage_Required(stage_number, checkpoint)) {
-                over = true;
-                end_state = 0;
-            } else {
-                end_state = 0;
-            }
-            checkpoint++;
-        }
-        break;
     }
 }
 
@@ -351,9 +551,20 @@ void Obj_SS4Controller(Sst *self) {
         StartCheck(items.check);
         items.check = 0;
     }
-    if (items.flash)
-        items.flash = false;
     RunEnd();
+    if (gate_waiting && prev_segment == 0x14 && w2.frame_four) {
+        gate_waiting = 0;
+        BeginGate();
+    } else if (gate_step >= 0 && w2.frame_four) {
+        if (gate_step == 8)
+            EndGate();
+        else
+            gate_step++;
+    }
+    if (gate_lit || gate_step >= 0)
+        GateColours(gate_step >= 0);
+    if (pass_pending && --pass_pending == 0)
+        ShowRequirement();
     for (int i = 0; i < SS4_ITEM_MAX; i++) { // an object for each item that is in the pool
         if (items.item[i].kind == SS4Kind_None)
             continue;
@@ -483,6 +694,7 @@ void Obj_SS4Start(Sst *self) {
     case 6:
         if ((int16_t)--self->own.u16[1] < 0) {
             started = true;
+            ShowRequirement();
             Sst_Delete(self);
             return;
         }

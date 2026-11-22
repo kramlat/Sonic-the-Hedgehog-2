@@ -27,5 +27,7 @@ void Obj_SS4Hud(Sst *self);
 void Obj_SS4Counter(Sst *self);
 void Obj_SS4Start(Sst *self);
 void Obj_SS4Letter(Sst *self);
+void Obj_SS4Banner(Sst *self);
+void Obj_SS4GateRing(Sst *self);
 
 #endif //_SPECIALSTAGEB4OBJECTS_H
