@@ -231,7 +231,7 @@ static void ScrollBackgroundYB4(SSDisplay *d) {
     switch (d->list) {
     case 0: curve = i < 24 ? first[i] : -1; break;
     case 1: add = true; curve = i < 24 ? second[i] : -1; break;
-    case 3: curve = i < 16 ? fourth[i] : -1; break;
+    case 3: curve = (i < 16 && !d->locked) ? fourth[i] : -1; break;
     default: break;
     }
     if (curve < 0)

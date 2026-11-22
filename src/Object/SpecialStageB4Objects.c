@@ -21,6 +21,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 #include "Resource/Mappings/SSB4Sonic.h"
@@ -28,6 +29,7 @@
 #include "Resource/Mappings/SSB4Start.h"
 #include "Resource/Mappings/SSB4Counter.h"
 #include "Resource/Mappings/SSB4Letters.h"
+#include "Resource/Mappings/SSB4Checkpoint.h"
 #include "Resource/Mappings/SSB4Rings.h"
 #include "Resource/Mappings/SSB4Bombs.h"
 #include "Resource/Art/SSB4SonicMiles.h"
@@ -59,6 +61,8 @@ static int segments_seen_step = -1;
 static int gate_step = -1;    // the gate's row (-1: none)
 static int gate_waiting;
 static int pass_pending;     // a checkpoint was passed: frames until the next one's words
+static bool pad_locked;
+static int end_timer, end_state;
 static uint16_t ss_frames; // the stage's own frame counter (the level's `$FFFFFE0F`)
 static int prev_segment = -1, cur_segment = -1; // the segment shown now and the one before it ()
 
@@ -88,6 +92,8 @@ void SS4Stage_Begin(int stage) {
     memset(pad_history, 0, sizeof(pad_history));
     miles_wait = 0;
     started = over = emerald = false;
+    if (getenv("SONIC2_SS_CHEAT") != NULL) // (a check of the end: plenty of rings)
+        w2.rings[0] = 999;
     speed_word = 0x0C;
     checkpoint = 0;
     segments_seen_step = -1;
@@ -95,6 +101,8 @@ void SS4Stage_Begin(int stage) {
     gate_step = -1;
     gate_waiting = 0;
     pass_pending = 0;
+    pad_locked = false;
+    end_state = 0;
 }
 
 bool SS4Stage_Started(void) { return started; }
@@ -215,7 +223,9 @@ void Obj_SS4Character(Sst *self) {
             pressed = (uint8_t)pad_history[15];
         }
     }
-    if (!started) { // (nobody is held back by the banner but the stage's clock: the characters run)
+    if (pad_locked) { // (the end: the pads do nothing but Start: loc_5EEA)
+        held &= 0x80;
+        pressed &= 0x80;
     }
     SS4Player_Step(p, &wrld, held, pressed, w2.rings[who], who == 0 ? Animation_SpecialStageSonic : Animation_SpecialStageMiles);
     if (p->sound_jump) {
@@ -310,7 +320,6 @@ void Obj_SS4Item(Sst *self) {
 
 // The stage's end (what the objects $5A and $59 do after a step's list asks for them): the check of the rings at a checkpoint (the two characters' together against what the checkpoint asks: too few and the stage
 // ends there), and at the last the emerald: the stage slows, and with enough rings it comes down the pipe and is the character's
-static int end_timer, end_state;
 static int32_t emerald_distance;
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -448,6 +457,47 @@ void Obj_SS4GateRing(Sst *self) {
     Sst_Draw(self);
 }
 
+// The emblem of a gate's result (loc_31CB6 and loc_31C02): the wings (frame $14) with the hand (frame $15) in front, which bobs a few pixels; a fail turns the hand over (a thumb down). They stay $3C frames
+void Obj_SS4Emblem(Sst *self) {
+    const bool hand = self->subtype & 1, fail = self->subtype & 2;
+    if (self->routine == 0) {
+        self->routine = 2;
+        self->mappings = Mappings_SSB4Letters;
+        self->art_tile = TILE_MAP(0, 1, 0, 0, ArtTile_SS4WingsHand);
+        self->render_flags |= SST_RENDER_LEVEL;
+        self->priority = (hand ? 0 : 1) * 0x80;
+        self->mapping_frame = hand ? 0x15 : 0x14;
+        self->x_pos.f.u = 0x80;
+        self->y_pos.f.u = 0x48;
+        self->own.u16[1] = 0x3C;
+        self->own.u16[2] = 0x48; // the place it bobs about
+        if (hand && fail)
+            self->render_flags |= SST_RENDER_Y_FLIP;
+    }
+    if (hand) {
+        int16_t y = self->y_pos.f.u;
+        if (self->own.u8[0] == 0) {
+            y--;
+            if (y < (int16_t)(self->own.u16[2] - 4)) {
+                y = (int16_t)(self->own.u16[2] - 3);
+                self->own.u8[0] = 1;
+            }
+        } else {
+            y++;
+            if (y > (int16_t)(self->own.u16[2] + 4)) {
+                y = (int16_t)(self->own.u16[2] + 3);
+                self->own.u8[0] = 0;
+            }
+        }
+        self->y_pos.f.u = y;
+    }
+    if (--self->own.u16[1] == 0) {
+        Sst_Delete(self);
+        return;
+    }
+    Sst_Draw(self);
+}
+
 // loc_60F8 on: while the gate is on the track's three lights cycle through four sets of colours every 4 frames; loc_319A4 puts the plain ones back
 static int gate_cycle;
 static bool gate_lit;
@@ -476,10 +526,12 @@ static void EndGate(void) {
     QueueSound2(SFX(0xA1));
     items.flash = false;
     gate_step = -1;
+    for (int k = 0; k < 2; k++)
+        Make(Obj_SS4Emblem, (uint8_t)(k | (SS4Stage_Rings() < required_now ? 2 : 0)));
     if (SS4Stage_Rings() < required_now) {
         SpawnSentence(3, 0x5E, 0x68);
         end_state = 4;
-        end_timer = 0x3C + 0x45;
+        end_timer = 0x3C; // (loc_31C5E: the emblem is gone, the music stops, the stage is over)
     } else {
         SpawnSentence(2, 0x74, 0x68);
         pass_pending = 0x3C;
@@ -496,9 +548,60 @@ static void StartCheck(int kind) {
     }
 }
 
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// The emerald ($59 after its speed is cut): it comes down the middle of the pipe by the segment's table of places, as an item does but slower ($4445 a frame), a quarter smaller, with its shadow; the colours of the
+// track's three lights are the stage's emerald's (loc_3214A)
+
+bool SS4Stage_PadLocked(void) { return pad_locked; }
+
+static void EmeraldColours(void) {
+    static const uint16_t colours[7][3] = {
+        { 0xEA, 0xC6, 0x82 }, { 0xAEE, 0xCE, 0x8A }, { 0xA6E, 0x0E, 0x0A }, { 0xEAE, 0xE6E, 0xE4E }, { 0xE6A, 0xC08, 0x806 }, { 0xEE8, 0xEC0, 0xE80 }, { 0xCCC, 0xAAA, 0x888 },
+    };
+    for (int i = 0; i < 3; i++)
+        dry_palette[3][11 + i] = colours[stage_number % 7][i];
+}
+
+void Obj_SS4Emerald(Sst *self) {
+    if (end_state < 2 || end_state > 4) {
+        Sst_Delete(self);
+        return;
+    }
+    static const uint8_t anim_by_distance[32] = { 9, 9, 9, 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 };
+    const bool shadow = self->subtype == 1;
+    if (self->routine == 0) {
+        self->routine = 2;
+        self->mappings = shadow ? Mappings_SpecialStageShadow : Mappings_SSB4Checkpoint;
+        self->art_tile = shadow ? TILE_MAP(1, 3, 0, 0, ArtTile_SS4Shadow) : TILE_MAP(0, 3, 0, 0, ArtTile_SS4Emerald);
+        self->render_flags |= SST_RENDER_LEVEL;
+        self->priority = (shadow ? 5 : 4) * 0x80;
+    }
+    int n = (int)(emerald_distance >> 16);
+    if (n < 1 || n > SS4_PlaceCount(w2.segment))
+        return;
+    const uint8_t *e = SS4_Place(w2.segment, n - 1);
+    int d3 = e[1] >= 0x80 ? (int8_t)e[1] : e[1];
+    int d4 = (e[2] * 3) >> 2, d5 = (e[3] * 3) >> 2;
+    int anim = anim_by_distance[n > 0x1D ? 0x1E : n];
+    if (shadow) {
+        d4 += d4 >> 2;
+        d5 += d5 >> 2;
+        self->x_pos.f.u = (int16_t)(e[0]);
+        self->y_pos.f.u = (int16_t)(d5 + d3);
+        self->mapping_frame = (uint8_t)((10 - anim == 10 ? 9 : 10 - anim) * 3);
+    } else {
+        self->x_pos.f.u = (int16_t)(e[0]);
+        self->y_pos.f.u = (int16_t)(((e[3] * 3) >> 2) + d3);
+        self->mapping_frame = (uint8_t)anim;
+    }
+    (void)d4;
+    Sst_Draw(self);
+}
+
 static void RunEnd(void) {
     switch (end_state) {
     case 1: // loc_321A8: the pad is locked and the speed is cut at four moments
+        pad_locked = true;
         end_timer--;
         if (end_timer == -0x1E || end_timer == -0x3C || end_timer == -0x5A)
             speed_word = (uint16_t)(speed_word - 2);
@@ -507,12 +610,15 @@ static void RunEnd(void) {
             end_timer = 0x78;
             end_state = 2;
             emerald_distance = (int32_t)0x36 << 16;
+            EmeraldColours();
+            Make(Obj_SS4Emerald, 1);
+            Make(Obj_SS4Emerald, 0);
         }
         break;
     case 2: // loc_322D6: the emerald comes; at the end of its time it is the rings' check again
         emerald_distance -= 0x4445;
         if (--end_timer < 0) {
-            if (SS4Stage_Rings() >= SS4Stage_Required(stage_number, 2)) {
+            if (SS4Stage_Rings() >= required_now) {
                 if ((emerald_distance >> 16) < 3) {
                     end_timer = 0x1D;
                     end_state = 3;
@@ -534,6 +640,7 @@ static void RunEnd(void) {
         break;
     case 4: // loc_32328: not enough: the stage ends
         if (--end_timer < 0) {
+            PlayMusic(bgm_Stop);
             over = true;
             end_state = 0;
         }

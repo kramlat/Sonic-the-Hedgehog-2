@@ -38,6 +38,7 @@ typedef struct {
     int32_t b_hscroll;     // 9B24: the background's X (16.16)
     int32_t b_vscroll;     // 9B30: its Y
     bool b4;               // Beta 4's stage: its pace (one period for the speed) and its scrolling of the background by byte tables
+    bool locked;           // Beta 4's end has locked the pads: the vertical scroll of the third list stops (loc_7B48)
 
     uint16_t plane_a[2][SS_PLANE_WORDS];
     int16_t hscroll[2][SS_SCROLL_LINES][2]; // [0] the table at $FFFFE000, [1] the turned track's at $FFFF9700: each line's A and B X (the VDP's: how far the plane is moved, a negative number to show cells further on)

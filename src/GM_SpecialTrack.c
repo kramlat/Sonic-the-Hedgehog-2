@@ -207,6 +207,7 @@ void GM_SpecialTrack(void) {
             QuickPLC(b4 ? PlcId_SSB4Bombs : PlcId_SSRings);
             rings_art = true;
         }
+        d.locked = b4 && SS4Stage_PadLocked();
         SSDisplay_Frame(&d);
         if (d.frame < SS_TRACK_SLICES) // (a slice came into the buffer being decoded: its 7 rows)
             PutRows(&d, d.bank, d.frame * SS_TRACK_SLICE_UNITS, SS_TRACK_SLICE_UNITS);

@@ -13,6 +13,7 @@ void SS4Stage_Spawn(void);                      // the objects of the stage, in 
 void SS4Stage_Frame(const SSDisplay *d);        // once a frame before the objects run: what the stage tells them
 bool SS4Stage_Started(void);                    // the START banner is gone
 bool SS4Stage_Over(void);                       // the stage has ended (`$FFFFDB86`)
+bool SS4Stage_PadLocked(void);                  // the end has locked the pads ($FFFFDB87)
 bool SS4Stage_GotEmerald(void);                 // and it was won
 int SS4Stage_Rings(void);                       // the rings of both characters
 int SS4Stage_Required(int stage, int checkpoint); // the rings a checkpoint asks of the two together (loc_8298)
@@ -29,5 +30,7 @@ void Obj_SS4Start(Sst *self);
 void Obj_SS4Letter(Sst *self);
 void Obj_SS4Banner(Sst *self);
 void Obj_SS4GateRing(Sst *self);
+void Obj_SS4Emerald(Sst *self);
+void Obj_SS4Emblem(Sst *self);
 
 #endif //_SPECIALSTAGEB4OBJECTS_H
