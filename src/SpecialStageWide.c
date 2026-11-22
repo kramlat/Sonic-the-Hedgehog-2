@@ -39,6 +39,8 @@ void SSWide_Layout(SSWide *wide, int screen_width) {
 #define SS_MAX_BOUNDARIES 64
 #define SS_CURVE_COLUMNS 32 // how far out the fitted curve is followed before it goes on straight
 #define SS_THIN_BAND 6        // a band this thin (lines) at the edge keeps its thickness in the margin
+#define SS_MAX_SLOPE 0.9  // the most a boundary rises a column at the track's edge (the example's rim rises about 0.7)
+#define SS_MAX_BEND 0.006 // and the most its slope grows a column
 
 static void ComposeImage(const uint16_t *plane, const int16_t (*hscroll)[2], uint8_t img[SS_IMG_H][SS_IMG_W]) {
     size_t count;
@@ -139,7 +141,8 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
         for (int k = 0; k < n; k++) {
             // (the curve acts for the first SS_CURVE_COLUMNS columns of the margin and goes on along its tangent after them: a turn's bend does not run away)
             // (and the pipe's walls rise toward its sides: a boundary never goes down going out, so a turn's fit that would warp it down is flattened: the slope and the bend are not less than nothing)
-            const double b = bd[k].b < 0 ? 0 : bd[k].b, c = bd[k].c < 0 ? 0 : bd[k].c;
+            const double b = bd[k].b < 0 ? 0 : bd[k].b > SS_MAX_SLOPE ? SS_MAX_SLOPE : bd[k].b;
+            const double c = bd[k].c < 0 ? 0 : bd[k].c > SS_MAX_BEND ? SS_MAX_BEND : bd[k].c;
             const double xc = x < -SS_CURVE_COLUMNS ? -SS_CURVE_COLUMNS : x;
             double v = bd[k].a + b * xc + c * xc * xc;
             if (x < xc)
@@ -149,10 +152,19 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
             v = v < -400 ? -400 : v > 700 ? 700 : v;
             pos[k] = v;
         }
-        for (int k = 1; k < n; k++) { // (a thin band keeps its thickness: its two boundaries go on side by side, or the fits of the two would pull them apart into a spike)
+        for (int k = 1; k < n; k++) { // (a thin band keeps its boundaries side by side, and gets thicker going out as fast as it did going in: the rim is seen more slantwise toward the sides)
             const double gap = bd[k].a - bd[k - 1].a;
-            if (gap >= 0 && gap <= SS_THIN_BAND)
-                pos[k] = pos[k - 1] + gap;
+            if (gap < 0 || gap > SS_THIN_BAND)
+                continue;
+            const int shared = bd[k].length < bd[k - 1].length ? bd[k].length : bd[k - 1].length;
+            double grow = 0.2; // (a thin band is lost after a few columns: it is taken to widen a fifth of a line a column, as the rim does in the example)
+            if (shared >= 8) {
+                grow = (gap - (bd[k].y[shared - 1] - bd[k - 1].y[shared - 1])) / (shared - 1);
+                grow = grow < 0 ? 0 : grow > 0.25 ? 0.25 : grow;
+            }
+            double thick = gap + grow * (-x);
+            thick = thick > 24 ? 24 : thick;
+            pos[k] = pos[k - 1] + thick;
         }
         for (int y = 0; y < SS_IMG_H; y++) { // the colour of the band the line is in: the bands keep their order (a boundary that has passed another is held at it)
             int colour = top_colour;
