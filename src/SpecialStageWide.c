@@ -37,6 +37,7 @@ void SSWide_Layout(SSWide *wide, int screen_width) {
 #define SS_IMG_H 224
 #define SS_TRACK_COLUMNS 96 // how far in a boundary is followed
 #define SS_MAX_BOUNDARIES 64
+#define SS_CURVE_COLUMNS 32 // how far out the fitted curve is followed before it goes on straight
 
 static void ComposeImage(const uint16_t *plane, const int16_t (*hscroll)[2], uint8_t img[SS_IMG_H][SS_IMG_W]) {
     size_t count;
@@ -135,7 +136,11 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
         const double x = -(col + 1);
         double pos[SS_MAX_BOUNDARIES];
         for (int k = 0; k < n; k++) {
-            double v = bd[k].a + bd[k].b * x + bd[k].c * x * x;
+            // (the curve acts for the first SS_CURVE_COLUMNS columns of the margin and goes on along its tangent after them: a turn's bend does not run away)
+            const double xc = x < -SS_CURVE_COLUMNS ? -SS_CURVE_COLUMNS : x;
+            double v = bd[k].a + bd[k].b * xc + bd[k].c * xc * xc;
+            if (x < xc)
+                v += (bd[k].b + 2 * bd[k].c * xc) * (x - xc);
             v = v < -400 ? -400 : v > 700 ? 700 : v;
             pos[k] = v;
         }
