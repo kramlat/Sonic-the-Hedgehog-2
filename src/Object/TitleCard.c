@@ -38,7 +38,7 @@ struct TitleCard_Config {
 
 // What each act leads to, as the ROM has it: a row for each zone slot and a column for each act, the level (written as the level select writes it) that is loaded when the act is done; LEVEL_END where there is no next
 // level. First the one player order, then the versus play's; the rows of the zones that a table leaves out are 0 (the first act of Emerald Hill), as the original's are.
-#define LEVEL_END 0xFFFF
+#define LEVEL_END 0xFFFF // (a placeholder where the real order is not set yet: finishing such a level ends the game)
 #define ORDER_ZONES 0x11
 #define ORDER_ACTS 4
 static const uint16_t order_one_player[ORDER_ZONES][ORDER_ACTS] = {
