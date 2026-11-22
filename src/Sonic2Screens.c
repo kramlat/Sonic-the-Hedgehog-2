@@ -44,8 +44,19 @@ static void Screen_Special(void) {
     ss_sonic1_palette_cycle = true;
 }
 
+// SONIC2_START_SS=<stage> starts in the special stage (for the captures and the checks)
+static void Screen_Sega(void) {
+    const char *start = getenv("SONIC2_START_SS");
+    if (start != NULL) {
+        ss4_stage = atoi(start);
+        gamemode = GameMode_Special;
+        return;
+    }
+    GM_Sega();
+}
+
 const ScreenFunc game_screens[] = {
-    [GameMode_Sega] = GM_Sega,
+    [GameMode_Sega] = Screen_Sega,
     [GameMode_Title] = GM_Title,
     [GameMode_Demo] = Screen_Level,
     [GameMode_Level] = Screen_Level,

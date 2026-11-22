@@ -3,6 +3,7 @@
 #include "SpecialStageDisplay.h"
 #include "SpecialStageTables.h"
 #include "SpecialStageWide.h"
+#include "Object/SpecialStageB4Objects.h"
 #include "Object/SpecialStageArt.h"
 #include "Object/SpecialStageObjects.h"
 #include "Object/Tails.h"
@@ -83,7 +84,10 @@ static void ShowPlanes(SSDisplay *d) {
     }
 }
 
+int ss4_stage; // Beta 4's stage to play (0 to 9)
+
 void GM_SpecialTrack(void) {
+    const bool b4 = getenv("SONIC2_SS_PREBETA") == NULL; // (Beta 4's stage is the stage; the pre-beta's stays while it is checked)
     static SSDisplay d;
     PaletteWhiteOut(); // (the palette goes to white and then fades in to the stage's)
     ClearScreen();
@@ -92,12 +96,21 @@ void GM_SpecialTrack(void) {
     SSWide_Layout(&wide, SCREEN_WIDTH);
     Viewport_SetSize(SCREEN_WIDTH, SCREEN_HEIGHT, wide.plane_width, SS_PLANE_HEIGHT);
     LoadTrackTiles();
-    QuickPLC(PlcId_SSMain); // (the background's tiles go to $E000, the HUD's font and the rest)
-    PalLoad1(PalId_SpecialStage2);
-    SSDisplay_Reset(&d);
+    if (b4) {
+        QuickPLC(PlcId_SSB4Main);
+        PalLoad1(PalId_SSB4Main);
+        PalLoad1((PaletteId)(PalId_SSB4Stage + (ss4_stage > 9 ? 0 : ss4_stage)));
+        SSDisplay_ResetStage(&d, ss4_stage);
+    } else {
+        QuickPLC(PlcId_SSMain); // (the background's tiles go to $E000, the HUD's font and the rest)
+        PalLoad1(PalId_SpecialStage2);
+        SSDisplay_Reset(&d);
+    }
     Sst_ResetAll();
+    if (!b4) {
     player->code = Obj_SpecialStageSonic; // (Sonic and his shadow: the characters of stage 4)
     TAILS_OBJ->code = Obj_SpecialStageMiles; // (and Miles, with his tails, in the second character's place)
+    }
     {
         // the background: its map across the whole plane
         plane_t b;
@@ -106,6 +119,10 @@ void GM_SpecialTrack(void) {
             for (int column = 0; column < wide.plane_width; column++)
                 Plane_Put(&b, ((size_t)row * wide.plane_width + column) * 2, d.plane_b[row * SS_PLANE_WIDTH + (column % 32)]);
     }
+    if (b4) {
+        SS4Stage_Begin(ss4_stage);
+        SS4Stage_Spawn();
+    } else {
     for (int i = 0; i < SS_ITEM_SLOTS; i++) { // (the rings and bombs, and their shadows: each follows a place in the layout)
         Sst *item = Sst_Allocate();
         if (item != NULL) { // (a slot is free until its code is set: the first is filled in before the next is asked for, or both would be the same slot)
@@ -142,6 +159,7 @@ void GM_SpecialTrack(void) {
             }
         }
     }
+    }
     PlayMusic(bgm_SS);
     SSDisplay_Prime(&d);
     PutRows(&d, 0, 0, SS_PLANE_HEIGHT);
@@ -167,20 +185,28 @@ void GM_SpecialTrack(void) {
             if (gamemode != GameMode_Special)
                 break;
         }
-        if (!rings_art && SpecialStageObjects_Started()) { // (the traffic lights are gone: the rings' art goes over theirs, list $3D)
-            QuickPLC(PlcId_SSRings);
+        if (!rings_art && (b4 ? SS4Stage_Started() : SpecialStageObjects_Started())) { // (the traffic lights, or the START banner, are gone: the rings' or the bombs' art goes over theirs, list $3D)
+            QuickPLC(b4 ? PlcId_SSB4Bombs : PlcId_SSRings);
             rings_art = true;
         }
         SSDisplay_Frame(&d);
         if (d.frame < SS_TRACK_SLICES) // (a slice came into the buffer being decoded: its 7 rows)
             PutRows(&d, d.bank, d.frame * SS_TRACK_SLICE_UNITS, SS_TRACK_SLICE_UNITS);
         ShowPlanes(&d);
+        if (b4) {
+            SS4Stage_Frame(&d);
+            if (SS4Stage_Over() && !viewer) {
+                gamemode = GameMode_Level; // (the way back to the level; the results are to come)
+                break;
+            }
+        } else {
         SpecialStageObjects_SetTrack(d.speed, d.period_less);
         {
             size_t block_size = 0;
             const uint8_t *block = d.segment >= 0 ? SS_TrackBlock(d.segment, &block_size) : NULL;
             SpecialStageObjects_SetItems(d.track.step, block, block_size, d.track.flipped, d.frame == 4);
             SpecialStageObjects_UpdateItems();
+        }
         }
         scrpos_x.v = (int32_t)(-wide.x0) << 16; // (the sprites are at the 256-pixel stage's places: the camera puts them in the middle of a wider screen)
         scrpos_y.v = 0;
