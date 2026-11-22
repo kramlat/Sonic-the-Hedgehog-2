@@ -162,48 +162,11 @@ static void ExtendLeft(const uint8_t img[SS_IMG_H][SS_IMG_W], uint8_t out[SS_IMG
         vx = vx < 48 ? 48 : vx > 208 ? 208 : vx;
         vy = vy < -40 ? -40 : vy > 180 ? 180 : vy;
     }
-    bool radial[SS_MAX_BOUNDARIES];
-    for (int k = 0; k < n; k++) {
-        const double m_rad = (vy - bd[k].a) / (vx - 0);
-        radial[k] = bd[k].length >= 24 && fabs(bd[k].c) <= 0.004 && fabs(bd[k].b - m_rad) <= 0.15;
-    }
     for (int col = 0; col < SS_WIDE_MC * 8; col++) {
         const double x = -(col + 1);
         double pos[SS_MAX_BOUNDARIES];
-        for (int k = 0; k < n; k++) {
-            // (the curve acts for the first SS_CURVE_COLUMNS columns of the margin and goes on along its tangent after them: a turn's bend does not run away)
-            // (and the pipe's walls rise toward its sides: a boundary never goes down going out, so a turn's fit that would warp it down is flattened: the slope and the bend are not less than nothing)
-            if (radial[k]) { // (a line through the vanishing point)
-                pos[k] = bd[k].a + ((vy - bd[k].a) / vx) * x;
-                continue;
-            }
-            // (away from the vanishing point: a boundary above it goes up going out, one below it goes down, as the wedges of the sky, the walls and the floor open out)
-            const double away = bd[k].a >= vy ? -1 : 1;
-            const double b = fabs(bd[k].b) > SS_MAX_SLOPE ? SS_MAX_SLOPE : fabs(bd[k].b);
-            const double c = fabs(bd[k].c) > SS_MAX_BEND ? SS_MAX_BEND : fabs(bd[k].c);
-            const double xc = x < -SS_CURVE_COLUMNS ? -SS_CURVE_COLUMNS : x;
-            double v = bd[k].a + away * (b * xc + c * xc * xc);
-            if (x < xc)
-                v += away * (b + 2 * c * xc) * (x - xc);
-            if (away > 0 ? v > bd[k].a : v < bd[k].a)
-                v = bd[k].a;
-            v = v < -400 ? -400 : v > 700 ? 700 : v;
-            pos[k] = v;
-        }
-        for (int k = 1; k < n; k++) { // (a thin band keeps its boundaries side by side, and gets thicker going out as fast as it did going in: the rim is seen more slantwise toward the sides)
-            const double gap = bd[k].a - bd[k - 1].a;
-            if (gap < 0 || gap > SS_THIN_BAND)
-                continue;
-            const int shared = bd[k].length < bd[k - 1].length ? bd[k].length : bd[k - 1].length;
-            double grow = 0.2; // (a thin band is lost after a few columns: it is taken to widen a fifth of a line a column, as the rim does in the example)
-            if (shared >= 8) {
-                grow = (gap - (bd[k].y[shared - 1] - bd[k - 1].y[shared - 1])) / (shared - 1);
-                grow = grow < 0 ? 0 : grow > 0.25 ? 0.25 : grow;
-            }
-            double thick = gap + grow * (-x);
-            thick = thick > 24 ? 24 : thick;
-            pos[k] = pos[k - 1] + thick;
-        }
+        for (int k = 0; k < n; k++) // vector math: the line from the vanishing point V through the boundary's point at the track's edge (x = 0), carried out to x (negative: past the edge)
+            pos[k] = bd[k].a + ((vy - bd[k].a) / vx) * x;
         for (int y = 0; y < SS_IMG_H; y++) { // the colour of the band the line is in: the bands keep their order (a boundary that has passed another is held at it)
             int colour = top_colour;
             double floor_y = -1000;
