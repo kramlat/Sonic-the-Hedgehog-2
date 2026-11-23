@@ -385,5 +385,11 @@ int Game_EditorAnimatedTiles(int *first, int *count, const char **label, int max
         count[out] = cues[i].tiles;
         label[out] = zone;
     }
+    if (LEVEL_ZONE(level_id) == ZoneId_CNZ) // (the slot machine's three reels are drawn by Object/CNZSlots.c, 16 tiles each, at $AA00, $AC00 and $AE00: the windows of the blocks $2EC on)
+        for (int reel = 0; reel < 3 && out < max; reel++, out++) {
+            first[out] = 0xAA00 / 32 + reel * 16;
+            count[out] = 16;
+            label[out] = "slot machine reel";
+        }
     return out;
 }
