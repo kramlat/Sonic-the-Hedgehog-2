@@ -2375,7 +2375,7 @@ static void Obj_Tails_Run(Sst *self) {
         }
 
         if (ScrollEngine_LevelLoops((int16_t)limit_top2)) // (a level that wraps vertically: see Sonic.c)
-            self->y_pos.f.u &= 0x7FF;
+            self->y_pos.f.u &= level_screen_y_wrap;
 
         Tails_Display(self);
         Tails_Water(self);

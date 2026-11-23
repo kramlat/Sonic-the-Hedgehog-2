@@ -685,10 +685,10 @@ static void LimitScrollTop(dword_s *scroll) {
 	if (scroll->f.u <= (int16_t)limit_top2) {
 		if (scroll->f.u <= -0x100) 	{
 			// Perform vertical wrapping
-			scroll->f.u &= 0x7FF;
-			player->y_pos.f.u &= 0x7FF;
-			scrpos_y.f.u &= 0x7FF;
-			bg_scrpos_y.f.u &= 0x3FF;
+			scroll->f.u &= level_screen_y_wrap; // (the drum's height: the layout's height words, 16 rows unless the level says more)
+			player->y_pos.f.u &= level_screen_y_wrap;
+			scrpos_y.f.u &= level_screen_y_wrap;
+			bg_scrpos_y.f.u &= level_screen_y_wrap >> 1;
 		} else
 			scroll->f.u = (int16_t)limit_top2;
 	}
@@ -696,12 +696,12 @@ static void LimitScrollTop(dword_s *scroll) {
 
 static void LimitScrollBottom(dword_s *scroll) {
 	if (scroll->f.u >= (int16_t)limit_btm2) {
-		if ((scroll->f.u - 0x800) >= 0) {
+		if ((scroll->f.u - (level_screen_y_wrap + 1)) >= 0) {
 			// Perform vertical wrapping
-			scroll->f.u -= 0x800;
-			player->y_pos.f.u &= 0x7FF;
-			scrpos_y.f.u -= 0x800;
-			bg_scrpos_y.f.u &= 0x3FF;
+			scroll->f.u -= level_screen_y_wrap + 1;
+			player->y_pos.f.u &= level_screen_y_wrap;
+			scrpos_y.f.u -= level_screen_y_wrap + 1;
+			bg_scrpos_y.f.u &= level_screen_y_wrap >> 1;
 		} else
 			scroll->f.u = (int16_t)limit_btm2;
 	}
@@ -721,7 +721,7 @@ void ScrollVertical(void) {
 
 	// The distance between the player and the camera is taken modulo $800 in a wrapping level, so that he and the camera on either side of the wrap (he at the top of the level, it just before the bottom) are close
 	if (LevelWrapsVertically())
-		y &= 0x7FF;
+		y &= level_screen_y_wrap;
 
 	if (((player->status & SST_PSTATUS_IN_BALL) != 0))
 		y -= 5;

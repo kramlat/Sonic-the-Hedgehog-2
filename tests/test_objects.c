@@ -6,6 +6,7 @@
 
 #include "Game.h"
 #include "Level.h"
+#include "ScrollEngine.h"
 #include "Object.h"
 #include "Object/DebugList.h"
 #include "Object/DebugMarkers.h"
@@ -1150,6 +1151,7 @@ static void Scroll_AWrappingLevelKeepsTheCameraWithACharacterOverTheWrap(void) {
     limit_btm2 = 0x800;
     look_shift = 0x60;
     bgscrollvert = false;
+    ScrollEngine_ResetLevelMasks(); // (a level that wraps goes round 16 rows: the default masks)
     scrpos_y.v = 0x7C0 << 16;
     player->y_pos.f.u = 0x7C0 + 0x60; // (the character is where the camera wants him: $60 down)
     player->y_pos.f.u &= 0x7FF;       // (= $20, over the wrap)

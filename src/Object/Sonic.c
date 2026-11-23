@@ -2379,7 +2379,7 @@ void Obj_Sonic(Sst *self) {
 
         // In a level that wraps vertically (its top limit is exactly $FF00: Metropolis) his height is kept to $7FF, whichever way he left it
         if (ScrollEngine_LevelLoops((int16_t)limit_top2))
-            self->y_pos.f.u &= 0x7FF;
+            self->y_pos.f.u &= level_screen_y_wrap;
 
         // Handle general player state stuff
         Sonic_Display(self);

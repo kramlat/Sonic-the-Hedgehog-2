@@ -338,7 +338,17 @@ static void LevelLayout_ATallLevelLoadsWholeAndWrapsByItsHeight(void) {
     level_layout_loops = true; // (a level that loops vertically goes round 16 rows)
     CHECK(LevelLayout_Load(file, file_size));
     CHECK_EQ(level_layout_row_mask, 0xF);
+    // (a looping level goes round exactly its height: 20 rows are 32)
+    memset(buffer, 0, sizeof(buffer));
+    for (int row = 0; row < 20; row++)
+        buffer[row * 0x100 + 3] = 1;
+    free(file);
+    file = LevelLayout_Pack(buffer, LEVEL_LAYOUT_MAX_ROWS, &file_size, &size);
+    CHECK(LevelLayout_Load(file, file_size));
+    CHECK_EQ(level_layout_row_mask, 0x1F);
+    CHECK_EQ(level_screen_y_wrap, 0xFFF);
     level_layout_loops = false;
+    ScrollEngine_ResetLevelMasks(); // (the other tests start from the default wrap)
     free(file);
 }
 
