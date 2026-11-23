@@ -852,6 +852,7 @@ sources:
   - "src/Object/CNZSlots.c"
   - "src/Object/CNZPlunger.c"
   - "src/Object/HPZBadniks.c"
+  - "src/Object/Jellygnite.c"
   - "src/Object/DHZVines.c"
   - "src/Object/DHZBadniks.c"
   - "src/Object/DHZBoss.c"

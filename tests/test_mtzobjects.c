@@ -9,6 +9,7 @@
 #include "Object/CharControl.h"
 #include "Object/CPZObjects.h"
 #include "Object/DHZObjects.h"
+#include "Object/Jellygnite.h"
 #include "Object/MTZBadniks.h"
 #include "Object/MTZObjects.h"
 #include "Object/Sonic.h"
@@ -507,6 +508,57 @@ static void MTZ_TheAsteronWaitsUntilSonicIsNearThenSetsOff(void) {
     CHECK_EQ(star->x_vel, 0x40); // (towards him)
 }
 
+static void HPZ_TheJellygniteCountsThreeSecondsWhenSonicIsNearThenExplodesLikeTheAsteron(void) {
+    Reset();
+    level_id = LEVEL_ID(ZoneId_HPZ, 0);
+    wtr_pos1 = 0x300; // (the water is above it: it is in the water)
+    scrpos_x.f.u = 0xF00;
+    scrpos_y.f.u = 0x300;
+    Sst *jelly = Spawn(SLOT(0x20), 0xE0, 0, 0x1000, 0x400);
+    player->y_pos.f.u = 0x400;
+    player->x_pos.f.u = 0x1400; // (far: past its notice)
+    Obj_Jellygnite(jelly);
+    for (int i = 0; i < 300; i++)
+        Obj_Jellygnite(jelly);
+    CHECK_EQ(jelly->routine, 2); // (it waits: nothing happens while Sonic is far)
+    CHECK_EQ(jelly->collision_flags, 0xA); // (a badnik: it can be destroyed)
+    CHECK_EQ(jelly->x_pos.f.u, 0x1000);
+    player->x_pos.f.u = 0x1030;
+    Obj_Jellygnite(jelly);
+    CHECK_EQ(jelly->routine, 4); // (Sonic is near: the count begins)
+    for (int i = 0; i < 170; i++)
+        Obj_Jellygnite(jelly);
+    CHECK_EQ(jelly->routine, 4); // (still counting: he has his three seconds)
+    for (int i = 0; i < 20; i++)
+        Obj_Jellygnite(jelly);
+    CHECK(jelly->code == sst_object_codes[0x27]); // (the count is over: it is an explosion)
+}
+
+static void HPZ_TheJellygniteChasesInBurstsInTheWaterAndFallsOutOfIt(void) {
+    Reset();
+    level_id = LEVEL_ID(ZoneId_HPZ, 0);
+    wtr_pos1 = 0x300;
+    scrpos_x.f.u = 0xF00;
+    scrpos_y.f.u = 0x300;
+    Sst *jelly = Spawn(SLOT(0x20), 0xE0, 0, 0x1000, 0x400);
+    player->y_pos.f.u = 0x400;
+    player->x_pos.f.u = 0x10A0; // ($A0 away: it notices him, but he is past the count's range)
+    Obj_Jellygnite(jelly);
+    const int16_t start = jelly->x_pos.f.u;
+    for (int i = 0; i < 20; i++)
+        Obj_Jellygnite(jelly);
+    CHECK(jelly->x_pos.f.u > start); // (a burst toward him)
+    const int16_t after_burst = jelly->x_pos.f.u;
+    for (int i = 0; i < 20; i++)
+        Obj_Jellygnite(jelly);
+    CHECK(jelly->x_pos.f.u - after_burst < after_burst - start); // (and it slows: the push dies away)
+    wtr_pos1 = 0x7FF; // (the water is below it now: it is in the air)
+    const int16_t y = jelly->y_pos.f.u;
+    for (int i = 0; i < 10; i++)
+        Obj_Jellygnite(jelly);
+    CHECK(jelly->y_pos.f.u > y); // (it falls)
+}
+
 static void MTZ_ThePistonsWaitNinetyFramesAtEachEnd(void) {
     Reset();
     scrpos_x.f.u = 0xF00;
@@ -615,6 +667,8 @@ void RegisterMTZObjectTests(void) {
     RUN_TEST(MTZ_TheSlicerLooksUpAndDownAsWellAsAhead);
     RUN_TEST(MTZ_AFlippedSlicerWalksTheOtherWay);
     RUN_TEST(MTZ_TheAsteronWaitsUntilSonicIsNearThenSetsOff);
+    RUN_TEST(HPZ_TheJellygniteCountsThreeSecondsWhenSonicIsNearThenExplodesLikeTheAsteron);
+    RUN_TEST(HPZ_TheJellygniteChasesInBurstsInTheWaterAndFallsOutOfIt);
     RUN_TEST(MTZ_ThePistonsWaitNinetyFramesAtEachEnd);
     RUN_TEST(MTZ_TheTeleportersFlashIsInTheSecondListsArt);
     RUN_TEST(MTZ_TheThirdActsPlatformStopsAtItsFirstEnd);

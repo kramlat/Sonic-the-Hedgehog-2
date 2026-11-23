@@ -144,6 +144,7 @@ static const char *const object_names[0x100] = {
     [0xA9] = "Grabber",
     [0xAA] = "Grabber",
     [0xAB] = "Grabber",
+    [0xE0] = "Jellygnite",
 };
 
 const char *Peek_ObjectName(int id) {

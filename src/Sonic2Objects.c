@@ -29,6 +29,7 @@
 #include "Object/EHZBoss.h"
 #include "Object/EHZWaterfall.h"
 #include "Object/HPZBadniks.h"
+#include "Object/Jellygnite.h"
 #include "Object/HPZObjects.h"
 #include "Object/HTZBadniks.h"
 #include "Object/HTZBoss.h"
@@ -300,6 +301,7 @@ const SstCode sst_object_codes[0x100] = {
 	[0xD4] = Obj_CNZBlueBox,
 	[0xD2] = Obj_CNZGreenPlatform,
 	[0xC8] = Obj_CNZCrawl,
+	[0xE0] = Obj_Jellygnite, // (Hidden Palace's hovering jellyfish badnik: a stub until its sheet is in)
 	[0x86] = Obj_CNZFlipper,
 	[0x85] = Obj_CNZPlunger,
 	[0xD6] = Obj_CNZSlotStarter,
