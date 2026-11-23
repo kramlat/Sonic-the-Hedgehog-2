@@ -314,11 +314,6 @@ static void Asteron_Explode(Sst *self) {
     }
 }
 
-// The Asteron's burst for another badnik that explodes like it (the Jellygnite): it becomes an explosion and throws the five spikes
-void Asteron_Burst(Sst *self) {
-    Asteron_Explode(self);
-}
-
 void Obj_Asteron(Sst *self) {
     Own_Asteron *own = (Own_Asteron *)self->own.u8;
 

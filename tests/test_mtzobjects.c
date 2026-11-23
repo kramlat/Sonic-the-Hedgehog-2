@@ -534,6 +534,25 @@ static void HPZ_TheJellygniteCountsThreeSecondsWhenSonicIsNearThenExplodesLikeTh
     CHECK(jelly->code == sst_object_codes[0x27]); // (the count is over: it is an explosion)
 }
 
+static void HPZ_TheJellygnitesExplosionHurtsOnlyAtCloseQuarters(void) {
+    Reset();
+    level_id = LEVEL_ID(ZoneId_HPZ, 0);
+    wtr_pos1 = 0x300;
+    scrpos_x.f.u = 0xF00;
+    scrpos_y.f.u = 0x300;
+    Sst *jelly = Spawn(SLOT(0x20), 0xE0, 0, 0x1000, 0x400);
+    player->y_pos.f.u = 0x400;
+    player->x_pos.f.u = 0x1010; // ($10 away: close)
+    player->routine = 2;
+    rings = 5; // (with none he would be killed)
+    Obj_Jellygnite(jelly);
+    Obj_Jellygnite(jelly); // (the count begins)
+    for (int i = 0; i < 200; i++)
+        Obj_Jellygnite(jelly);
+    CHECK(jelly->code == sst_object_codes[0x27]);
+    CHECK(player->routine == 4); // (Sonic is hurt)
+}
+
 static void HPZ_TheJellygniteChasesInBurstsInTheWaterAndFallsOutOfIt(void) {
     Reset();
     level_id = LEVEL_ID(ZoneId_HPZ, 0);
@@ -669,6 +688,7 @@ void RegisterMTZObjectTests(void) {
     RUN_TEST(MTZ_TheAsteronWaitsUntilSonicIsNearThenSetsOff);
     RUN_TEST(HPZ_TheJellygniteCountsThreeSecondsWhenSonicIsNearThenExplodesLikeTheAsteron);
     RUN_TEST(HPZ_TheJellygniteChasesInBurstsInTheWaterAndFallsOutOfIt);
+    RUN_TEST(HPZ_TheJellygnitesExplosionHurtsOnlyAtCloseQuarters);
     RUN_TEST(MTZ_ThePistonsWaitNinetyFramesAtEachEnd);
     RUN_TEST(MTZ_TheTeleportersFlashIsInTheSecondListsArt);
     RUN_TEST(MTZ_TheThirdActsPlatformStopsAtItsFirstEnd);
