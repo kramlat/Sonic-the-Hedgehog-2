@@ -326,7 +326,7 @@ static void LevelLayout_ATallLevelLoadsWholeAndWrapsByItsHeight(void) {
     CHECK_EQ(size.fg_width, 110);
     CHECK(LevelLayout_Load(file, file_size));
     CHECK_EQ(level_layout_fg.rows, 20);
-    CHECK_EQ(level_layout_row_mask, 0x1F); // (20 rows: 32 wraps)
+    CHECK_EQ(level_layout_row_mask, 0x1F); // (20 rows: 32 rows wrap)
     CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_FG, 5, 19), 20); // (a row past the 16 of the old buffer)
     CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_FG, 5, 19 + 32), 20); // (and the wrap is at 32)
     free(file);
@@ -334,7 +334,11 @@ static void LevelLayout_ATallLevelLoadsWholeAndWrapsByItsHeight(void) {
         memset(buffer + row * 0x100, 0, 0x100);
     file = LevelLayout_Pack(buffer, LEVEL_LAYOUT_MAX_ROWS, &file_size, &size);
     CHECK(LevelLayout_Load(file, file_size));
-    CHECK_EQ(level_layout_row_mask, 0xF); // (16 rows: the default)
+    CHECK_EQ(level_layout_row_mask, 0x1F); // (16 rows: no wrap before 32 either)
+    level_layout_loops = true; // (a level that loops vertically goes round 16 rows)
+    CHECK(LevelLayout_Load(file, file_size));
+    CHECK_EQ(level_layout_row_mask, 0xF);
+    level_layout_loops = false;
     free(file);
 }
 
