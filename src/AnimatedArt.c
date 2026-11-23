@@ -361,3 +361,29 @@ void S2_LoadAnimatedBlocks(void) {
         level_map16[b->offset + i * 2 + 1] = (uint8_t)(b->words[i] & 0xFF);
     }
 }
+
+// The level editor's list of what the animations write over (Game_EditorAnimatedTiles): each script's tiles, from its VRAM address, with a name for the tile grid
+int Game_EditorAnimatedTiles(int *first, int *count, const char **label, int max) {
+    const AnimScript *cues = NULL;
+    int n = 0;
+    const char *zone = "";
+    switch (LEVEL_ZONE(level_id)) {
+    case ZoneId_HTZ:
+    case ZoneId_EHZ: cues = AnimCue_EHZ; n = (int)(sizeof(AnimCue_EHZ) / sizeof(AnimCue_EHZ[0])); zone = "flowers"; break;
+    case ZoneId_HPZ: cues = AnimCue_HPZ; n = (int)(sizeof(AnimCue_HPZ) / sizeof(AnimCue_HPZ[0])); zone = "glowing ball"; break;
+    case ZoneId_MTZ: cues = AnimCue_MTZ; n = (int)(sizeof(AnimCue_MTZ) / sizeof(AnimCue_MTZ[0])); zone = "Metropolis"; break;
+    case ZoneId_CPZ: cues = AnimCue_CPZ; n = (int)(sizeof(AnimCue_CPZ) / sizeof(AnimCue_CPZ[0])); zone = "background"; break;
+    case ZoneId_OOZ: cues = AnimCue_OOZ; n = (int)(sizeof(AnimCue_OOZ) / sizeof(AnimCue_OOZ[0])); zone = "Oil Ocean"; break;
+    case ZoneId_CNZ: cues = AnimCue_CNZ; n = (int)(sizeof(AnimCue_CNZ) / sizeof(AnimCue_CNZ[0])); zone = "slot machine symbols"; break;
+    case ZoneId_ARZ: cues = AnimCue_ARZ; n = (int)(sizeof(AnimCue_ARZ) / sizeof(AnimCue_ARZ[0])); zone = "waterfalls"; break;
+    case ZoneId_SSZ: cues = AnimCue_SSZ; n = (int)(sizeof(AnimCue_SSZ) / sizeof(AnimCue_SSZ[0])); zone = "cactus tops"; break;
+    default: break;
+    }
+    int out = 0;
+    for (int i = 0; i < n && out < max; i++, out++) {
+        first[out] = cues[i].vram / 32;
+        count[out] = cues[i].tiles;
+        label[out] = zone;
+    }
+    return out;
+}
