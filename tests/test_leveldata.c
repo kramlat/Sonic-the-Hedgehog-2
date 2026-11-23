@@ -2,11 +2,13 @@
 
 #include "Level.h"
 #include "LevelLayout.h"
+#include "ScrollEngine.h"
 #include "Kosinski.h"
 #include "DebugPeek.h"
 #include "Palette.h"
 #include "Backend/VDP.h"
 #include <string.h>
+#include <stdlib.h>
 #include "Constants.h"
 #include "Game.h"
 #include "PLC.h"
@@ -310,7 +312,34 @@ static void LevelData_SecondArtListsLoadWithTheLevelUnlessTheyHitTheCard(void) {
     CHECK(SecondListQueuedAtLoad(ZoneId_ARZ, 0) == NULL);
 }
 
+// A level of 20 rows (the Sonic 3 format holds up to 32: 4,096 pixels): its layout loads whole, its masks wrap at 32 rows and its collision reads the rows past 16; a level of 16 rows or fewer keeps the default wrap
+static void LevelLayout_ATallLevelLoadsWholeAndWrapsByItsHeight(void) {
+    static uint8_t buffer[LEVEL_LAYOUT_MAX_ROWS * 0x100];
+    memset(buffer, 0, sizeof(buffer));
+    for (int row = 0; row < 20; row++)
+        for (int col = 0; col < 110; col++)
+            buffer[row * 0x100 + col] = (uint8_t)(1 + row); // (a chunk number for each row)
+    size_t file_size;
+    LevelLayoutSize size;
+    uint8_t *file = LevelLayout_Pack(buffer, LEVEL_LAYOUT_MAX_ROWS, &file_size, &size);
+    CHECK_EQ(size.fg_rows, 20);
+    CHECK_EQ(size.fg_width, 110);
+    CHECK(LevelLayout_Load(file, file_size));
+    CHECK_EQ(level_layout_fg.rows, 20);
+    CHECK_EQ(level_layout_row_mask, 0x1F); // (20 rows: 32 wraps)
+    CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_FG, 5, 19), 20); // (a row past the 16 of the old buffer)
+    CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_FG, 5, 19 + 32), 20); // (and the wrap is at 32)
+    free(file);
+    for (int row = 16; row < 32; row++)
+        memset(buffer + row * 0x100, 0, 0x100);
+    file = LevelLayout_Pack(buffer, LEVEL_LAYOUT_MAX_ROWS, &file_size, &size);
+    CHECK(LevelLayout_Load(file, file_size));
+    CHECK_EQ(level_layout_row_mask, 0xF); // (16 rows: the default)
+    free(file);
+}
+
 void RegisterLevelDataTests(void) {
+    RUN_TEST(LevelLayout_ATallLevelLoadsWholeAndWrapsByItsHeight);
     RUN_TEST(LevelData_SecondArtListsLoadWithTheLevelUnlessTheyHitTheCard);
     RUN_TEST(LevelData_TheZoneSlotsAreWhereTheyWereMoved);
     RUN_TEST(LevelLayout_PlanesAreExactAndReadLikeTheFixedBuffer);
