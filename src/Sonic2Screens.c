@@ -13,7 +13,10 @@
 #include "GM_Special.h"
 #include "GM_SpecialTrack.h"
 #include "VersusMatch.h"
+#include <stdio.h>
 #include <stdlib.h>
+#include "Constants.h"
+#include "Level.h"
 #include "GM_Title.h"
 
 #include "Backend/VDP.h"
@@ -47,6 +50,16 @@ static void Screen_Special(void) {
 
 // SONIC2_START_SS=<stage> starts in the special stage (for the captures and the checks)
 static void Screen_Sega(void) {
+    int start_zone, start_act; // SONIC2_START_LEVEL=<zone>,<act>: starts that level straight away (for the captures and the editor's checks)
+    if (getenv("SONIC2_START_LEVEL") != NULL && sscanf(getenv("SONIC2_START_LEVEL"), "%d,%d", &start_zone, &start_act) == 2) {
+        level_id = (uint16_t)LEVEL_ID(start_zone, start_act);
+        last_lamp = 0;
+        lives = 3;
+        rings = 0;
+        score = 0;
+        gamemode = GameMode_Level;
+        return;
+    }
     const char *start = getenv("SONIC2_START_SS");
     if (start != NULL) {
         ss4_stage = atoi(start);
