@@ -203,6 +203,11 @@
 #include "Resource/Music/S2Sfx_F1.h"
 #include "Resource/Music/S2Sfx_F2.h"
 #include "Resource/Music/S2Sfx_F3.h"
+#include "Resource/Music/S2Sfx_F4.h"
+#include "Resource/Music/S2Sfx_F5.h"
+#include "Resource/Music/S2Sfx_F6.h"
+#include "Resource/Music/S2Sfx_F7.h"
+#include "Resource/Music/S2Sfx_F8.h"
 #include "Resource/Music/S2Sfx_D0_json.h"
 #include "Resource/Music/S2Sfx_D1_json.h"
 #include "Resource/Music/S2Sfx_D2_json.h"
@@ -239,6 +244,11 @@
 #include "Resource/Music/S2Sfx_F1_json.h"
 #include "Resource/Music/S2Sfx_F2_json.h"
 #include "Resource/Music/S2Sfx_F3_json.h"
+#include "Resource/Music/S2Sfx_F4_json.h"
+#include "Resource/Music/S2Sfx_F5_json.h"
+#include "Resource/Music/S2Sfx_F6_json.h"
+#include "Resource/Music/S2Sfx_F7_json.h"
+#include "Resource/Music/S2Sfx_F8_json.h"
 
 static const uint8_t *const sound_table[0x100] = {
     [mus_VsResults] = S2Mus_VsRes_81,
@@ -355,9 +365,14 @@ static const uint8_t *const sound_table[0x100] = {
     [sfx_MechaSonicBuzz] = S2Sfx_EE,
     [sfx_LargeLaser] = S2Sfx_EF,
     [sfx_OilSlide] = S2Sfx_F0,
-    [sfx_Grab] = S2Sfx_F1,
-    [sfx_Flying] = S2Sfx_F2,
-    [sfx_FlyingTired] = S2Sfx_F3,
+    [sfx_RingS1] = S2Sfx_F1,
+    [sfx_CasinoBonusS1] = S2Sfx_F2,
+    [sfx_RingSpillS1] = S2Sfx_F3,
+    [sfx_RingLeftS1] = S2Sfx_F4,
+    [sfx_PushS1] = S2Sfx_F5,
+    [sfx_Grab] = S2Sfx_F6,
+    [sfx_Flying] = S2Sfx_F7,
+    [sfx_FlyingTired] = S2Sfx_F8,
 };
 
 static const char *const sound_table_json[0x100] = {
@@ -475,9 +490,14 @@ static const char *const sound_table_json[0x100] = {
     [sfx_MechaSonicBuzz] = S2Sfx_EE_json,
     [sfx_LargeLaser] = S2Sfx_EF_json,
     [sfx_OilSlide] = S2Sfx_F0_json,
-    [sfx_Grab] = S2Sfx_F1_json,
-    [sfx_Flying] = S2Sfx_F2_json,
-    [sfx_FlyingTired] = S2Sfx_F3_json,
+    [sfx_RingS1] = S2Sfx_F1_json,
+    [sfx_CasinoBonusS1] = S2Sfx_F2_json,
+    [sfx_RingSpillS1] = S2Sfx_F3_json,
+    [sfx_RingLeftS1] = S2Sfx_F4_json,
+    [sfx_PushS1] = S2Sfx_F5_json,
+    [sfx_Grab] = S2Sfx_F6_json,
+    [sfx_Flying] = S2Sfx_F7_json,
+    [sfx_FlyingTired] = S2Sfx_F8_json,
 };
 
 // Every song runs on driver version 1's coordination flags, converted from the sources' own. The songs the final game keeps compressed (every one but the 1-up, game over and emerald jingles) have Sonic 2's tempo
@@ -524,7 +544,8 @@ static const uint8_t sound_priorities[SOUND_ID_LAST - sfx_Jump + 1] = {
     0x62, 0x60, 0x60, 0x60, 0x70, 0x70, 0x70, 0x70, 0x70, 0x60, 0x60, // $DB
     0x60, 0x60, 0x62, 0x62,                                           // $E6
     0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70,                         // $EA (Laser Burst) to $F0 (Oil Slide): the usual priority (the pre-beta's and the final game's driver tables are not in the disassemblies as data used here)
-    0x70, 0x60, 0x60,                                                 // $F1 (Grab), $F2 (Flying) and $F3 (Flying (Tired)): Tails' flight; the loops of it give way to the others
+    0x70, 0x70, 0x70, 0x70, 0x70,                                     // $F1 to $F5: Sonic 1's ring, casino bonus, ring spill, ring in the left speaker and block push
+    0x70, 0x60, 0x60,                                                 // $F6 (Grab), $F7 (Flying) and $F8 (Flying (Tired)): Tails' flight; the loops of it give way to the others
 };
 
 // The tempo each song takes under speed shoes: the final game's zSpedUpTempoTable, by song (Sonic 2 tempos, as the songs' own; the 1-up, game over and emerald jingles' are converted to Sonic 1's: $05, $12, $06)
@@ -651,6 +672,11 @@ static const SoundInspectEntry inspect_entries[] = {
     INSPECT_ENTRY(sfx_MechaSonicBuzz, 0, "Mecha Sonic Buzz"),
     INSPECT_ENTRY(sfx_LargeLaser, 0, "Large Laser"),
     INSPECT_ENTRY(sfx_OilSlide, 0, "Oil Slide"),
+    INSPECT_ENTRY(sfx_RingS1, 0, "Ring (Sonic 1)"),
+    INSPECT_ENTRY(sfx_CasinoBonusS1, 0, "Casino Bonus (Sonic 1)"),
+    INSPECT_ENTRY(sfx_RingSpillS1, 0, "Ring Spill (Sonic 1)"),
+    INSPECT_ENTRY(sfx_RingLeftS1, 0, "Ring Left Speaker (Sonic 1)"),
+    INSPECT_ENTRY(sfx_PushS1, 0, "Block Push (Sonic 1)"),
     INSPECT_ENTRY(sfx_Grab, 0, "Grab (Tails carries Sonic)"),
     INSPECT_ENTRY(sfx_Flying, 0, "Tails flying"),
     INSPECT_ENTRY(sfx_FlyingTired, 0, "Tails flying (tired)"),

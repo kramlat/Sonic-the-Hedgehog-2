@@ -111,14 +111,14 @@ static bool LevSelZoneBuilt(uint16_t level) {
 static int levsel_sound = 0;
 static int levsel_item = 0;
 
-// What the sound test plays for the id $80+value: the music ($81-$9F, the final game's) and effects ($A0-$F3, the final game's and Tails' flight) are the sounds of this port's ids; the rest is silence
+// What the sound test plays for the id $80+value: the music ($81-$9F, the final game's) and effects ($A0-$F8, the final game's, Sonic 1's versions and Tails' flight) are the sounds of this port's ids; the rest is silence
 static uint8_t LevSelSoundId(int value) {
     int id = 0x80 + value;
     if (id >= 0x81 && id <= 0x9F)
         return (uint8_t)(mus_VsResults + (id - 0x81));
-    if (id >= 0xA0 && id <= 0xF3) // (the final game's effects to $F0, then Tails' flight: $F1-$F3)
+    if (id >= 0xA0 && id <= 0xF8) // (the final game's effects to $F0, Sonic 1's versions $F1-$F5, then Tails' flight: $F6-$F8)
         return (uint8_t)(sfx_Jump + (id - 0xA0));
-    if (id == 0xF4)
+    if (id == 0xF9)
         return mus_MzSwap; // (the port's own song, after the effects)
     return 0;
 }

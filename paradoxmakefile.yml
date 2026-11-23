@@ -1192,7 +1192,7 @@ songs:
   - {file: "sfx/B2 - Final.jsonc", name: S2Sfx_B2}
   - {file: "sfx/B3 - Final.jsonc", name: S2Sfx_B3}
   - {file: "sfx/B4 - Final.jsonc", name: S2Sfx_B4}
-  - {file: "sfx/B5 - S1.jsonc", name: S2Sfx_B5}
+  - {file: "sfx/B5 - Final.jsonc", name: S2Sfx_B5}
   - {file: "sfx/B6 - Final.jsonc", name: S2Sfx_B6}
   - {file: "sfx/B7 - Final.jsonc", name: S2Sfx_B7}
   - {file: "sfx/B8 - Final.jsonc", name: S2Sfx_B8}
@@ -1203,13 +1203,13 @@ songs:
   - {file: "sfx/BD - Final.jsonc", name: S2Sfx_BD}
   - {file: "sfx/BE - Final.jsonc", name: S2Sfx_BE}
   - {file: "sfx/BF - Final.jsonc", name: S2Sfx_BF}
-  - {file: "sfx/C0 - S1.jsonc", name: S2Sfx_C0}
+  - {file: "sfx/C0 - Final.jsonc", name: S2Sfx_C0}
   - {file: "sfx/C1 - Final.jsonc", name: S2Sfx_C1}
   - {file: "sfx/C2 - Final.jsonc", name: S2Sfx_C2}
   - {file: "sfx/C3 - Final.jsonc", name: S2Sfx_C3}
   - {file: "sfx/C4 - Final.jsonc", name: S2Sfx_C4}
   - {file: "sfx/C5 - Final.jsonc", name: S2Sfx_C5}
-  - {file: "sfx/C6 - S1.jsonc", name: S2Sfx_C6}
+  - {file: "sfx/C6 - Final.jsonc", name: S2Sfx_C6}
   - {file: "sfx/C7 - Final.jsonc", name: S2Sfx_C7}
   - {file: "sfx/C8 - Final.jsonc", name: S2Sfx_C8}
   - {file: "sfx/C9 - Final.jsonc", name: S2Sfx_C9}
@@ -1217,7 +1217,7 @@ songs:
   - {file: "sfx/CB - Final.jsonc", name: S2Sfx_CB}
   - {file: "sfx/CC - Final.jsonc", name: S2Sfx_CC}
   - {file: "sfx/CD - Final.jsonc", name: S2Sfx_CD}
-  - {file: "sfx/CE - S1.jsonc", name: S2Sfx_CE}
+  - {file: "sfx/CE - Final.jsonc", name: S2Sfx_CE}
   - {file: "sfx/CF - Final.jsonc", name: S2Sfx_CF}
   - {file: "sfx/D0 - Final.jsonc", name: S2Sfx_D0}
   - {file: "sfx/D1 - Final.jsonc", name: S2Sfx_D1}
@@ -1252,6 +1252,11 @@ songs:
   - {file: "sfx/EE - Final.jsonc", name: S2Sfx_EE}
   - {file: "sfx/EF - Final.jsonc", name: S2Sfx_EF}
   - {file: "sfx/F0 - Final.jsonc", name: S2Sfx_F0}
-  - {file: "sfx/F1 - Grab.jsonc", name: S2Sfx_F1}      # Tails' flight, kept at the end of the list after the final game's own effects (Sonic 3 & Knuckles' sounds $4A, $BA and $BB, from skdisasm: the guide's)
-  - {file: "sfx/F2 - Flying.jsonc", name: S2Sfx_F2}
-  - {file: "sfx/F3 - Flying (Tired).jsonc", name: S2Sfx_F3}
+  - {file: "sfx/F1 - Ring (S1).jsonc", name: S2Sfx_F1}               # Sonic 1's versions, after the final game's own effects: the ring (the final game's is $B5), the casino bonus ($C0), the ring spill ($C6) and the ring in the left speaker ($CE), and Sonic 1's block push
+  - {file: "sfx/F2 - Casino Bonus (S1).jsonc", name: S2Sfx_F2}
+  - {file: "sfx/F3 - Ring Spill (S1).jsonc", name: S2Sfx_F3}
+  - {file: "sfx/F4 - Ring Left Speaker (S1).jsonc", name: S2Sfx_F4}
+  - {file: "sfx/F5 - Push Block (S1).jsonc", name: S2Sfx_F5}
+  - {file: "sfx/F6 - Grab.jsonc", name: S2Sfx_F6}      # Tails' flight, kept at the end of the list after all the others (Sonic 3 & Knuckles' sounds $4A, $BA and $BB, from skdisasm: the guide's)
+  - {file: "sfx/F7 - Flying.jsonc", name: S2Sfx_F7}
+  - {file: "sfx/F8 - Flying (Tired).jsonc", name: S2Sfx_F8}
