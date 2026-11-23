@@ -2,8 +2,7 @@
 // and then drifts to a stop, as a jellyfish pulses: a pulse every $40 frames when he is within $C0 across and $80 up or down); OUT OF WATER it does not move itself and falls (the user: "only moves in water",
 // "otherwise follows gravity"). When Sonic comes within $60 across and $40 up or down (the Asteron's range) it starts a three seconds' count (the user: "Sonic should have 3 seconds"): it can be destroyed as
 // any badnik during it (a spin destroys it: "if Sonic is fast enough"), and when the count ends it explodes like the Asteron (the starfish) but with no shrapnel: an explosion that hurts a character only at close quarters
-// ($20 across and $28 up or down). STILL A STUB for the art: no sheet yet. When it comes: the sheet's green is replaced with BLUE when it is drawn (the user), and its colours are to come from the silver ramps of palette
-// line 0 (the user). Subtype: unused so far.
+// ($20 across and $28 up or down). Its art is from the Hidden Palace sheet (tools/import_jellygnite_art.pl), the sheet's green replaced with BLUE and drawn in the silver ramp and blues of palette line 0, Sonic's (the user). Subtype: unused so far.
 #include "Object/Jellygnite.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
@@ -13,6 +12,10 @@
 #include "Level.h"
 #include "MathUtil.h"
 #include "VersusStats.h"
+#include "Backend/VDP.h"
+#include "Resource/Art/Jellygnite.h"
+#include "Resource/Mappings/Jellygnite.h"
+#include "Resource/Animation/Jellygnite.h"
 #include "Object/Sonic.h"
 #include "Object/Tails.h"
 
@@ -29,6 +32,9 @@ enum { JellyRoutine_Init = 0, JellyRoutine_Wait = 2, JellyRoutine_Count = 4 };
 #define JELLY_PUSH 0x180 // (a push: 1.5 pixels a frame, which decays by a sixteenth of itself each frame)
 
 extern int16_t wtr_pos1;
+
+#define ArtTile_Jellygnite 0x600 // (40 tiles: Hidden Palace's art lists leave $5E2 to $67F free; drawn in palette line 0, Sonic's, see tools/import_jellygnite_art.pl)
+#define JELLY_ART_TILES 40
 
 // The explosion: it becomes an explosion (no animal: object $27) and hurts whoever is at close quarters, once, as it goes off
 static void Jelly_Explode(Sst *self) {
@@ -61,6 +67,10 @@ void Obj_Jellygnite(Sst *self) {
     Own_Jellygnite *own = (Own_Jellygnite *)self->own.u8;
     switch (self->routine) {
     case JellyRoutine_Init:
+        VDP_SeekVRAM(ArtTile_Jellygnite * 32); // (raw tiles: the art is not in a pattern load cue)
+        VDP_WriteVRAM(Art_Jellygnite, JELLY_ART_TILES * 32);
+        self->mappings = Mappings_Jellygnite;
+        self->art_tile = TILE_MAP(0, 0, 0, 0, ArtTile_Jellygnite);
         self->render_flags |= SST_RENDER_LEVEL;
         self->collision_flags = 0xA; // (a badnik's, as the BBat has: Sonic's spin destroys it, anything else hurts)
         self->priority = 4 * 0x80;
@@ -95,7 +105,11 @@ void Obj_Jellygnite(Sst *self) {
             }
         } else if (--own->timer == 0) {
             Jelly_Explode(self); // (it explodes, hurting only at close quarters)
+            SstOnScreenTest(self);
+            break;
         }
+        self->anim = self->routine == JellyRoutine_Count ? 1 : 0; // (the count: the red dome flashes)
+        Sst_Animate(self, Animation_Jellygnite);
         SstOnScreenTest(self);
         break;
     }
