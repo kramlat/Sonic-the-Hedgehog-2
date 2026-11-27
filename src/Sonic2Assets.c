@@ -37,6 +37,7 @@ const GameInfo game_info = {
     .demo_death_to_sega = true, // (Beta 4 and the prototypes: a death in the demo leaves it for the Sega screen)
     .no_title_card = false, // the pre-beta has title cards (its object $34: TitleCard.c)
     .title_card_own_art = true,
+    .clear_vram_on_level = true,
     .split_screen = true,
 	.plc_capacity = 32, // (the level starts without a title card, so its queue is not drained as it is filled) // the prototypes have no title cards
 };
