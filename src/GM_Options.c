@@ -12,6 +12,9 @@
 #include "Backend/VDP.h"
 #include "MenuBackground.h"
 #include "SoundIds.h"
+#include "PLC.h"
+#include "SplitScreen.h"
+extern bool hud_player_two; // (Object/HUD.c)
 
 #include "Resource/S2Menu/MenuBox.h"
 #include "Resource/S2Menu/OptionsMap.h"
@@ -20,6 +23,7 @@
 
 uint8_t options_player = 0;
 uint8_t options_vs_items = 0;
+uint8_t options_miles_swap = 0; // (the Miles swap cheat: the lives counters, the end of act card and the like say MILES)
 static int sound_test = 0; // ($00-$FF: the sound id itself, as the number shows it)
 
 
@@ -151,4 +155,21 @@ OptionsResult Options_Run(void) {
     }
     PaletteFadeOut();
     return current == 0 ? Options_Start1P : current == 1 ? Options_StartVersus : Options_Sega;
+}
+
+// The final's level start (Level_SetPlayerMode and what follows it): the split screen has the second player's counter, Tails alone has his on the main one. The queue is the level's, or at once (QuickPLC) where VRAM was wiped
+void Options_LoadLifeCounter(bool quick) {
+    // (as the final adds to the id: the four are in the order MilesLife2P, MilesLife, TailsLife2P, TailsLife, one after the other in PlcIdsExtra.h)
+    int plc = PlcId_MilesLife2P;
+    if (!two_player_mode && !hud_player_two) {
+        if (options_player != 2 || demo != 0)
+            return;
+        plc += PlcId_MilesLife - PlcId_MilesLife2P;
+    }
+    if (!options_miles_swap)
+        plc += PlcId_TailsLife2P - PlcId_MilesLife2P;
+    if (quick)
+        QuickPLC(plc);
+    else
+        AddPLC(plc);
 }

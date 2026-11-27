@@ -384,6 +384,10 @@ void Sonic_LoadGfx(Sst *self) {
 
 // Sonic collision functions
 void Sonic_ResetOnFloor(Sst *self) {
+    if (self == player && Tails_IsPlayer()) { // (Tails alone)
+        Tails_ResetOnFloor(self);
+        return;
+    }
     Scratch_Sonic* scratch = (Scratch_Sonic *)self->own.u8;
 
     // Set state
@@ -964,6 +968,8 @@ signed int ReactToItem(Sst *self) {
 // HurtSonic for whatever hurt him: the X it was at (he is thrown away from it) and whether it was spikes (the sound). The objects on the status table of Sonic 3 & Knuckles come this way.
 signed int HurtSonicFrom(Sst *self, int16_t src_x, bool spikes)
 {
+    if (self == player && Tails_IsPlayer()) // (Tails alone)
+        return Tails_HurtFrom(self, src_x, spikes);
     Scratch_Sonic *scratch = (Scratch_Sonic *)self->own.u8;
     DEBUG_LOG("player", "hurt at (%d,%d) rings=%u shield=%u", self->x_pos.f.u, self->y_pos.f.u, rings, shield);
 
@@ -1006,6 +1012,8 @@ signed int HurtSonicFrom(Sst *self, int16_t src_x, bool spikes)
 }
 
 int32_t KillSonicFrom(Sst *self, bool spikes) {
+    if (self == player && Tails_IsPlayer()) // (Tails alone)
+        return Tails_KillFrom(self, spikes);
     DEBUG_LOG("player", "killed at (%d,%d) lives=%u rings=%u", self->x_pos.f.u, self->y_pos.f.u, lives, rings);
     Scratch_Sonic* scratch = (Scratch_Sonic *)self->own.u8;
 
@@ -1758,6 +1766,10 @@ bool Sonic_Spindashing(void) {
 }
 
 void Sonic_CancelSpindash(void) {
+    if (Tails_IsPlayer()) { // (Tails alone)
+        Tails_CancelSpindash();
+        return;
+    }
     if (!(spindash_flag & 1))
         return;
     spindash_flag &= ~1;
@@ -1913,6 +1925,8 @@ static void GameOver(Sst *self) {
         }
     }
 }
+
+void Player_GameOver(Sst *self) { GameOver(self); }
 
 #define DEBUG_MOVE_DELAY 12  // frames to wait when holding D-Pad before accelerating
 #define DEBUG_START_SPEED 15 // initial movement speed when first holding D-Pad

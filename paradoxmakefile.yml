@@ -105,6 +105,8 @@ resources:
   - "Art/HUDLife"
   - "Art/HUDLifeTails"
   - "Art/HUDLifeMiles"   # the name MILES for the second player's lives counter (the SONIC of the first, in the same letters; drawn for it)
+  - "Art/MilesLife"       # the final game's Miles life counter (icon and name, 12 tiles like Sonic's: its PLCs MilesLife and MilesLife2P)
+  - "Art/TailsLife"       # the final game's Tails life counter (its PLCs TailsLife and TailsLife2P)
   - "Art/HUDNum"
   - "Art/Tails"
   - "Animation/Tails"

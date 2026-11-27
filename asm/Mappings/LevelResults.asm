@@ -1,6 +1,6 @@
 ; ---------------------------------------------------------------------------
 ; The end of act card (object $3A): End_Level_Results_Mappings of Sonic 2 Beta 4 (Sonic 2 mappings format), tools/import_s2b4_cards.pl
-; Frames: 0-2 the first line, 3 and 4 the second line, 5 ZONE, 6-8 the act numbers, 9 TIME BONUS, 10 RING BONUS, 11 the total, 12 and 13 the continue icon (flashing)
+; Frames: 0-2 the first line (SONIC, MILES, TAILS: the final game's), 3 and 4 the second line, 5 ZONE, 6-8 the act numbers, 9 TIME BONUS, 10 RING BONUS, 11 the total, 12 and 13 the continue icon (flashing)
 ; ---------------------------------------------------------------------------
 .int:		dc.w .f0-.int
 		dc.w .f1-.int
@@ -25,24 +25,24 @@
 		dc.w $0005, $85B8, $82DC, $0010
 		dc.w $0005, $8588, $82C4, $0020
 		dc.w $0005, $85D4, $82EA, $0030
-.f1:		dc.w 8		; loc_11AF0
-		dc.w $0005, $85D0, $82E8, $FFC0
-		dc.w $0005, $8588, $82C4, $FFD0
-		dc.w $0005, $8584, $82C2, $FFE0
-		dc.w $0001, $85C0, $82E0, $FFF0
-		dc.w $0005, $85B4, $82DA, $FFF8
+.f1:		dc.w 8		; MILES GOT (the final game's, EOL_Miles)
+		dc.w $0009, $85C6, $82E3, $FFBC
+		dc.w $0001, $85C0, $82E0, $FFD4
+		dc.w $0005, $85C2, $82E1, $FFDC
+		dc.w $0005, $8580, $82C0, $FFEC
+		dc.w $0005, $85D0, $82E8, $FFFC
+		dc.w $0005, $85B8, $82DC, $0014
+		dc.w $0005, $8588, $82C4, $0024
+		dc.w $0005, $85D4, $82EA, $0033
+.f2:		dc.w 8		; TAILS GOT (EOL_Tails)
+		dc.w $0005, $85D4, $82EA, $FFC3
+		dc.w $0005, $85B0, $82D8, $FFD0
+		dc.w $0001, $85C0, $82E0, $FFE0
+		dc.w $0005, $85C2, $82E1, $FFE8
+		dc.w $0005, $85D0, $82E8, $FFF8
 		dc.w $0005, $85B8, $82DC, $0010
 		dc.w $0005, $8588, $82C4, $0020
-		dc.w $0005, $85D4, $82EA, $0030
-.f2:		dc.w 8		; loc_11AF0
-		dc.w $0005, $85D0, $82E8, $FFC0
-		dc.w $0005, $8588, $82C4, $FFD0
-		dc.w $0005, $8584, $82C2, $FFE0
-		dc.w $0001, $85C0, $82E0, $FFF0
-		dc.w $0005, $85B4, $82DA, $FFF8
-		dc.w $0005, $85B8, $82DC, $0010
-		dc.w $0005, $8588, $82C4, $0020
-		dc.w $0005, $85D4, $82EA, $0030
+		dc.w $0005, $85D4, $82EA, $002F
 .f3:		dc.w 7		; loc_11B32
 		dc.w $0005, $85D4, $82EA, $FFC8
 		dc.w $0005, $85BC, $82DE, $FFD8

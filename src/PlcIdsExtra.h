@@ -37,3 +37,7 @@ PlcId_SFZBoss, // Beta 4's list $3E: Wing Fortress's boss (the spike ball and la
 PlcId_SFZTornado, // Beta 4's list $3F: the Tornado, its rocket and the clouds (the ending of Wing Fortress)
 PlcId_SSB4Main, // Beta 4's list $3C: the special stage's art
 PlcId_SSB4Bombs, // Beta 4's list $3D: the bombs
+PlcId_MilesLife2P, // the final game's "Miles 1up patch": the 2P counter's tiles (MILES)
+PlcId_MilesLife,   // its "Miles life counter": the main counter's tiles, for Miles alone
+PlcId_TailsLife2P, // its "Tails 1up patch": the 2P counter with the name TAILS
+PlcId_TailsLife,   // its "Tails life counter": the main counter with TAILS (they replace the lists of Rock World and Wood Zone there; here they have ids of their own)

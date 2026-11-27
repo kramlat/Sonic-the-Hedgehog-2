@@ -15,6 +15,7 @@
 #include "Object.h"
 
 #include "Game.h"
+#include "GM_Options.h"
 #include "Palette.h"
 #include "PLC.h"
 #include "Video.h"
@@ -282,5 +283,5 @@ void GM_SpecialTrack(void) {
     } else if (viewer)
         gamemode = GameMode_Sega;
     else
-        QuickPLC(PlcId_Main); // (the stage and its results wiped VRAM: the standard art (the lives icon, the rings, the star post) is back before the level, which loads only its own)
+        { QuickPLC(PlcId_Main); Options_LoadLifeCounter(true); } // (the stage and its results wiped VRAM: the standard art (the lives icon, the rings, the star post) is back before the level, which loads only its own)
 }

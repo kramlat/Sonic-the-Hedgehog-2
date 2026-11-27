@@ -225,6 +225,8 @@ extern const uint8_t Art_SpecialStageBombs[]; // (SpecialStageObjects.c has the 
 #include "Resource/Art/GameOver.h"
 #include "Resource/Art/HUD.h"
 #include "Resource/Art/HUDLife.h"
+#include "Resource/Art/MilesLife.h"
+#include "Resource/Art/TailsLife.h"
 #include "Resource/Art/HiddenBonus.h"
 #include "Resource/Art/Invincibility.h"
 #include "Resource/Art/Lamppost.h"
@@ -352,6 +354,14 @@ static const PLCList PLC_Main = {
         { Art_Points,        ART_VRAM(ArtTile_Points) },
     }
 };
+// ---------------------------------------------------------------------------
+// The life counters of Tails (the final game's PlrList_MilesLife2P, MilesLife, TailsLife2P and TailsLife): Sonic's is in PLC_Main, at ArtTile_Lives_Counter; the second player's is 12 tiles after it
+// ---------------------------------------------------------------------------
+#define ArtTile_Lives_Counter_2P (ArtTile_Lives_Counter + 12)
+static const PLCList PLC_MilesLife2P = { 1, (const PLC[]) { { Art_MilesLife, ART_VRAM(ArtTile_Lives_Counter_2P) } } };
+static const PLCList PLC_MilesLife   = { 1, (const PLC[]) { { Art_MilesLife, ART_VRAM(ArtTile_Lives_Counter) } } };
+static const PLCList PLC_TailsLife2P = { 1, (const PLC[]) { { Art_TailsLife, ART_VRAM(ArtTile_Lives_Counter_2P) } } };
+static const PLCList PLC_TailsLife   = { 1, (const PLC[]) { { Art_TailsLife, ART_VRAM(ArtTile_Lives_Counter) } } };
 // ---------------------------------------------------------------------------
 // Pattern load cues - standard block 2
 // ---------------------------------------------------------------------------
@@ -1234,5 +1244,9 @@ const PLCList* plcs[PlcId_Num] = {
     /* PlcId_SFZTornado  */ &PLC_SFZTornado,
     /* PlcId_SSB4Main    */ &PLC_SSB4Main,
     /* PlcId_SSB4Bombs   */ &PLC_SSB4Bombs,
+    /* PlcId_MilesLife2P */ &PLC_MilesLife2P,
+    /* PlcId_MilesLife   */ &PLC_MilesLife,
+    /* PlcId_TailsLife2P */ &PLC_TailsLife2P,
+    /* PlcId_TailsLife   */ &PLC_TailsLife,
 };
 

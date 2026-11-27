@@ -1,4 +1,6 @@
 #include "Object/TitleCard.h"
+#include "GM_Options.h"
+#include "Object/Tails.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
 #include "Object.h"
@@ -95,6 +97,13 @@ static const struct GotCard_Item {
     { 0x0340, 0x0120, 0x0100, 4, GOT_TOTAL },   // the total
 };
 
+// The first line (the final's loc_14102): SONIC, or for Tails alone TAILS, or MILES with the Miles swap cheat
+static uint8_t GotCard_FirstLine(void) {
+    if (!Tails_IsPlayer())
+        return 0;
+    return options_miles_swap ? 1 : 2;
+}
+
 // (the zones that are not played in acts: Sky Chase, Wing Fortress and Death Egg have no act number)
 static bool GotCard_NoAct(void) {
     const int zone = LEVEL_ZONE(level_id);
@@ -146,7 +155,7 @@ void Obj_GotThroughCard(Sst *self) {
             scratch->main_x = (int16_t)(item->x1 + to_add);
             a1->y_pos.f.u = (int16_t)(item->y + SCREEN_TALLADD2);
             a1->routine = item->routine;
-            a1->mapping_frame = item->frame;
+            a1->mapping_frame = i == 0 ? GotCard_FirstLine() : item->frame;
             a1->mappings = Mappings_LevelResults;
             a1->art_tile = 0; // (the pieces hold their tiles and their priority)
             a1->render_flags = 0;

@@ -11,6 +11,7 @@ void Obj_ObjectHit(Sst *self);
 #include "Object.h"
 #include "Object/Tails.h"
 #include "Object/DustSplash.h"
+#include "Object/Splash.h"
 #include "Object/Countdown.h"
 #include "SplitScreen.h"
 #include "Backend/VDP.h"
@@ -45,12 +46,22 @@ void Obj_ObjectHit(Sst *self);
 
 // Tails' copy of Sonic's code writes the camera's delay and look-up/down shift (cam_x_delay, cam_y_delay, look_shift): Nick Arcade's does too (its spin dash sets the scroll delay of Sonic's camera),
 // and 16 frames after Sonic's own spin dash release (Tails copies his pad) the camera would stop following him and then zip to catch up. Here they are Tails' own: the camera follows Sonic only.
-static uint16_t tails_cam_x_delay;
-static uint8_t tails_cam_y_delay;
-static int16_t tails_look_shift;
-#define cam_x_delay tails_cam_x_delay
-#define cam_y_delay tails_cam_y_delay
-#define look_shift  tails_look_shift
+// When Tails is the player (Tails alone: Tails_Bind below) they are the real ones: the camera follows him, and a speed shoes monitor, the water and the shoes' end work on the speeds the player has.
+static uint16_t tails_cam_x_delay_own;
+static uint8_t tails_cam_y_delay_own;
+static int16_t tails_look_shift_own;
+static int16_t tails_speed_max_own = 0x600, tails_speed_acc_own = 0xC, tails_speed_dec_own = 0x80;
+static uint16_t *p_cam_x_delay = &tails_cam_x_delay_own;
+static uint8_t *p_cam_y_delay = &tails_cam_y_delay_own;
+static int16_t *p_look_shift = &tails_look_shift_own;
+static int16_t *p_speed_max = &tails_speed_max_own, *p_speed_acc = &tails_speed_acc_own, *p_speed_dec = &tails_speed_dec_own;
+static bool tails_is_player;
+#define cam_x_delay (*p_cam_x_delay)
+#define cam_y_delay (*p_cam_y_delay)
+#define look_shift  (*p_look_shift)
+#define tails_speed_max (*p_speed_max)
+#define tails_speed_acc (*p_speed_acc)
+#define tails_speed_dec (*p_speed_dec)
 
 #define TAILS_HEIGHT       0xF
 #define TAILS_WIDTH        9
@@ -60,6 +71,7 @@ static int16_t tails_look_shift;
 
 #define ArtTile_Tails      0x7A0
 #define ArtTile_TailsTails 0x7B0
+#define DUST_OBJ (tails_is_player ? Splash_Companion() : &sst[DUST_TAILS_SLOT]) // (the player's own dust, when Tails is the player; NULL when there is none)
 #define SST_TAILS_TAILS   (&sst[2]) // his tails: the reserved slot of the status table (Reserved_object_3)
 // His animations, as the alpha's table has them (ids 0-8 are Sonic 1's names; its 9 is the spin dash, where the port's Sonic has had 31, and its entry 31 the script of his fastest running)
 #define TAILS_ANIM_SPINDASH 9
@@ -80,7 +92,24 @@ static int16_t tails_look_shift;
 // Spin Dash state
 static uint8_t spindash_flag;
 // Tails' own top speed, acceleration and deceleration (the alpha's Miles_Max_Speed and the others at $FFFFFEC0): Sonic's are his own, so the water and the shoes of the one do not slow the other
-static int16_t tails_speed_max = 0x600, tails_speed_acc = 0xC, tails_speed_dec = 0x80;
+
+#undef cam_x_delay
+#undef cam_y_delay
+#undef look_shift
+static void Tails_Bind(const Sst *self) { // (routine 0: which character's variables his code works on)
+    tails_is_player = self != NULL && self == player;
+    p_cam_x_delay = tails_is_player ? &cam_x_delay : &tails_cam_x_delay_own;
+    p_cam_y_delay = tails_is_player ? &cam_y_delay : &tails_cam_y_delay_own;
+    p_look_shift = tails_is_player ? &look_shift : &tails_look_shift_own;
+    p_speed_max = tails_is_player ? &sonspeed_max : &tails_speed_max_own;
+    p_speed_acc = tails_is_player ? &sonspeed_acc : &tails_speed_acc_own;
+    p_speed_dec = tails_is_player ? &sonspeed_dec : &tails_speed_dec_own;
+}
+#define cam_x_delay (*p_cam_x_delay)
+#define cam_y_delay (*p_cam_y_delay)
+#define look_shift  (*p_look_shift)
+
+bool Tails_IsPlayer(void) { return tails_is_player; }
 
 void Tails_ShoesSpeed(void) {
     tails_speed_max = 0xC00;
@@ -136,7 +165,7 @@ static void Tails_Water(Sst *self) {
             self->y_vel = (int16_t)(self->y_vel << 1); // double Y-speed while leaving the water (not when he is hurt)
         if (self->y_vel == 0)
             return;
-        DustSplash_Show(&sst[DUST_TAILS_SLOT], DUST_SPLASH);
+        DustSplash_Show(DUST_OBJ, DUST_SPLASH);
         if (self->y_vel < -0x1000)
             self->y_vel = -0x1000;
         PlaySound(sfx_Splash);
@@ -146,7 +175,7 @@ static void Tails_Water(Sst *self) {
             return;
         self->status |= SST_PSTATUS_UNDERWATER;
         Countdown_ResumeMusic(self);
-        Countdown_Make(COUNTDOWN_TAILS_SLOT, true); // the counting of his air
+        Countdown_Make(tails_is_player ? COUNTDOWN_SONIC_SLOT : COUNTDOWN_TAILS_SLOT, !tails_is_player); // the counting of his air
 
         tails_speed_max = 0x300;
         tails_speed_acc = 0x6;
@@ -156,7 +185,7 @@ static void Tails_Water(Sst *self) {
         self->y_vel >>= 2;
         if (self->y_vel == 0)
             return;
-        DustSplash_Show(&sst[DUST_TAILS_SLOT], DUST_SPLASH);
+        DustSplash_Show(DUST_OBJ, DUST_SPLASH);
         PlaySound(sfx_Splash);
     }
 }
@@ -165,7 +194,7 @@ uint8_t Player_FrontInView(bool miles); // (SplitScreen.c)
 
 static void Tails_Display(Sst *self) {
     Scratch_Sonic *scratch = (Scratch_Sonic *)self->own.u8;
-    self->front_in_view = Player_FrontInView(true);
+    self->front_in_view = Player_FrontInView(!tails_is_player);
 
     // Handle invulnerability blinking
     uint16_t blink;
@@ -279,7 +308,7 @@ static void Tails_FlyingAnimation(Sst *self) {
 static void Tails_CheckFlying(Sst *self) {
     if (tails_flying || !(jpad2_press & (JPAD_A | JPAD_B | JPAD_C)))
         return;
-    if (!true_two_player && control_counter == 0 && cpu_state != CPU_ASSIST && cpu_state != CPU_CARRY)
+    if (!true_two_player && !tails_is_player && control_counter == 0 && cpu_state != CPU_ASSIST && cpu_state != CPU_CARRY)
         return;
     self->status &= (uint8_t)~(SST_PSTATUS_IN_BALL | SST_PSTATUS_ROLL_JUMP);
     self->y_radius = TAILS_HEIGHT;
@@ -379,7 +408,7 @@ static void Tails_CheckCarry(Sst *self) {
 // Sonic carried by Tails in flight (Tails_CarrySonic)
 static void Tails_CarrySonic(Sst *self) {
     Sst *sonic = player;
-    if (true_two_player)
+    if (true_two_player || tails_is_player)
         return;
     if (!sonic_carried) {
         Tails_CheckCarry(self);
@@ -437,7 +466,7 @@ static void Tails_CarrySonic(Sst *self) {
 
 // Sonic's jump and Up with a Tails that the AI plays make him fly (the guide's optional single player assist: Sonic_CheckGoSuper's lines)
 void Tails_CallToCarry(void) {
-    if (true_two_player || control_counter != 0)
+    if (true_two_player || tails_is_player || control_counter != 0)
         return;
     if (!(jpad1_press1 & (JPAD_A | JPAD_B | JPAD_C)))
         return;
@@ -722,8 +751,12 @@ static void TailsCPU_Carry(Sst *self) {
 // Tails_Control and Miles_CPU_Control: a pad 2 that is being used keeps Tails for 600 frames; otherwise the CPU plays him (the pre-beta's, in five states: Init, Spawning, Flying, Normal and Panic; and the guide's two:
 // called by Sonic, and carrying). It does not run when a second human has pad 2 (true_two_player; the split screen alone keeps him).
 static void Tails_Control(Sst *self) {
-    if (true_two_player)
+    if (tails_is_player) { // Tails alone: pad 1, as the player's own copy has it (objects lock it: lock_ctrl)
+        jpad2_hold = jpad1_hold2;
+        jpad2_press = jpad1_press2;
         return;
+    }
+    if (true_two_player)
     if (jpad2_hold & 0x7F)
         control_counter = 0x258;
     switch (cpu_state) {
@@ -892,6 +925,19 @@ static void Tails_Animate(Sst *self) {
 }
 
 // Falling below the level (the only way he dies): Tails_GameOver brings him back above Sonic
+// Tails as the player dies as Sonic does (KillSonicFrom): no debug cheat saves him in the debug mode's place, the invincibility ends, and the spikes have their own sound
+int32_t Tails_KillFrom(Sst *self, bool spikes) {
+    Scratch_Sonic *scratch = (Scratch_Sonic *)self->own.u8;
+    if (debug_use)
+        return -1;
+    invincibility = false;
+    KillTails(self);
+    scratch->x38.death_y = self->y_pos.f.u;
+    if (spikes)
+        PlaySound(sfx_HitSpikes); // (over the death sound KillTails started)
+    return -1;
+}
+
 void KillTails(Sst *self) {
     self->routine = 6;
     Tails_ResetOnFloor(self);
@@ -1340,7 +1386,7 @@ static signed int React_Monitor(Sst *self, Sst *hit) {
             if (!hit->routine_secondary)
                 hit->routine_secondary += 4;
         }
-    } else if (true_two_player && self->anim == SonAnimId_Roll && hit->routine == 2) { // (Beta 4: Tails does not break a monitor by landing on it unless a second human has him (the true 2 player mode: the versus play): only Sonic does, loc_3B5AA)
+    } else if ((true_two_player || tails_is_player) && self->anim == SonAnimId_Roll && hit->routine == 2) { // (Beta 4: Tails does not break a monitor by landing on it unless a second human has him (the true 2 player mode: the versus play): only Sonic does, loc_3B5AA)
         // Break monitor (once: a monitor that is breaking already is not broken again by the other character)
         self->y_vel = -self->y_vel;
         hit->routine += 2;
@@ -1482,6 +1528,10 @@ static signed int ReactToItem(Sst *self) {
     return 0;
 }
 
+int32_t Tails_HurtFrom(Sst *self, int16_t src_x, bool spikes) {
+    return HurtTails(self, src_x, spikes);
+}
+
 int32_t Tails_Hurt(Sst *self, Sst *src) {
     return HurtTails(self, src->x_pos.f.u, src->code == sst_object_codes[ObjId_Spikes]);
 }
@@ -1494,7 +1544,7 @@ static signed int HurtTails(Sst *self, int16_t src_x, bool spikes)
     // (A stand-in: later this asks which player Tails is for, a Hurt_Player_P2 of his own with his own rings and shield, instead of sharing Sonic's.)
     // The pre-beta's Hurt_Player: the computer's Tails (one player) is only thrown, with no rings lost and the shield kept; with a second human (true_two_player) he is a player like Sonic and
     // loses the shared rings, the shield, or his life (he comes back above Sonic like one who fell out of the level)
-    if (true_two_player) {
+    if (true_two_player || tails_is_player) {
         if (!shield) {
             if (rings) {
                 // Spawn lost rings object
@@ -1505,6 +1555,8 @@ static signed int HurtTails(Sst *self, int16_t src_x, bool spikes)
                     rings->y_pos.f.u = self->y_pos.f.u;
                 }
             } else if (!debug_mode) {
+                if (tails_is_player)
+                    return Tails_KillFrom(self, spikes);
                 KillTails(self);
                 return -1;
             }
@@ -1515,7 +1567,7 @@ static signed int HurtTails(Sst *self, int16_t src_x, bool spikes)
     // Set Sonic state
     self->routine = 4;
     spindash_flag &= ~1;
-    sst[DUST_TAILS_SLOT].anim = DUST_NULL;
+    { Sst *d = DUST_OBJ; if (d) d->anim = DUST_NULL; }
     Tails_ResetOnFloor(self);
     self->status |= SST_PSTATUS_IN_AIR;
 
@@ -2148,7 +2200,7 @@ static void Tails_ReleaseSpindash(Sst *self) {
     self->anim = SonAnimId_Roll;
     self->status |= SST_PSTATUS_IN_BALL;
     PlaySound(sfx_Teleport);
-    sst[DUST_TAILS_SLOT].anim = DUST_NULL;
+    { Sst *d = DUST_OBJ; if (d) d->anim = DUST_NULL; }
 
     // Get release speed from the number of revs (the alpha's table: $80 for each step of the counter's high byte)
     int16_t speed = (int16_t)(0x800 + (((spindash_count >> 8) & 0xFF) << 7));
@@ -2190,8 +2242,7 @@ void Tails_CancelSpindash(void) {
         return;
     spindash_flag &= ~1;
     spindash_count = 0;
-    if (sst[DUST_TAILS_SLOT].anim == DUST_DASH)
-        sst[DUST_TAILS_SLOT].anim = DUST_NULL;
+    { Sst *d = DUST_OBJ; if (d && d->anim == DUST_DASH) d->anim = DUST_NULL; }
 }
 
 static bool Tails_SpinDash(Sst *self) {
@@ -2210,7 +2261,7 @@ static bool Tails_SpinDash(Sst *self) {
     spindash_flag |= 1;
     spindash_count = 0;
     if (scratch_air(self) >= 12)
-        DustSplash_Show(&sst[DUST_TAILS_SLOT], DUST_DASH);
+        DustSplash_Show(DUST_OBJ, DUST_DASH);
 
     // Because we're skipping the rest of the normal-movement case
     Tails_LevelBound(self);
@@ -2233,7 +2284,7 @@ static const uint8_t TailsTails_Animations[0x2A] = {
 static uint8_t tails_tails_prev_anim = 0xFF;
 
 void Obj_TailsTails(Sst *self) {
-    const Sst *tails = SST_PLAYER_2;
+    const Sst *tails = tails_is_player ? player : SST_PLAYER_2;
     switch (self->routine) {
     case 0:
         self->routine += 2;
@@ -2280,6 +2331,7 @@ static void Obj_Tails_Run(Sst *self) {
 
     switch (self->routine) {
     case 0: // Initialization
+        Tails_Bind(self);
         self->routine += 2;
         self->y_radius = TAILS_HEIGHT;
         self->x_radius = TAILS_WIDTH;
@@ -2401,6 +2453,14 @@ static void Obj_Tails_Run(Sst *self) {
         }
         break;
     case 6: // Dead (fell below the level): back above Sonic once he is well out of sight
+        if (tails_is_player) { // (Tails alone dies as Sonic does: the game over, or the level again, once he has fallen out of sight)
+            Player_GameOver(self);
+            Sst_MoveSprite(self);
+            Tails_Animate(self);
+            Tails_LoadGfx(self);
+            Sst_Draw(self);
+            break;
+        }
         if ((uint16_t)(limit_btm2 + 0x100) < (uint16_t)self->y_pos.f.u) {
             // (Tails is not meant to wrap: with Sonic against the left boundary the word would put him past the right one, and he would fall and come back there over and over. The level's wraparound itself is
             // Sonic's, and stays.)
@@ -2418,6 +2478,10 @@ static void Obj_Tails_Run(Sst *self) {
             Sst_Draw(self);
         }
         break;
+    case 8: // Dead, the level starts again when the timer ends (Tails alone: Sonic's death timer)
+        if (scratch->death_timer && --scratch->death_timer == 0)
+            restart = true;
+        break;
     }
 }
 
@@ -2426,11 +2490,26 @@ void Game_LevelObjects(void) {
     VDP_SetShadowHighlight((jpad1_hold1 & JPAD_C) != 0); // (the prototype enables the VDP's shadow/highlight mode, which darkens all but what is above the planes' priority, when C is held as a level loads)
     if (cli_start_level >= 0) // a level started from the command line skipped the title, which loads the main art (HUD, rings, ...)
         AddPLC(PlcId_Main);
+    Options_LoadLifeCounter(false);
     Sst *tails = SST_PLAYER_2;
     memset(tails, 0, sizeof(*tails));
     memset(SST_TAILS_TAILS, 0, sizeof(Sst));
+    Tails_Bind(NULL);
+    // Tails alone (the options screen's third choice): his code is the player's, on pad 1, and the sidekick's slot stays empty. Where the Tornado is, and Death Egg, Sonic stays (his own stages)
+    // and not in a demo, which was recorded with the other character
+    if (options_player == 2 && demo == 0 && !true_two_player && !two_player_mode && LEVEL_ZONE(level_id) != ZoneId_SFZ && LEVEL_ZONE(level_id) != ZoneId_SCZ && LEVEL_ZONE(level_id) != ZoneId_DEZ) {
+        player->code = Obj_Tails;
+        Tails_Bind(player);
+        SST_TAILS_TAILS->code = Obj_TailsTails;
+        SST_TAILS_TAILS->x_pos.f.u = player->x_pos.f.u;
+        SST_TAILS_TAILS->y_pos.f.u = player->y_pos.f.u;
+        if (LEVEL_ZONE(level_id) == ZoneId_OOZ)
+            Sst_Spawn(7, 0, 0);
+        SplitScreen_LoadLevel();
+        return;
+    }
     // Where the Tornado is (Sky Fortress's start, and Sky Chase) Tails is its pilot, drawn by it, and Death Egg is Sonic's alone (a later build's ending makes no sense with him there): no second character in those three
-    if (LEVEL_ZONE(level_id) != ZoneId_SFZ && LEVEL_ZONE(level_id) != ZoneId_SCZ && LEVEL_ZONE(level_id) != ZoneId_DEZ && !(options_player == 1 && demo == 0 && !true_two_player && !two_player_mode)) { // (the options screen's SONIC ALONE; not in a demo, which was recorded with him)
+    if (LEVEL_ZONE(level_id) != ZoneId_SFZ && LEVEL_ZONE(level_id) != ZoneId_SCZ && LEVEL_ZONE(level_id) != ZoneId_DEZ && !(options_player != 0 && demo == 0 && !true_two_player && !two_player_mode)) { // (the options screen's SONIC ALONE, or Tails alone (above); not in a demo, which was recorded with him)
         tails->code = Obj_Tails;
         tails->x_pos.f.u = player->x_pos.f.u - 0x20;
         tails->y_pos.f.u = player->y_pos.f.u;
