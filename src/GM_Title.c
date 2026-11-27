@@ -442,7 +442,7 @@ static void CreditCardText(uint8_t *map, int col, int line, const char *text) {
         if (*text == ' ')
             codes[n++] = 0;
         else if (*text == 'I')
-            codes[n++] = 0x3C;
+            codes[n++] = 0x11; // (the I is one narrow tile)
         else if (*text == '\'')
             codes[n++] = 0x38; // (the double quote: the intro's charset puts '"' on $38)
         else if (*text >= 'A' && *text <= 'Z') {
