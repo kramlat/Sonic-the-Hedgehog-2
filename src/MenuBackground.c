@@ -10,7 +10,7 @@
 
 #include "Resource/S2Menu/SonicMiles.h"
 #include "Resource/S2Menu/VsMenuBg.h"
-#include "Resource/S2Menu/MenuFont.h"
+#include "Resource/S2Menu/StandardFont.h"
 #include "Resource/S2Palette/VersusMenu.h"
 
 #define MAP_W 40
@@ -55,7 +55,7 @@ void MenuBackground_Animate(void) {
 void MenuBackground_LoadCommon(void) {
     VDP_SetBackgroundColour(0);
     VDP_SeekVRAM(0x0200);
-    NemDec(S2Menu_MenuFont); // (tile $10 on: the digits, then A-Z from $1E)
+    NemDec(S2Menu_StandardFont); // (tile $10 on: the digits, then A-Z from $1E)
     memset(dry_palette_dup, 0, sizeof(dry_palette_dup));
     for (int i = 0; i < 4 * 16; i++) {
         const uint8_t *p = S2Palette_VersusMenu + (size_t)i * 2;

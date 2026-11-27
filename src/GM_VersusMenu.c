@@ -13,6 +13,7 @@
 #include "Backend/NetPlay.h"
 #include "VersusFlow.h"
 #include "MenuBackground.h"
+#include "MenuIcons.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
 #include "Object.h"
@@ -33,10 +34,7 @@
 #include "Resource/S2Menu/VsSSRes.h"
 #include "Resource/S2Menu/VsAllSS.h"
 #include "Resource/Mappings/VsBanner.h"
-#include "Resource/S2Palette/LevelIcons.h"
 #include "Resource/S2Menu/VsMenu.h"
-#include "Resource/S2Menu/VsMenu2.h"
-#include "Resource/S2Menu/LevelIcons.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -76,32 +74,25 @@ static size_t Cell(int row, int col);
 #define PLAYED_ICON 156   // (the icon word where the crossed-out "played" one is in VsMenu2's map)
 #define SOUND_TEST_ICON 168
 
-static uint16_t card_selected[BOX_W * BOX_H], card_dim[BOX_W * BOX_H], icon_map[200];
+static uint16_t card_selected[BOX_W * BOX_H], card_dim[BOX_W * BOX_H];
 
 static uint16_t Word(const uint8_t *m, size_t i) {
     return (uint16_t)((m[i * 2] << 8) | m[i * 2 + 1]);
 }
 
 static void SetIconPalette(int line) {
-    for (int i = 0; i < 16; i++) {
-        const uint16_t c = Word(S2Palette_LevelIcons, (size_t)line * 16 + i);
-        dry_palette[2][i] = dry_palette_dup[2][i] = c;
-    }
+    MenuIcons_SetPalette(line);
 }
 
 static void LoadMenuArt(void) {
-    static uint8_t map[BOX_W * BOX_H * 2], icons[200 * 2];
+    static uint8_t map[BOX_W * BOX_H * 2];
     EniDec(S2Menu_VsMenu, map, FRAME_TILE);
     for (int i = 0; i < BOX_W * BOX_H; i++)
         card_selected[i] = Word(map, (size_t)i);
     EniDec(S2Menu_VsMenu, map, 0x2000 | FRAME_TILE);
     for (int i = 0; i < BOX_W * BOX_H; i++)
         card_dim[i] = Word(map, (size_t)i);
-    EniDec(S2Menu_VsMenu2, icons, 0x80);
-    for (int i = 0; i < 200; i++)
-        icon_map[i] = Word(icons, (size_t)i);
-    VDP_SeekVRAM(0x1000);
-    NemDec(S2Menu_LevelIcons); // (tile $80 on)
+    MenuIcons_Load();
 }
 
 // The session screens' icon: the card's icon frame (6 by 5 cells) at the bottom, centred (the emblem's ring is to be there), and the 4 by 3 icon in it (`icon`: a word of the map, `line`: its palette line)
@@ -111,7 +102,7 @@ static void ShowIcon(int icon, int line) {
         for (int x = 0; x < 6; x++)
             Plane_Put(&screen1p.plane_a, Cell(21 + y, 16 + x), card_selected[(5 + y) * BOX_W + 5 + x]);
     for (int i = 0; i < ICON_WORDS; i++)
-        Plane_Put(&screen1p.plane_a, Cell(22 + i / 4, 17 + i % 4), icon_map[icon + i]);
+        Plane_Put(&screen1p.plane_a, Cell(22 + i / 4, 17 + i % 4), MenuIcons_Word(icon + i));
 }
 
 static size_t Cell(int row, int col) {
@@ -342,7 +333,7 @@ static void DrawBox(int box, int slot, bool selected) {
     // The one chosen shows its icon, the others a blank box, a played one the crossed-out icon
     const int icon = zone_played[box] >= 0 ? PLAYED_ICON : z->icon;
     for (int i = 0; i < ICON_WORDS; i++) // (the ones not chosen are a blank box until played, like Beta 4's)
-        cells[(6 + i / 4) * BOX_W + 6 + i % 4] = (!selected && zone_played[box] < 0) ? (0x2000 | (FRAME_TILE + 0x0B)) : icon_map[icon + i];
+        cells[(6 + i / 4) * BOX_W + 6 + i % 4] = (!selected && zone_played[box] < 0) ? (0x2000 | (FRAME_TILE + 0x0B)) : MenuIcons_Word(icon + i);
     for (int y = 0; y < BOX_H; y++)
         for (int x = 0; x < BOX_W; x++)
             Plane_Put(&screen1p.plane_a, Cell(origin_row[slot] + y, origin_col[slot] + x), cells[y * BOX_W + x]);

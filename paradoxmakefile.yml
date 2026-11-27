@@ -665,6 +665,8 @@ resources:
   - "S2Palette/LevelIcons"   # the zone icons' palettes, 14 lines of 16 colours (s2b4 LvsIcons.pal)
   - "S2Menu/MenuFont"        # (s2b4) the menu font, Nemesis: $1E-$37 are A-Z, $10-$19 the digits
   - "S2Menu/MenuFrame"
+  - "S2Menu/StandardFont"     # the final font with the modified level select/options emblem (Nemesis, tile $10 on)
+  - "S2Menu/LevelSelectMap"   # the new level select layout (Enigma, 40x28 plus)
   - "S2Menu/MenuBox"         # the final options screen: the box with a shadow (Nemesis)
   - "S2Menu/OptionsMap"      # its 22x8 box map (Enigma)
   - "S2Menu/LevelIcons"
@@ -795,6 +797,8 @@ sources:
   - "src/GM_VersusMenu.c"
   - "src/MenuBackground.c"
   - "src/GM_Options.c"
+  - "src/MenuIcons.c"
+  - "src/GM_LevelSelect.c"
   - "src/Sonic2Collision.c"
   - "src/Sonic2Sound.c"
   - "src/SplitScreen.c"

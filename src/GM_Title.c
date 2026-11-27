@@ -1,3 +1,4 @@
+#include "GM_LevelSelect.h"
 #include "SstLoad.h"
 #include "GM_Title.h"
 #include "Constants.h"
@@ -33,84 +34,6 @@ extern const uint8_t Art_Text[];
 uint8_t demo_num;
 
 // ===========================================================================
-// Level select: the Simon Wai prototype's (LevelSelect, LevelSelect_Controls and LevelSelect_TextLoad in its disassembly). It plays its own music while it is open, lists every stage of
-// the zones it has and a sound test of every id from $80 to $FF, and starts a level in the split screen when B is the button that picks it. Hold A and press Start on the title screen to get here.
-// ===========================================================================
-#define LEVSEL_ROWS         30   // 28 stages, Special Stage and Sound Select (the prototype's 25, Sand Shower's two, and Sky Chase, Sky Fortress and Death Egg with one each)
-#define LEVSEL_SS_ROW       28
-#define LEVSEL_SNDTEST_ROW  29
-#define LEVSEL_VISIBLE      27   // lines that fit the screen (rows 1 to 27 of its 28): the list scrolls when the highlight leaves them
-#define LEVSEL_LINE_LENGTH  27
-#define LEVSEL_START_ROW    1    // (the prototype draws its text at $E08C on the plane: row 1, column 6)
-#define LEVSEL_START_COL    6
-#define LEVSEL_VRAM_MAIN    ((LEVSEL_START_ROW << 7) + (LEVSEL_START_COL << 1)) // (a byte offset in plane A)
-#define LEVSEL_FONT_TILE    0x700 // (above the title's art, which the menu stands on: Sonic 1's tile $680 is among the wings')
-#define LEVSEL_FONT_VRAM    ART_VRAM(LEVSEL_FONT_TILE)
-#define LEVSEL_SNDTEST_COL  18   // where the sound number goes in the Sound Select line (the prototype's $EDB0)
-#define LEVSEL_HOLD_DELAY   0xB
-
-// The menu's text (Level_Select_Text): each line 27 characters. The zones' names are those of the prototype's time
-static const char *const levsel_text[LEVSEL_ROWS] = {
-    "GREEN HILL ZONE     STAGE 0",
-    "                    STAGE 1",
-    "WOOD ZONE           STAGE 0",
-    "                    STAGE 1",
-    "SAND SHOWER ZONE    STAGE 0",
-    "                    STAGE 1",
-    "METROPOLIS ZONE     STAGE 0",
-    "                    STAGE 1",
-    "                    STAGE 2",
-    "HILL TOP ZONE       STAGE 0",
-    "                    STAGE 1",
-    "HIDDEN PALACE ZONE  STAGE 0",
-    "                    STAGE 1",
-    "OIL OCEAN ZONE      STAGE 0",
-    "                    STAGE 1",
-    "DUST HILL ZONE      STAGE 0",
-    "                    STAGE 1",
-    "CASINO NIGHT ZONE   STAGE 0",
-    "                    STAGE 1",
-    "CHEMICAL PLANT ZONE STAGE 0",
-    "                    STAGE 1",
-    "GENOCIDE CITY ZONE  STAGE 0",
-    "                    STAGE 1",
-    "NEO GREEN HILL ZONE STAGE 0",
-    "                    STAGE 1",
-    "SKY CHASE ZONE      STAGE 0",
-    "SKY FORTRESS ZONE   STAGE 0",
-    "DEATH EGG ZONE      STAGE 0",
-    "SPECIAL STAGE",
-    "SOUND SELECT",
-};
-
-// The level each of the first 28 lines starts (LevelSelect_Order), in the prototype's zone ids, which are the zone slots (ZoneIds.h). A zone that has not been built yet (it has no header in the level
-// tables) does nothing when picked, as an unused entry of the prototype's order does
-static const uint16_t levsel_levels[LEVSEL_SS_ROW] = {
-    LEVEL_ID(0x00, 0), LEVEL_ID(0x00, 1),
-    LEVEL_ID(0x02, 0), LEVEL_ID(0x02, 1),
-    LEVEL_ID(0x03, 0), LEVEL_ID(0x03, 1),
-    LEVEL_ID(0x04, 0), LEVEL_ID(0x04, 1), LEVEL_ID(0x04, 2),
-    LEVEL_ID(0x07, 0), LEVEL_ID(0x07, 1),
-    LEVEL_ID(0x08, 0), LEVEL_ID(0x08, 1),
-    LEVEL_ID(0x0A, 0), LEVEL_ID(0x0A, 1),
-    LEVEL_ID(0x0B, 0), LEVEL_ID(0x0B, 1),
-    LEVEL_ID(0x0C, 0), LEVEL_ID(0x0C, 1),
-    LEVEL_ID(0x0D, 0), LEVEL_ID(0x0D, 1),
-    LEVEL_ID(0x09, 0), LEVEL_ID(0x09, 1),
-    LEVEL_ID(0x0F, 0), LEVEL_ID(0x0F, 1),
-    LEVEL_ID(0x10, 0),
-    LEVEL_ID(0x06, 0), // Sky Fortress: one act
-    LEVEL_ID(0x0E, 0), // Death Egg: one act (not built yet: the slot is empty and it does nothing when picked)
-};
-
-static bool LevSelZoneBuilt(uint16_t level) {
-    return LEVEL_ZONE(level) < ZoneId_Num && level_load_block[LEVEL_ZONE(level)][LEVEL_ACT(level)].art[0] != NULL;
-}
-
-// The sound test number (0-$7F, shown as $80-$FF) and the highlighted line persist across visits, as the prototype's RAM variables do
-static int levsel_sound = 0;
-static int levsel_item = 0;
-
 // What the sound test plays for the id $80+value: the music ($81-$9F, the final game's) and effects ($A0-$F8, the final game's, Sonic 1's versions and Tails' flight) are the sounds of this port's ids; the rest is silence
 uint8_t SoundTest_Id(int value) {
     int id = 0x80 + value;
@@ -123,145 +46,18 @@ uint8_t SoundTest_Id(int value) {
     return 0;
 }
 
-// The tile of a character: the digits as they are, then Y and Z, then A to X (the font sheet's order)
-static uint8_t LevSelCharToTile(char c) {
-    if (c >= '0' && c <= '9') return (uint8_t)(c - '0');
-    if (c == 'Y') return 0x0F;
-    if (c == 'Z') return 0x10;
-    if (c >= 'A' && c <= 'X') return (uint8_t)(0x11 + (c - 'A'));
-    return 0xFF; // a blank
-}
-
-static void LevSelWord(size_t address, uint8_t tile, int palette) {
-    if (tile == 0xFF) // a space: the cell keeps what the title drew there
-        return;
-    uint16_t word = TILE_MAP(1, palette, 0, 0, (LEVSEL_FONT_TILE + tile));
-    Plane_Put(&screen1p.plane_a, address, word);
-}
-
-// What the title drew under the text (the cells of a line's spaces keep it), kept to put back when the list scrolls, and the first line shown
-static uint16_t levsel_backdrop[LEVSEL_VISIBLE][LEVSEL_LINE_LENGTH];
-static int levsel_top = 0;
-
-static void LevSelBackdropSave(void) {
-    for (int row = 0; row < LEVSEL_VISIBLE; row++)
-        for (int col = 0; col < LEVSEL_LINE_LENGTH; col++)
-            levsel_backdrop[row][col] = Plane_Word(&screen1p.plane_a, LEVSEL_VRAM_MAIN + (row * PLANE_ROW_BYTES) + (col << 1));
-}
-
-// Draws the lines that fit in the normal palette, the highlighted one in the yellow one, and the sound number; the list scrolls to keep the highlight in view
-static void LevSelTextLoad(int selected) {
-    if (selected < levsel_top)
-        levsel_top = selected;
-    if (selected >= levsel_top + LEVSEL_VISIBLE)
-        levsel_top = selected - LEVSEL_VISIBLE + 1;
-    if (levsel_top > LEVSEL_ROWS - LEVSEL_VISIBLE)
-        levsel_top = LEVSEL_ROWS - LEVSEL_VISIBLE;
-    for (int line = 0; line < LEVSEL_VISIBLE; line++) {
-        const int row = levsel_top + line;
-        const char *text = levsel_text[row];
-        size_t len = strlen(text);
-        for (int col = 0; col < LEVSEL_LINE_LENGTH; col++) {
-            const size_t at = LEVSEL_VRAM_MAIN + (line * PLANE_ROW_BYTES) + (col << 1);
-            Plane_Put(&screen1p.plane_a, at, levsel_backdrop[line][col]);
-            LevSelWord(at, LevSelCharToTile(col < (int)len ? text[col] : ' '), row == selected ? 2 : 0);
-        }
-    }
-    const int sound_line = LEVSEL_SNDTEST_ROW - levsel_top;
-    if (sound_line >= 0 && sound_line < LEVSEL_VISIBLE) {
-        int shown = 0x80 + levsel_sound;
-        int palette = selected == LEVSEL_SNDTEST_ROW ? 2 : 0;
-        for (int nibble = 1; nibble >= 0; nibble--) {
-            int d = (shown >> (nibble * 4)) & 0xF;
-            LevSelWord(LEVSEL_VRAM_MAIN + (sound_line * PLANE_ROW_BYTES) + ((LEVSEL_SNDTEST_COL + 1 - nibble) << 1), (uint8_t)(d < 10 ? d : d + 7), palette);
-        }
-    }
-}
-
 static void PlayLevel(bool new_game);
 
-// Up and Down move the highlight (with a repeat while held), Left and Right step the sound number on the Sound Select line (A adds $10), and B, C, A or Start picks (B starts the level in
-// the split screen, on the Sound Select line they all play the sound but A, which only changes the number)
+// The level select (GM_LevelSelect.c): Start picks a level (with B held, in the split screen), the special stage, or the sound test's back to the SEGA screen
 static void LevelSelect(void) {
-    PlayMusic(mus_Menu);
-
-    // The menu stands on the title screen as it is (its wings, emblem, Sonic and Tails on plane A and in the sprites), over an empty plane B (its landscape goes, the backdrop stays the title's: colour 0 of line 2, blue).
-    // The text is drawn on plane A over the art, leaving the cells of its spaces as they are, in white (line 0, colour 15 of the level select palette) and, when highlighted, yellow (line 2)
-    Plane_Fill(&screen1p.plane_b, 0, (PLANE_WIDTH * PLANE_HEIGHT) << 1, 0);
-    PalLoad2(PalId_LevelSel); // (the whole picture in the level select's brown tones, as the prototype shows it)
-
-    memset(hscroll_buffer, 0, sizeof(hscroll_buffer));
-    Viewport_UploadHScroll(&screen1p, hscroll_buffer, sizeof(hscroll_buffer));
-
-    VDP_SeekVRAM(LEVSEL_FONT_VRAM);
-    // 41 tiles * 32 bytes/tile -- can't sizeof() an extern array with no declared size, and Text.h itself is only ever #included once, from Game.c (re-including it here would double-define
-    // Art_Text at link time). The resource pipeline appends 8 bytes of padding after the real data, which is harmless to also write here.
-    VDP_WriteVRAM(Art_Text, 41 * 32);
-
-    LevSelBackdropSave();
-    levsel_top = 0;
-    int item = levsel_item;
-    int hold_timer = 0;
-    LevSelTextLoad(item);
-
-    for (;;) {
-        vbla_routine = 0x04;
-        WaitForVBla();
-
-        // LevelSelect_Controls
-        bool redraw = false;
-        if ((jpad1_press1 & (JPAD_UP | JPAD_DOWN)) || --hold_timer < 0) {
-            hold_timer = LEVSEL_HOLD_DELAY;
-            uint8_t held = jpad1_hold1 & (JPAD_UP | JPAD_DOWN);
-            if (held) {
-                if (held & JPAD_UP)
-                    item = item > 0 ? item - 1 : LEVSEL_ROWS - 1;
-                if (held & JPAD_DOWN)
-                    item = item < LEVSEL_ROWS - 1 ? item + 1 : 0;
-                redraw = true;
-            }
-        }
-        if (!redraw && item == LEVSEL_SNDTEST_ROW) { // (a frame that moved the highlight does not also step the number)
-            int value = levsel_sound;
-            if (jpad1_press1 & JPAD_LEFT)
-                value = value > 0 ? value - 1 : 0x7F;
-            if (jpad1_press1 & JPAD_RIGHT)
-                value = value < 0x7F ? value + 1 : 0;
-            if (jpad1_press1 & JPAD_A)
-                value = (value + 0x10) & 0x7F;
-            levsel_sound = value;
-            redraw = true;
-        }
-        if (redraw)
-            LevSelTextLoad(item);
-
-        RunPLC();
-        if (plc_buffer[0].art != NULL)
-            continue; // (not while art is still loading)
-        if (!(jpad1_press1 & (JPAD_A | JPAD_B | JPAD_C | JPAD_START)))
-            continue;
-
-        two_player_mode = (jpad1_hold1 & JPAD_B) != 0;
-        true_two_player = two_player_mode; // (the level select's B is the versus: a second human plays Tails)
-        if (item == LEVSEL_SNDTEST_ROW) {
-            if (jpad1_press1 & JPAD_A)
-                continue; // (A only changes the number)
-            uint8_t id = SoundTest_Id(levsel_sound);
-            if (id >= mus_VsResults && id <= mus_Drowning || id == mus_MzSwap)
-                PlayMusic(id);
-            else if (id != 0)
-                PlaySound(id);
-            continue;
-        }
-        if (item == LEVSEL_SS_ROW)
-            break;
-        if (LevSelZoneBuilt(levsel_levels[item]))
-            break;
+    const LevelSelectPick pick = LevelSelect_Run();
+    if (pick.kind == LevelSelect_Sega) {
+        gamemode = GameMode_Sega;
+        return;
     }
-
-    levsel_item = item; // remembered for the next visit
-
-    if (item == LEVSEL_SS_ROW) {
+    two_player_mode = pick.split;
+    true_two_player = two_player_mode; // (the level select's B is the versus: a second human plays Tails)
+    if (pick.kind == LevelSelect_Special) {
         gamemode = GameMode_Special;
         level_id = 0;
         // (last_special and the emeralds are left alone, like the original: the stage number moves on with each
@@ -272,7 +68,7 @@ static void LevelSelect(void) {
         score = 0;
         score_life = 5000;
     } else {
-        level_id = levsel_levels[item];
+        level_id = pick.level;
         PlayLevel(false);
     }
 }
