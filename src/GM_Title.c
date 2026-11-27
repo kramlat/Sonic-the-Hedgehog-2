@@ -443,11 +443,13 @@ static void CreditCardText(uint8_t *map, int col, int line, const char *text) {
             codes[n++] = 0;
         else if (*text == 'I')
             codes[n++] = 0x3C;
+        else if (*text == '\'')
+            codes[n++] = 0x38; // (the double quote: the intro's charset puts '"' on $38)
         else if (*text >= 'A' && *text <= 'Z') {
             codes[n++] = left[*text - '@'];
             codes[n++] = right[*text - 'A'];
         } else
-            codes[n++] = (uint8_t)*text; // (the quotes are their own tile, by their character code)
+            codes[n++] = (uint8_t)*text;
         for (int i = 0; i < n; i++, col++) {
             const unsigned word = 0x500 + codes[i];
             map[(line * 40 + col) * 2] = (uint8_t)(word >> 8);
