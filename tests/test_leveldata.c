@@ -232,8 +232,7 @@ static void LevelData_TheLayoutHeaderSaysHowBigTheLevelIs(void) {
     LoadLevelLayout();
     CHECK_EQ(level_layout_size.fg_width, 83);
     CHECK_EQ(level_layout_size.fg_rows, 16);
-    CHECK_EQ(level_layout_size.bg_width, 60);
-    CHECK_EQ(level_layout_size.bg_rows, 16);
+    CHECK(level_layout_size.bg_width > 0 && level_layout_size.bg_rows > 0); // (a background's own size, whatever it was cut down to: the tools' layouts are theirs to change)
     level_id = LEVEL_ID(ZoneId_HTZ, 2); // (the null level)
     LoadLevelLayout();
     CHECK_EQ(level_layout_size.fg_width, 0);
@@ -243,7 +242,7 @@ static void LevelData_TheLayoutHeaderSaysHowBigTheLevelIs(void) {
 
 // Each level's layout planes are exactly as big as its file says and read the same as the old fixed buffer did (the unpacked file, 16 rows of 128 chunks, 0 where the level has nothing)
 static void LevelLayout_PlanesAreExactAndReadLikeTheFixedBuffer(void) {
-    static uint8_t file[0x4000], reference[LEVEL_LAYOUT_ROWS * 0x100];
+    static uint8_t file[0x4000], reference[LEVEL_LAYOUT_MAX_ROWS * 0x100];
     int levels = 0, mismatches = 0;
     for (int zone = 0; zone < ZoneId_Num; zone++)
         for (int act = 0; act < 4; act++) {
@@ -251,16 +250,19 @@ static void LevelLayout_PlanesAreExactAndReadLikeTheFixedBuffer(void) {
             if (blob == NULL)
                 continue;
             LevelLayoutSize size;
-            CHECK(LevelLayout_Unpack(file, KosDec(blob, file) - file, reference, LEVEL_LAYOUT_ROWS, &size));
+            CHECK(LevelLayout_Unpack(file, KosDec(blob, file) - file, reference, LEVEL_LAYOUT_MAX_ROWS, &size));
             CHECK(LevelLayout_LoadKosinski(blob));
             CHECK_EQ(level_layout_fg.width, size.fg_width);
             CHECK_EQ(level_layout_fg.rows, size.fg_rows);
             CHECK_EQ(level_layout_bg.width, size.bg_width);
             CHECK_EQ(level_layout_bg.rows, size.bg_rows);
-            for (int y = 0; y < LEVEL_LAYOUT_ROWS; y++)
+            // (inside each plane's own size: past it a wrapping background repeats, a plain one is empty, and a tall level has rows the fixed buffer never held)
+            for (int y = 0; y < LEVEL_LAYOUT_MAX_ROWS; y++)
                 for (int x = 0; x < LEVEL_LAYOUT_COLS; x++) {
-                    mismatches += LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_FG, x, y) != reference[y * 0x100 + x];
-                    mismatches += LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_BG, x, y) != reference[y * 0x100 + 0x80 + x];
+                    if (x < size.fg_width && y < size.fg_rows)
+                        mismatches += LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_FG, x, y) != reference[y * 0x100 + x];
+                    if (x < size.bg_width && y < size.bg_rows)
+                        mismatches += LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_BG, x, y) != reference[y * 0x100 + 0x80 + x];
                 }
             levels++;
         }
@@ -360,29 +362,63 @@ static void LevelLayout_ASmallBackgroundWrapsAtItsOwnSize(void) {
         for (int col = 0; col < 5; col++)
             buffer[row * 0x100 + 0x80 + col] = (uint8_t)(10 * row + col + 1);
     buffer[2 * 0x100 + 7] = 99; // (the foreground)
-    const LevelLayoutSize wanted = { 0, 5, 0, 4, true };
+    const LevelLayoutSize wanted = { 0, 5, 0, 4, true, true };
     size_t file_size;
     LevelLayoutSize size;
     uint8_t *file = LevelLayout_PackSized(buffer, LEVEL_LAYOUT_MAX_ROWS, &wanted, &file_size, &size);
     CHECK_EQ(size.bg_width, 5);
     CHECK_EQ(size.bg_rows, 4);
     CHECK(size.bg_wraps);
+    CHECK(size.bg_wraps_y);
     CHECK_EQ(file[2] & 0x80, 0x80); // (bit 15 of the background's width word)
+    CHECK_EQ(file[6] & 0x80, 0x80); // (and of its height word)
     CHECK(LevelLayout_Load(file, file_size));
-    CHECK(level_layout_bg.wraps_own_size);
+    CHECK(level_layout_bg.wraps_x && level_layout_bg.wraps_y);
     CHECK_EQ(level_layout_bg.width, 5);
     CHECK_EQ(level_layout_bg.rows, 4);
     CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_BG, 2, 3), 10 * 3 + 2 + 1);
     CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_BG, 2 + 5 * 7, 3 + 4 * 9), 10 * 3 + 2 + 1); // (and again, any number of times over)
     CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_BG, -3, -1), 10 * 3 + 2 + 1); // (and the other way)
-    CHECK(!level_layout_fg.wraps_own_size);
+    CHECK(!level_layout_fg.wraps_x && !level_layout_fg.wraps_y);
     CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_FG, 7, 2), 99);
     free(file);
     ScrollEngine_ResetLevelMasks();
 }
 
+// Each axis wraps on its own: a background that wraps sideways only repeats along the row and is empty below its last row
+static void LevelLayout_EachAxisWrapsOnItsOwn(void) {
+    static uint8_t buffer[LEVEL_LAYOUT_MAX_ROWS * 0x100];
+    memset(buffer, 0, sizeof(buffer));
+    for (int row = 0; row < 4; row++)
+        for (int col = 0; col < 5; col++)
+            buffer[row * 0x100 + 0x80 + col] = (uint8_t)(10 * row + col + 1);
+    for (int axis = 0; axis < 2; axis++) {
+        const LevelLayoutSize wanted = { 0, 5, 0, 4, axis == 0, axis == 1 };
+        size_t file_size;
+        LevelLayoutSize size;
+        uint8_t *file = LevelLayout_PackSized(buffer, LEVEL_LAYOUT_MAX_ROWS, &wanted, &file_size, &size);
+        CHECK_EQ(size.bg_wraps, axis == 0);
+        CHECK_EQ(size.bg_wraps_y, axis == 1);
+        CHECK(LevelLayout_Load(file, file_size));
+        CHECK_EQ(level_layout_size.bg_wraps, axis == 0);
+        CHECK_EQ(level_layout_size.bg_wraps_y, axis == 1);
+        CHECK_EQ(level_layout_size.bg_rows, 4); // (the flag is not part of the height)
+        CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_BG, 2, 3), 10 * 3 + 2 + 1);
+        if (axis == 0) {
+            CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_BG, 2 + 5 * 7, 3), 10 * 3 + 2 + 1); // (sideways it repeats)
+            CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_BG, 2, 4), 0);                       // (below it, nothing)
+        } else {
+            CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_BG, 2, 3 + 4 * 3), 10 * 3 + 2 + 1); // (up and down it repeats)
+            CHECK_EQ(LevelLayout_Chunk(LEVEL_LAYOUT_PLANE_BG, 5, 3), 0);                       // (to the right, nothing)
+        }
+        free(file);
+        ScrollEngine_ResetLevelMasks();
+    }
+}
+
 void RegisterLevelDataTests(void) {
     RUN_TEST(LevelLayout_ASmallBackgroundWrapsAtItsOwnSize);
+    RUN_TEST(LevelLayout_EachAxisWrapsOnItsOwn);
     RUN_TEST(LevelLayout_ATallLevelLoadsWholeAndWrapsByItsHeight);
     RUN_TEST(LevelData_SecondArtListsLoadWithTheLevelUnlessTheyHitTheCard);
     RUN_TEST(LevelData_TheZoneSlotsAreWhereTheyWereMoved);
