@@ -98,8 +98,9 @@ static void InitSprite(Sst *s) {
     s->render_flags = 0;
 }
 
+// (the final game's masking sprite keeps Sonic and Tails from overlapping the emblem by the VDP's sprite masking, which this engine does not have: its tile would be drawn as a black block. The emblem is in front
+// of the sprites by its priority anyway, so it is not made)
 static void MaskSprite(void) {
-    intro_mask = MakeChild(0xE);
 }
 
 // Start skips the intro to its end state (TitleScreen_SetFinalState): the sprites where they end, the three palette lines, the menu
@@ -203,7 +204,7 @@ static void Obj_Sonic(Sst *self) {
         intro_star = MakeChild(8);
         intro_emblem_top = MakeChild(6);
         PlaySound((uint8_t)(sfx_Jump + 7)); // (the final game's Sparkle, $A7)
-        break;
+        return; // (he is not shown until he moves: his palette is black before that)
     case 2: // fade in and play the music
         if (me->current_frame >= 56) {
             self->routine_secondary += 2;
@@ -211,7 +212,7 @@ static void Obj_Sonic(Sst *self) {
             me->music_playing = true;
             PlayMusic(bgm_Title);
         }
-        break;
+        return;
     case 4: // Sonic's palette
         if (me->current_frame >= 128) {
             self->routine_secondary += 2;
@@ -219,7 +220,7 @@ static void Obj_Sonic(Sst *self) {
             memcpy(dry_palette_dup[0], dry_palette[0], sizeof(dry_palette[0]));
             MaskSprite();
         }
-        break;
+        return;
     case 6: // rising
         Move(self, sonic_positions, 8);
         return;
@@ -403,6 +404,7 @@ void Obj_TitleIntro(Sst *self) {
             self->y_pos.f.u = TI_Y(-112);
             self->anim = 3;
             me->counter = 140;
+            PlaySound((uint8_t)(sfx_Jump + 7)); // (a sparkle too)
             Sst_Draw(self);
             return;
         }

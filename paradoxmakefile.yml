@@ -379,6 +379,7 @@ resources:
   - "S2TitleF/PalBack"
   - "S2TitleF/PalEmblem"
   - "S2TitleF/PalStar"
+  - "S2TitleF/PalText"
   - "S2Sega/Art"       # the SEGA logo of the pre-beta (the final's): GM_Sega.c
   - "S2Sega/Blocks"
   - "S2Sega/Map"
@@ -495,6 +496,7 @@ resources:
   - "Art/TitleFMenu"
   - "Art/TitleFPlayers"
   - "Art/TitleFFont"
+  - "Art/CreditText"
   - "Art/Redz"
   - "Art/Rhinobot"
   - "Art/Crawlton"
