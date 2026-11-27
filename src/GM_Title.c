@@ -306,13 +306,13 @@ static bool TitleCheatStep(uint8_t *progress, const uint8_t *sequence, uint8_t l
 }
 
 // Title screen demo list
-// (the pre-beta's Demo_Mode_Level_Array: Chemical Plant, Emerald Hill, Casino Night, Hill Top; Nick Arcade's third was Hidden Palace, which the pre-beta has taken out: its demo's data is the same, the
+// (the final game's DemoLevels, in order: Emerald Hill (the split screen versus), Chemical Plant, Aquatic Ruin, Casino Night; the pre-beta's were Chemical Plant, Emerald Hill, Casino Night, Hill Top; Nick Arcade's third was Hidden Palace, which the pre-beta has taken out: its demo's data is the same, the
 // recording of the third is Casino Night's now)
 static const uint16_t title_demos[] = {
+    LEVEL_ID(ZoneId_EHZ, 0), // (the split screen versus)
     LEVEL_ID(ZoneId_CPZ, 0),
-    LEVEL_ID(ZoneId_EHZ, 0),
+    LEVEL_ID(ZoneId_ARZ, 0),
     LEVEL_ID(ZoneId_CNZ, 0),
-    LEVEL_ID(ZoneId_HTZ, 0),
 };
 
 // Japanese credits

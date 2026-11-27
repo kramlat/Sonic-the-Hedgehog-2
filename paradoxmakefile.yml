@@ -404,6 +404,11 @@ resources:
   - "Demo/NAHPZ"
   - "Demo/NAHTZ"
   - "Demo/NASS"
+  - "Demo/FinalEHZ"   # the final game's attract mode demos (tools/import_s2final_demos.pl)
+  - "Demo/FinalEHZTails"
+  - "Demo/FinalCPZ"
+  - "Demo/FinalARZ"
+  - "Demo/FinalCNZ"
   - "Animation/Signpost"
   - "Animation/BossEHZ"
   - "Animation/BossEHZParts"

@@ -25,6 +25,11 @@ uint8_t btn_pushtime2;
 #include "Resource/Demo/NASS.h"
 
 #include "Resource/Demo/SWEHZTails.h"
+#include "Resource/Demo/FinalEHZ.h"
+#include "Resource/Demo/FinalEHZTails.h"
+#include "Resource/Demo/FinalCPZ.h"
+#include "Resource/Demo/FinalARZ.h"
+#include "Resource/Demo/FinalCNZ.h"
 #include "Resource/Demo/EndingGHZ1.h"
 #include "Resource/Demo/EndingGHZ2.h"
 #include "Resource/Demo/EndingLZ.h"
@@ -37,8 +42,8 @@ uint8_t btn_pushtime2;
 // (every zone slot has one, since the level loader reads the demo's first bytes even when no demo plays: the slots without a demo of their own of the prototypes have Emerald Hill's)
 // Nick Arcade's attract-mode demos, by zone slot (the same inputs it plays back in the same levels; its Emerald Hill demo was a two-player one, whose second pad moved Tails: here only Sonic's side)
 const uint8_t* intro_demo_ptr[ZoneId_Num] = {
-    [0x00] = Demo_NAEHZ, [0x01] = Demo_NAEHZ, [0x02] = Demo_NAEHZ, [0x03] = Demo_NAEHZ, [0x04] = Demo_NAEHZ, [0x05] = Demo_NAEHZ, [0x06] = Demo_NAEHZ, [0x07] = Demo_NAHTZ,
-    [0x08] = Demo_NAHPZ, [0x09] = Demo_NAEHZ, [0x0A] = Demo_NAEHZ, [0x0B] = Demo_NAEHZ, [0x0C] = Demo_NAHPZ, [0x0D] = Demo_NACPZ, [0x0E] = Demo_NAEHZ, [0x0F] = Demo_NAEHZ, [0x10] = Demo_NAEHZ,
+    [0x00] = Demo_FinalEHZ, [0x01] = Demo_NAEHZ, [0x02] = Demo_NAEHZ, [0x03] = Demo_NAEHZ, [0x04] = Demo_NAEHZ, [0x05] = Demo_NAEHZ, [0x06] = Demo_NAEHZ, [0x07] = Demo_NAHTZ,
+    [0x08] = Demo_NAHPZ, [0x09] = Demo_NAEHZ, [0x0A] = Demo_NAEHZ, [0x0B] = Demo_NAEHZ, [0x0C] = Demo_FinalCNZ, [0x0D] = Demo_FinalCPZ, [0x0E] = Demo_NAEHZ, [0x0F] = Demo_FinalARZ, [0x10] = Demo_NAEHZ,
     [ZoneId_SS] = Demo_NASS, // (the special stage's, where Sonic 1 has it at index 7: GM_Special.c names it by ZoneId_SS)
 };
 
@@ -288,9 +293,9 @@ void MoveSonicInDemo(void) {
     if (demo > 0 && two_player_mode && !cli_demo_override && LEVEL_ZONE(level_id) == ZoneId_EHZ) {
         if (btn_pushtime1 == 0 && btn_pushtime2 == demo_data[1] - 1) { // (the start of the demo: Sonic's has not moved on yet)
             tails_demo_pos = 0;
-            tails_demo_time = Demo_SWEHZTails[1] - 1;
+            tails_demo_time = Demo_FinalEHZTails[1] - 1;
         }
-        const uint8_t *tails = Demo_SWEHZTails + tails_demo_pos;
+        const uint8_t *tails = Demo_FinalEHZTails + tails_demo_pos;
         jpad2_hold = tails[0];
         jpad2_press = tails[0] & (uint8_t)~tails_demo_last;
         tails_demo_last = tails[0];

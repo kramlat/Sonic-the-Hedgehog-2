@@ -27,8 +27,8 @@ static void Demo_TailsPlaysPadTwoInTheEmeraldHillDemo(void) {
             break;
         zero_frames++;
     }
-    CHECK_EQ(zero_frames, 0x46);          // (the first record lasts its duration byte: the counter starts one less; the others last their byte + 1)
-    CHECK_EQ(jpad2_hold, 0x08);           // (then right: $081E)
+    CHECK_EQ(zero_frames, 0x3B);          // (the final game's Tails demo: $3C frames idle; the first record lasts its duration byte: the counter starts one less; the others last their byte + 1)
+    CHECK_EQ(jpad2_hold, 0x08);           // (then right: $0810)
     CHECK_EQ(jpad2_press, 0x08);
     int right_frames = 1;
     for (;;) {
@@ -37,8 +37,8 @@ static void Demo_TailsPlaysPadTwoInTheEmeraldHillDemo(void) {
             break;
         right_frames++;
     }
-    CHECK_EQ(right_frames, 0x1E + 1);
-    CHECK_EQ(jpad2_hold, 0x28);           // (and then right with C: $280A)
+    CHECK_EQ(right_frames, 0x0F + 1);
+    CHECK_EQ(jpad2_hold, 0x09);           // (and then up and right: $0943)
 }
 
 static void Demo_PadTwoIsLeftAloneInOtherZonesAndInOnePlayerMode(void) {
