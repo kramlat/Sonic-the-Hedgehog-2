@@ -33,19 +33,6 @@ extern const uint8_t Art_Text[];
 // Title screen state
 uint8_t demo_num;
 
-// ===========================================================================
-// What the sound test plays for the id $80+value: the music ($81-$9F, the final game's) and effects ($A0-$F8, the final game's, Sonic 1's versions and Tails' flight) are the sounds of this port's ids; the rest is silence
-uint8_t SoundTest_Id(int value) {
-    int id = 0x80 + value;
-    if (id >= 0x81 && id <= 0x9F)
-        return (uint8_t)(mus_VsResults + (id - 0x81));
-    if (id >= 0xA0 && id <= 0xF8) // (the final game's effects to $F0, Sonic 1's versions $F1-$F5, then Tails' flight: $F6-$F8)
-        return (uint8_t)(sfx_Jump + (id - 0xA0));
-    if (id == 0xF9)
-        return mus_MzSwap; // (the port's own song, after the effects)
-    return 0;
-}
-
 static void PlayLevel(bool new_game);
 
 // The level select (GM_LevelSelect.c): Start picks a level (with B held, in the split screen), the special stage, or the sound test's back to the SEGA screen

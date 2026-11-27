@@ -22,7 +22,6 @@ uint8_t options_player = 0;
 uint8_t options_vs_items = 0;
 static int sound_test = 0; // ($00-$FF: the sound id itself, as the number shows it)
 
-uint8_t SoundTest_Id(int value); // (GM_Title.c: what the sound test plays for the number)
 
 #define BOX_W 22
 #define BOX_H 8
@@ -90,11 +89,11 @@ static void DrawAll(int current) {
 }
 
 static void PlaySoundTest(void) {
-    const uint8_t id = sound_test >= 0x80 ? SoundTest_Id(sound_test - 0x80) : 0; // ($00-$7F are no sound)
+    const int id = sound_test; // (the number is the engine's own sound id: music from 01, effects after it, silence past the last one)
     if (id >= mus_VsResults && id <= mus_Drowning || id == mus_MzSwap)
-        PlayMusic(id);
-    else if (id != 0)
-        PlaySound(id);
+        PlayMusic((uint8_t)id);
+    else if (id >= sfx_Jump && id <= SOUND_ID_LAST)
+        PlaySound((uint8_t)id);
 }
 
 OptionsResult Options_Run(void) {
