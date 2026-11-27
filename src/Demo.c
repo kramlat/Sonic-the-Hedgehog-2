@@ -290,7 +290,7 @@ void MoveSonicInDemo(void) {
         demo_data = intro_demo_ptr[(gamemode == GameMode_Special) ? ZoneId_SS : LEVEL_ZONE(level_id)];
 
     // The Simon Wai prototype's Emerald Hill demo is a two-player one: Tails plays pad 2 from a demo of his own (Demo_Tails_Ghz) -- a recorded demo of the split screen has no second pad
-    if (demo > 0 && two_player_mode && !cli_demo_override && LEVEL_ZONE(level_id) == ZoneId_EHZ) {
+    if (demo > 0 && true_two_player && !cli_demo_override && LEVEL_ZONE(level_id) == ZoneId_EHZ) {
         if (btn_pushtime1 == 0 && btn_pushtime2 == demo_data[1] - 1) { // (the start of the demo: Sonic's has not moved on yet)
             tails_demo_pos = 0;
             tails_demo_time = Demo_FinalEHZTails[1] - 1;

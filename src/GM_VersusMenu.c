@@ -2,6 +2,7 @@
 #include "GM_VersusMenu.h"
 #include "Constants.h"
 #include "Sound.h"
+#include "GM_Options.h"
 #include "Game.h"
 #include "Level.h"
 #include "LevelScroll.h"
@@ -402,6 +403,7 @@ bool VersusMenu_Run(void) {
     chose_special_stage = false;
     chose_local = false;
     hud_player_two = false;
+    versus_guest = 0;
     EnterScreens();
     PlayMusic(mus_Menu);
     PaletteFadeIn();
@@ -409,6 +411,7 @@ bool VersusMenu_Run(void) {
     for (;;) {
         const SessionChoice choice = SessionMenu();
         hud_player_two = false;
+        versus_guest = 0;
         if (choice == Session_Back)
             break;
         if (choice == Session_Local) {
@@ -440,7 +443,8 @@ bool VersusMenu_Run(void) {
                 continue;
             }
             wait = WaitFor(net, NETPLAY_READY, SEARCH_FRAMES + CONNECT_FRAMES, S2Menu_TwoPGuestWait, NULL);
-            hud_player_two = true; // (the guest is the second player: his picture has Miles' counter)
+            hud_player_two = true;
+            versus_guest = 1; // (the guest is the second player: his picture has Miles' counter)
         }
         if (wait == Wait_Done && choice == Session_Host) {
             // connected: the host picks the zone, the guest waits for it (the start message), then both load

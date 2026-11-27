@@ -51,7 +51,7 @@ static void StartSpecial(void) { // the next special stage of the match: the sta
 }
 
 void VersusMatch_LevelStart(void) {
-    if (two_player_mode || true_two_player) { // (separate counters for each player: the split screen's and the versus')
+    if (true_two_player) { // (the versus: separate counters for each player; only its flag starts it, not the split screen's)
         VsStats_Begin();
         return;
     }

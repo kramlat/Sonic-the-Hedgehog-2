@@ -5,6 +5,7 @@
 #include "VersusStats.h"
 #include "VersusMatch.h"
 extern uint8_t two_player_mode;
+extern uint8_t true_two_player;
 #include <string.h>
 #include "HUD.h"
 #include "Object/HUD.h"
@@ -133,7 +134,8 @@ static void MatchShow(const VsFlow *f, VsPage page, const VsPlayerStats *p1, con
 }
 
 static void VsMatch_TheActsResultsHaveBothPlayersScoresAndLeadToTheSecondAct(void) {
-    two_player_mode = 1;
+    two_player_mode = 1; // (a split screen game: both flags are set; the versus stuff follows true_two_player)
+    true_two_player = 1;
     level_id = LEVEL_ID(ZoneId_EHZ, 0);
     restart = 0;
     score = 0;
@@ -159,6 +161,7 @@ static void VsMatch_TheActsResultsHaveBothPlayersScoresAndLeadToTheSecondAct(voi
     CHECK(restart);
     versus_match_show_hook = NULL;
     two_player_mode = 0;
+    true_two_player = 0;
     vs_stats_active = false;
     ring_collected_hook = NULL;
     restart = 0;

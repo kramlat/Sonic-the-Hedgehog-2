@@ -23,6 +23,7 @@ extern bool hud_player_two; // (Object/HUD.c)
 
 uint8_t options_player = 0;
 uint8_t options_vs_items = 0;
+uint8_t versus_guest = 0;
 uint8_t options_miles_swap = 0; // (the Miles swap cheat: the lives counters, the end of act card and the like say MILES)
 static int sound_test = 0; // ($00-$FF: the sound id itself, as the number shows it)
 
@@ -101,6 +102,8 @@ static void PlaySoundTest(void) {
 }
 
 uint8_t Options_PlayerChoice(void) {
+    if (versus_guest && true_two_player && !two_player_mode)
+        return 2; // (the guest of an online game is player 2: Tails)
     if (true_two_player || two_player_mode || demo != 0)
         return 0;
     return options_player;

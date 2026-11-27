@@ -166,7 +166,8 @@ static void Tit_StartGame(bool versus);
 
 static void Tit_ChkLevSel(bool level_select_cheat) {
     (void)level_select_cheat;
-    hud_player_two = false; // (a game of this machine alone, unless the versus menus say it is the guest's)
+    hud_player_two = false;
+    versus_guest = 0; // (a game of this machine alone, unless the versus menus say it is the guest's)
     // The alpha asks for A and Start together and nothing else held (its pad byte is exactly $C0); the prototype only looks at A
     if ((jpad1_hold1 & 0xFF) == (JPAD_A | JPAD_START)) {
         LevelSelect();
@@ -458,6 +459,7 @@ void GM_Title(void) {
                     return;
                 }
                 hud_player_two = false;
+                versus_guest = 0;
                 Tit_StartGame(result == Options_StartVersus);
                 return;
             }
