@@ -496,7 +496,7 @@ resources:
   - "Art/TitleFMenu"
   - "Art/TitleFPlayers"
   - "Art/TitleFFont"
-  - "Art/CreditText"
+  - "Art/TitleFCredit"
   - "Art/Redz"
   - "Art/Rhinobot"
   - "Art/Crawlton"

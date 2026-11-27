@@ -328,7 +328,7 @@ static const uint16_t title_demos[] = {
 #include "Resource/Art/TitleFMenu.h"
 #include "Resource/Art/TitleFPlayers.h"
 #include "Resource/Art/TitleFFont.h"
-#include "Resource/Art/CreditText.h"
+#include "Resource/Art/TitleFCredit.h"
 #include "Resource/S2TitleF/PalText.h"
 #include "Resource/S2TitleF/MapBG.h"
 #include "Resource/S2TitleF/MapBack.h"
@@ -434,8 +434,8 @@ static void DrawTitleBackground(void) {
 
 // "SONIC AND MILES "TAILS" PROWER IN": the card the final game shows while the title's art loads. Its letters are two tiles wide (a capital's left half and its right half), the I one; the font's tiles are at $500
 static void CreditCardText(uint8_t *map, int col, int line, const char *text) {
-    static const uint8_t left[27] = { 0x3B, 2, 4, 6, 8, 0xA, 0xC, 0xE, 0x10, 0x12, 0x13, 0x15, 0x17, 0x19, 0x1B, 0x1D, 0x1F, 0x21, 0x23, 0x25, 0x27, 0x29, 0x2B, 0x2D, 0x2F, 0x31, 0x33 };
-    static const uint8_t right[26] = { 3, 5, 7, 9, 0xB, 0xD, 0xF, 0x11, 0x12, 0x14, 0x16, 0x18, 0x1A, 0x1C, 0x1E, 0x20, 0x22, 0x24, 0x26, 0x28, 0x2A, 0x2C, 0x2E, 0x30, 0x32, 0x34 };
+    static const uint8_t left[27] = { 0x3A, 1, 3, 5, 7, 9, 0xB, 0xD, 0xF, 0x11, 0x12, 0x14, 0x16, 0x18, 0x1A, 0x1C, 0x1E, 0x20, 0x22, 0x24, 0x26, 0x28, 0x2A, 0x2C, 0x2E, 0x30, 0x32 };
+    static const uint8_t right[26] = { 2, 4, 6, 8, 0xA, 0xC, 0xE, 0x10, 0x11, 0x13, 0x15, 0x17, 0x19, 0x1B, 0x1D, 0x1F, 0x21, 0x23, 0x25, 0x27, 0x29, 0x2B, 0x2D, 0x2F, 0x31, 0x33 };
     for (; *text != 0; text++) {
         uint8_t codes[2];
         int n = 0;
@@ -464,7 +464,7 @@ static void ShowCreditCard(void) {
     CreditCardText(map, 3, 0xF, "MILES 'TAILS' PROWER");
     CreditCardText(map, 0x12, 0x12, "IN");
     VDP_SeekVRAM(ART_VRAM(0x500));
-    NemDec(Art_CreditText);
+    NemDec(Art_TitleFCredit);
     CopyTilemap(map, &screen1p.plane_a, PLANE_WIDEADD + PLANE_TALLADD, 40, 28);
     memset(dry_palette_dup, 0, sizeof(dry_palette_dup));
     for (int i = 0; i < 16; i++)
