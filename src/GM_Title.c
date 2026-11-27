@@ -549,8 +549,8 @@ void GM_Title(void) {
         for (int i = 0; copyright[i] != 0; i++) {
             const char c = copyright[i];
             const unsigned tile = c == ' ' ? 0 : c == '@' ? 0x680 + 0xB : (c >= '0' && c <= '9') ? 0x680 + (c - '0') : 0x680 + 0xE + (c - 'A');
-            map[(26 * 40 + i) * 2] = (uint8_t)(tile >> 8);
-            map[(26 * 40 + i) * 2 + 1] = (uint8_t)tile;
+            map[(26 * 40 + 28 + i) * 2] = (uint8_t)(tile >> 8);
+            map[(26 * 40 + 28 + i) * 2 + 1] = (uint8_t)tile;
         }
         CopyTilemap(map, &screen1p.plane_a, PLANE_WIDEADD + PLANE_TALLADD, 40, 28);
     }
