@@ -1,5 +1,6 @@
 // Monitors for Sonic 2 (Nick Arcade's objects 26 and 2E): Sonic 1's Monitor.c with Nick Arcade's changes: its items are numbered 1 Sonic, 2 Tails, 4 rings, 5 shoes, 6 shield, 7 invincibility, 3 Eggman (hurts), and 8 and 9, which do nothing as in
 // the prototype (8 shows a "?": the final game's versus monitor that hides and randomizes its item; 9 a spring, where the final's teleporter goes), the icons are mapping frame subtype + 1, and a broken monitor plays animation 10.
+#include "GM_Options.h"
 #include "Object/Monitor.h"
 #include "VersusStats.h"
 #include "SplitScreen.h"
@@ -90,7 +91,7 @@ void Obj_Monitor(Sst *self) {
         // Set collision type and animation
         self->collision_flags = 0x46;
         self->anim = self->subtype; // subtype
-        if (true_two_player)
+        if (true_two_player && options_vs_items)
             self->anim = 9; // (the versus play: every monitor shows the teleport icon and gives a random item)
         // Fallthrough
     case 2: // Solid

@@ -1,6 +1,7 @@
 // Tails (Nick Arcade's objects 02 and 05), made as Sonic Team made him: a copy of Sonic's object (Sonic.c) with the changes Tails needs, and the same copy's quirks. His control is pad 2, which the pre-beta's CPU
 // plays when no real pad 2 has him (Tails_Control: five states, he follows what Sonic did 16 frames before, and when left behind flies in from above); he has no water code of his own to speak of, no debug mode and no
 // carrying flight yet; hurting him loses SONIC'S rings (the copy of the hurt code works on the shared ring count); he does not die from enemies, only from falling below the level, and then he comes back above Sonic.
+#include "GM_Options.h"
 #include "VersusStats.h"
 #include "ScrollEngine.h"
 #include "Standing.h"
@@ -2429,7 +2430,7 @@ void Game_LevelObjects(void) {
     memset(tails, 0, sizeof(*tails));
     memset(SST_TAILS_TAILS, 0, sizeof(Sst));
     // Where the Tornado is (Sky Fortress's start, and Sky Chase) Tails is its pilot, drawn by it, and Death Egg is Sonic's alone (a later build's ending makes no sense with him there): no second character in those three
-    if (LEVEL_ZONE(level_id) != ZoneId_SFZ && LEVEL_ZONE(level_id) != ZoneId_SCZ && LEVEL_ZONE(level_id) != ZoneId_DEZ) {
+    if (LEVEL_ZONE(level_id) != ZoneId_SFZ && LEVEL_ZONE(level_id) != ZoneId_SCZ && LEVEL_ZONE(level_id) != ZoneId_DEZ && !(options_player == 1 && demo == 0 && !true_two_player && !two_player_mode)) { // (the options screen's SONIC ALONE; not in a demo, which was recorded with him)
         tails->code = Obj_Tails;
         tails->x_pos.f.u = player->x_pos.f.u - 0x20;
         tails->y_pos.f.u = player->y_pos.f.u;

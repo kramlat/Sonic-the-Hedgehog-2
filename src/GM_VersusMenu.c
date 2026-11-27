@@ -12,15 +12,13 @@
 #include "Backend/VDP.h"
 #include "Backend/NetPlay.h"
 #include "VersusFlow.h"
+#include "MenuBackground.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
 #include "Object.h"
 #include "Mappings.h"
 
-#include "Resource/S2Menu/MenuFont.h"
 #include "Resource/S2Menu/MenuFrame.h"
-#include "Resource/S2Menu/SonicMiles.h"
-#include "Resource/S2Menu/VsMenuBg.h"
 #include "Resource/S2Menu/TwoPMenu.h"
 #include "Resource/S2Menu/TwoPCode.h"
 #include "Resource/S2Menu/TwoPHostWait.h"
@@ -28,7 +26,6 @@
 #include "Resource/S2Menu/TwoPLoading.h"
 #include "Resource/S2Menu/TwoPRefused.h"
 #include "Resource/S2Menu/TwoPTimeOut.h"
-#include "Resource/S2Palette/VersusMenu.h"
 #include "Resource/S2Menu/VsResultFont.h"
 #include "Resource/S2Menu/VsActRes.h"
 #include "Resource/S2Menu/VsLvlRes.h"
@@ -124,33 +121,6 @@ static size_t Cell(int row, int col) {
 // ---- the screen: the background (plane B, animated by the Sonic and Miles art), a page (plane A) ----
 
 static uint8_t page_map[MAP_W * MAP_H * 2];
-static int anim_index, anim_time;
-
-static void DrawBackground(void) {
-    static uint8_t map[MAP_W * MAP_H * 2];
-    EniDec(S2Menu_VsMenuBg, map, 0x6000); // (palette line 3: its own tiles 1-10 are the animation's)
-    const int left = PLANE_WIDEADD / 2;
-    for (int y = 0; y < PLANE_HEIGHT; y++) {
-        for (int x = 0; x < PLANE_WIDTH; x++) {
-            const int row = (y - (int)(PLANE_TALLADD / PLANE_ROW_BYTES) + MAP_H * 4) % MAP_H;
-            const int col = (((x - left) % 6) + 6) % 6; // (the stripe repeats every 6 cells: the wide screen's sides carry it on)
-            const uint8_t *m = map + ((size_t)row * MAP_W + (size_t)col) * 2;
-            Plane_Put(&screen1p.plane_b, (size_t)y * PLANE_ROW_BYTES + (size_t)x * 2, (uint16_t)((m[0] << 8) | m[1]));
-        }
-    }
-}
-
-// The Sonic and Miles animation: frames of 10 tiles at tile 1 (Menu_Animate: frame 0 for 200 frames, then 1, 2 (6 each), 3 (200), 2, 1)
-static void AnimateBackground(void) {
-    static const uint8_t frame[6] = { 0, 10, 20, 30, 20, 10 };
-    static const uint8_t time[6] = { 0xC7, 5, 5, 0xC7, 5, 5 };
-    if (anim_time-- > 0)
-        return;
-    VDP_SeekVRAM(1 * 32);
-    VDP_WriteVRAM(S2Menu_SonicMiles + (size_t)frame[anim_index] * 32, 10 * 32);
-    anim_time = time[anim_index];
-    anim_index = (anim_index + 1) % 6;
-}
 
 // Draws one of the menu maps on plane A (the page): the map's own words, the blank ones included
 static void DrawScreen(const uint8_t *eni) {
@@ -177,25 +147,16 @@ static void ColourRow(int row, int first, int last, uint16_t line) {
 static void Frame(void) {
     vbla_routine = 0x04;
     WaitForVBla();
-    AnimateBackground();
+    MenuBackground_Animate();
 }
 
 static void EnterScreens(void) {
     ClearScreen();
-    VDP_SetBackgroundColour(0); // (Beta 4's: colour 0 of line 0. The icons' palette goes on line 2, which the title's backdrop used)
-    memset(dry_palette_dup, 0, sizeof(dry_palette_dup));
-    VDP_SeekVRAM(0x0200);
-    NemDec(S2Menu_MenuFont); // (tile $10 on)
+    MenuBackground_LoadCommon(); // (Beta 4's: colour 0 of line 0. The icons' palette goes on line 2, which the title's backdrop used)
     VDP_SeekVRAM(FRAME_TILE * 32);
     NemDec(S2Menu_MenuFrame); // (not at tile $60 as in Beta 4: the emblem of the session screens has those)
-    for (int i = 0; i < 4 * 16; i++) {
-        const uint8_t *p = S2Palette_VersusMenu + (size_t)i * 2;
-        dry_palette_dup[i / 16][i % 16] = (uint16_t)((p[0] << 8) | p[1]);
-    }
-    anim_index = 0;
-    anim_time = 0;
     LoadMenuArt();
-    DrawBackground();
+    MenuBackground_Init();
     scrpos_x.v = 0;
     scrpos_y.v = 0;
     memset(hscroll_buffer, 0, sizeof(hscroll_buffer));
@@ -700,21 +661,10 @@ static void Obj_VsBanner(Sst *self) {
 void VersusResults_Show(const VsFlow *f, VsPage page, const VsPlayerStats *p1, const VsPlayerStats *p2, const uint16_t ss1[3], const uint16_t ss2[3], int round) {
     static const uint8_t *const maps[5] = { S2Menu_VsActRes, S2Menu_VsLvlRes, S2Menu_VsGblRes, S2Menu_VsSSRes, S2Menu_VsAllSS };
     ClearScreen();
-    memset(dry_palette_dup, 0, sizeof(dry_palette_dup));
-    VDP_SetBackgroundColour(0);
-    VDP_SeekVRAM(0x0200);
-    NemDec(S2Menu_MenuFont);
+    MenuBackground_LoadCommon();
     VDP_SeekVRAM(0x0C00);
     NemDec(S2Menu_VsResultFont); // (tile $60 on)
-    for (int i = 0; i < 4 * 16; i++) {
-        const uint8_t *p = S2Palette_VersusMenu + (size_t)i * 2;
-        dry_palette_dup[i / 16][i % 16] = (uint16_t)((p[0] << 8) | p[1]);
-    }
-    anim_index = 0;
-    anim_time = 0;
-    VDP_SeekVRAM(1 * 32);
-    VDP_WriteVRAM(S2Menu_SonicMiles, 10 * 32);
-    DrawBackground();
+    MenuBackground_Init();
     static uint8_t map[MAP_W * MAP_H * 2];
     EniDec(maps[page], map, 0);
     for (int i = 0; i < MAP_W * MAP_H; i++)
@@ -735,7 +685,7 @@ void VersusResults_Show(const VsFlow *f, VsPage page, const VsPlayerStats *p1, c
     for (;;) {
         vbla_routine = 0x0C;
         WaitForVBla();
-        AnimateBackground();
+        MenuBackground_Animate();
         ExecuteObjects();
         BuildSprites(NULL);
         if (jpad1_press1 & JPAD_START)

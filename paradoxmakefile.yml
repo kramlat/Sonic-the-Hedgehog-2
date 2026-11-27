@@ -665,6 +665,8 @@ resources:
   - "S2Palette/LevelIcons"   # the zone icons' palettes, 14 lines of 16 colours (s2b4 LvsIcons.pal)
   - "S2Menu/MenuFont"        # (s2b4) the menu font, Nemesis: $1E-$37 are A-Z, $10-$19 the digits
   - "S2Menu/MenuFrame"
+  - "S2Menu/MenuBox"         # the final options screen: the box with a shadow (Nemesis)
+  - "S2Menu/OptionsMap"      # its 22x8 box map (Enigma)
   - "S2Menu/LevelIcons"
   - "S2Menu/SonicMiles"      # the Sonic and Miles animation (6 frames of 10 tiles, uncompressed)
   - "S2Menu/VsMenuBg"        # the background plane every menu uses (40x28, Enigma)
@@ -791,6 +793,8 @@ sources:
   - "src/GM_Sega.c"
   - "src/GM_Title.c"
   - "src/GM_VersusMenu.c"
+  - "src/MenuBackground.c"
+  - "src/GM_Options.c"
   - "src/Sonic2Collision.c"
   - "src/Sonic2Sound.c"
   - "src/SplitScreen.c"

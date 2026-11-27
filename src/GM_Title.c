@@ -112,7 +112,7 @@ static int levsel_sound = 0;
 static int levsel_item = 0;
 
 // What the sound test plays for the id $80+value: the music ($81-$9F, the final game's) and effects ($A0-$F8, the final game's, Sonic 1's versions and Tails' flight) are the sounds of this port's ids; the rest is silence
-static uint8_t LevSelSoundId(int value) {
+uint8_t SoundTest_Id(int value) {
     int id = 0x80 + value;
     if (id >= 0x81 && id <= 0x9F)
         return (uint8_t)(mus_VsResults + (id - 0x81));
@@ -246,7 +246,7 @@ static void LevelSelect(void) {
         if (item == LEVSEL_SNDTEST_ROW) {
             if (jpad1_press1 & JPAD_A)
                 continue; // (A only changes the number)
-            uint8_t id = LevSelSoundId(levsel_sound);
+            uint8_t id = SoundTest_Id(levsel_sound);
             if (id >= mus_VsResults && id <= mus_Drowning || id == mus_MzSwap)
                 PlayMusic(id);
             else if (id != 0)
@@ -340,6 +340,7 @@ static const uint16_t title_demos[] = {
 #include "Resource/Art/TitleFG.h"
 #include "Resource/Art/TitleSonic.h"
 #include "Object/TitleMenu.h"
+#include "GM_Options.h"
 #include "GM_VersusMenu.h"
 #include "VersusMatch.h"
 #include "Resource/Tilemap/TitleFG.h"
@@ -378,6 +379,8 @@ static void PlayLevel(bool new_game) {
 // (zone slot $0F, Aquatic Ruin in the final game), which is the third zone of the order here as in the final game).
 extern bool hud_player_two; // (Object/HUD.c)
 
+static void Tit_StartGame(bool versus);
+
 static void Tit_ChkLevSel(bool level_select_cheat) {
     (void)level_select_cheat;
     hud_player_two = false; // (a game of this machine alone, unless the versus menus say it is the guest's)
@@ -385,7 +388,13 @@ static void Tit_ChkLevSel(bool level_select_cheat) {
     if ((jpad1_hold1 & 0xFF) == (JPAD_A | JPAD_START)) {
         LevelSelect();
     } else {
-        two_player_mode = TitleMenu_TwoPlayers(); // (the menu's choice: Up and Down turn it over, Start takes it)
+        Tit_StartGame(TitleMenu_TwoPlayers()); // (the menu's choice: Up and Down turn it over, Start takes it)
+    }
+}
+
+static void Tit_StartGame(bool versus) {
+    {
+        two_player_mode = versus;
         true_two_player = two_player_mode;
         level_id = LEVEL_ID(ZoneId_EHZ, 0);
         if (two_player_mode && !VersusMenu_Run()) { // (the session and zone menus; B on the first goes back to the title)
@@ -659,9 +668,15 @@ void GM_Title(void) {
 
         // Start takes the menu's choice once the intro has run (before that, it skips the intro to its end: the objects take that press)
         if ((jpad1_press1 & JPAD_START) && TitleIntro_Complete()) {
-            if (TitleMenu_Choice() == 2) { // OPTIONS: the options menu is not built yet; the choice can be made, and Start on it only blips
-                PlaySound((uint8_t)(sfx_Jump + 8));
-                continue;
+            if (TitleMenu_Choice() == 2) { // OPTIONS: its own screen; Start there takes a 1 player game, the versus, or goes back to the SEGA screen (the sound test's)
+                const OptionsResult result = Options_Run();
+                if (result == Options_Sega) {
+                    gamemode = GameMode_Sega;
+                    return;
+                }
+                hud_player_two = false;
+                Tit_StartGame(result == Options_StartVersus);
+                return;
             }
             Tit_ChkLevSel(level_select_cheat);
             return;
