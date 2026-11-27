@@ -11,6 +11,9 @@ OptionsResult Options_Run(void);
 
 // The choices, kept across visits (the final's Player_option and Two_player_items)
 extern uint8_t options_player;    // 0 Sonic and Tails, 1 Sonic alone, 2 Tails alone
+// What the choice means for the level that is starting: the character selector is ignored (0, Sonic and Tails) in the versus (true_two_player) and in the split screen (two_player_mode), each of them
+// on its own (they are two flags that are not the same: the versus can be online with no split screen, and a level started with B on the level select is both), and in a demo, which was recorded with its characters
+uint8_t Options_PlayerChoice(void);
 extern uint8_t options_vs_items;  // 0 all kinds of items, 1 teleport only
 
 // The name Tails goes by: TAILS, unless the Miles swap cheat is on (the final's Graphics_Flags bit 7 chooses between its two names the same way: its Japanese region has MILES). Nothing sets it yet: the cheat comes later

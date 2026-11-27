@@ -100,6 +100,12 @@ static void PlaySoundTest(void) {
         PlaySound((uint8_t)id);
 }
 
+uint8_t Options_PlayerChoice(void) {
+    if (true_two_player || two_player_mode || demo != 0)
+        return 0;
+    return options_player;
+}
+
 OptionsResult Options_Run(void) {
     PaletteFadeOut();
     ClearScreen();
@@ -162,7 +168,7 @@ void Options_LoadLifeCounter(bool quick) {
     // (as the final adds to the id: the four are in the order MilesLife2P, MilesLife, TailsLife2P, TailsLife, one after the other in PlcIdsExtra.h)
     int plc = PlcId_MilesLife2P;
     if (!two_player_mode && !hud_player_two) {
-        if (options_player != 2 || demo != 0)
+        if (Options_PlayerChoice() != 2)
             return;
         plc += PlcId_MilesLife - PlcId_MilesLife2P;
     }

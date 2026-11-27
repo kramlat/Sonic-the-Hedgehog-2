@@ -2499,7 +2499,7 @@ void Game_LevelObjects(void) {
     Tails_Bind(NULL);
     // Tails alone (the options screen's third choice): his code is the player's, on pad 1, and the sidekick's slot stays empty; where the Tornado is (Sky Fortress's start, Sky Chase) it is flipped: Sonic
     // is its pilot (SFZObjects.c) and Tails stands on the wing. Not in a demo, which was recorded with the other character
-    if (options_player == 2 && demo == 0 && !true_two_player && !two_player_mode) {
+    if (Options_PlayerChoice() == 2) {
         player->code = Obj_Tails;
         Tails_Bind(player);
         SST_TAILS_TAILS->code = Obj_TailsTails;
@@ -2511,7 +2511,7 @@ void Game_LevelObjects(void) {
         return;
     }
     // Where the Tornado is (Sky Fortress's start, and Sky Chase) Tails is its pilot, drawn by it, and Death Egg is Sonic's alone (a later build's ending makes no sense with him there): no second character in those three
-    if (LEVEL_ZONE(level_id) != ZoneId_SFZ && LEVEL_ZONE(level_id) != ZoneId_SCZ && LEVEL_ZONE(level_id) != ZoneId_DEZ && !(options_player != 0 && demo == 0 && !true_two_player && !two_player_mode)) { // (the options screen's SONIC ALONE, or Tails alone (above); not in a demo, which was recorded with him)
+    if (LEVEL_ZONE(level_id) != ZoneId_SFZ && LEVEL_ZONE(level_id) != ZoneId_SCZ && LEVEL_ZONE(level_id) != ZoneId_DEZ && Options_PlayerChoice() == 0) { // (the options screen's Sonic alone or Tails alone (above) leave him out; the versus, the split screen and the demos ignore the choice)
         tails->code = Obj_Tails;
         tails->x_pos.f.u = player->x_pos.f.u - 0x20;
         tails->y_pos.f.u = player->y_pos.f.u;
