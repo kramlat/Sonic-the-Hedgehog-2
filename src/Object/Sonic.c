@@ -382,6 +382,31 @@ void Sonic_LoadGfx(Sst *self) {
     } while (entries-- > 0);
 }
 
+// Sonic the pilot (Tails alone: the Tornado's cockpit has him, and Tails is the player on the wing): the head of his standing frame, the first four tiles of its DPLC, written into his own art window, which nothing else
+// uses then. The plane's mapping draws it there (Tornado_PilotMappings in SFZObjects.c).
+void Sonic_LoadPilotFrame(uint8_t frame) {
+    static uint8_t last = 0xFF;
+    if (frame == last)
+        return;
+    last = frame;
+    const uint8_t *dplc = Mappings_SonicDPLC + (((size_t)frame << 1) < 0x10000 ? ((Mappings_SonicDPLC[frame << 1] << 8) | Mappings_SonicDPLC[(frame << 1) + 1]) : 0);
+    int16_t entries = (int16_t)((dplc[0] << 8) | dplc[1]);
+    dplc += 2;
+    size_t vram = (size_t)ArtTile_Sonic * 0x20;
+    int left = 4; // (the head: a piece of 2 by 2 tiles at the frame's first tile)
+    while (entries-- > 0 && left > 0) {
+        const uint16_t run = (uint16_t)((dplc[0] << 8) | dplc[1]);
+        dplc += 2;
+        int tiles = (int)((run >> 12) & 0xF) + 1;
+        if (tiles > left)
+            tiles = left;
+        VDP_SeekVRAM(vram);
+        VDP_WriteVRAM(Art_Sonic + (size_t)(run & 0xFFF) * 0x20, (size_t)tiles * 0x20);
+        vram += (size_t)tiles * 0x20;
+        left -= tiles;
+    }
+}
+
 // Sonic collision functions
 void Sonic_ResetOnFloor(Sst *self) {
     if (self == player && Tails_IsPlayer()) { // (Tails alone)

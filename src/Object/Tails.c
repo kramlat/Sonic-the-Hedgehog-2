@@ -308,6 +308,8 @@ static void Tails_FlyingAnimation(Sst *self) {
 static void Tails_CheckFlying(Sst *self) {
     if (tails_flying || !(jpad2_press & (JPAD_A | JPAD_B | JPAD_C)))
         return;
+    if (tails_is_player && LEVEL_ZONE(level_id) == ZoneId_SCZ)
+        return; // (Sky Chase: he stands on the wing and jumps; he does not fly off it)
     if (!true_two_player && !tails_is_player && control_counter == 0 && cpu_state != CPU_ASSIST && cpu_state != CPU_CARRY)
         return;
     self->status &= (uint8_t)~(SST_PSTATUS_IN_BALL | SST_PSTATUS_ROLL_JUMP);
@@ -2495,9 +2497,9 @@ void Game_LevelObjects(void) {
     memset(tails, 0, sizeof(*tails));
     memset(SST_TAILS_TAILS, 0, sizeof(Sst));
     Tails_Bind(NULL);
-    // Tails alone (the options screen's third choice): his code is the player's, on pad 1, and the sidekick's slot stays empty. Where the Tornado is, and Death Egg, Sonic stays (his own stages)
-    // and not in a demo, which was recorded with the other character
-    if (options_player == 2 && demo == 0 && !true_two_player && !two_player_mode && LEVEL_ZONE(level_id) != ZoneId_SFZ && LEVEL_ZONE(level_id) != ZoneId_SCZ && LEVEL_ZONE(level_id) != ZoneId_DEZ) {
+    // Tails alone (the options screen's third choice): his code is the player's, on pad 1, and the sidekick's slot stays empty; where the Tornado is (Sky Fortress's start, Sky Chase) it is flipped: Sonic
+    // is its pilot (SFZObjects.c) and Tails stands on the wing. Not in a demo, which was recorded with the other character
+    if (options_player == 2 && demo == 0 && !true_two_player && !two_player_mode) {
         player->code = Obj_Tails;
         Tails_Bind(player);
         SST_TAILS_TAILS->code = Obj_TailsTails;

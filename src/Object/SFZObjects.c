@@ -1,5 +1,6 @@
 // Sky Fortress's objects for Sonic 2: the pre-beta's own ($B0 and up), see SFZObjects.h
 #include "Object/SFZObjects.h"
+#include <string.h>
 #include "SstLoad.h"
 #include "ObjectSst.h"
 #include "Object.h"
@@ -153,6 +154,24 @@ static void Tornado_Scroll(Sst *self) { // (Offset_0x030C20: the level scrolls b
     self->y_pos.f.u = (int16_t)(self->y_pos.f.u + tornado_scroll_y);
 }
 
+// The plane's mappings. With Tails alone the cockpit has Sonic (the player is Tails, on the wing, and his art window is the player's): a copy with the pilot's piece, the fourth of each frame, a 2 by 2 head
+// from Sonic's own art window (tile $780: the plane's tiles start at $500)
+static const uint8_t *Tornado_Mappings(void) {
+    if (!Tails_IsPlayer())
+        return Mappings_SFZTornado;
+    static uint8_t copy[sizeof(Mappings_SFZTornado)];
+    memcpy(copy, Mappings_SFZTornado, sizeof(copy));
+    for (int frame = 0; frame < 4; frame++) {
+        const size_t at = (size_t)((copy[frame * 2] << 8) | copy[frame * 2 + 1]);
+        uint8_t *piece = copy + at + 2 + 3 * 6; // (the fourth piece, after the count: y, size, tile, x)
+        piece[0] = 0xF4;                  // y -12
+        piece[1] = 0x05;                  // 2 by 2
+        piece[2] = 0x02; piece[3] = 0x80; // tile $280
+        piece[4] = 0xFF; piece[5] = 0xD4; // x -44
+    }
+    return copy;
+}
+
 // Tails, the pilot, from his own art: one of his sitting frames every 8 frames, in the pre-beta's order
 static void Tornado_Pilot(Own_SFZTornado *own) {
     static const uint8_t frames[0x18] = { 0x10, 0x10, 0x10, 0x10, 0x01, 0x02, 0x03, 0x02, 0x01, 0x01, 0x10, 0x10, 0x10, 0x10, 0x01, 0x02, 0x03, 0x02, 0x01, 0x01, 0x04, 0x04, 0x01, 0x01 };
@@ -163,6 +182,10 @@ static void Tornado_Pilot(Own_SFZTornado *own) {
     if (index >= 0x18)
         index = 0;
     own->pilot_index = index;
+    if (Tails_IsPlayer()) { // (Tails alone: Tails is on the wing, so the pilot is Sonic, whose head is a single picture)
+        Sonic_LoadPilotFrame(1);
+        return;
+    }
     Tails_LoadPilotFrame(frames[index]);
 }
 
@@ -452,7 +475,7 @@ static void Tornado_Ending(Sst *self) {
         player->ground_vel = 0;
         player->status &= (uint8_t) ~(SST_PSTATUS_IN_AIR | SST_PSTATUS_IN_BALL);
         Tornado_Sit();
-        player->y_radius = 0x13;
+        player->y_radius = Tails_IsPlayer() ? 0xF : 0x13; // (the player's own standing height)
         Tornado_Move(self);
         Sst_Draw(self);
         return;
@@ -491,7 +514,7 @@ void Obj_SFZTornado(Sst *self) {
     if (self->routine <= TornadoRoutine_Ending)
         Tornado_Pilot(own); // (the pilot's frames: the plane's own routines only)
     if (self->routine == TornadoRoutine_Init) {
-        self->mappings = Mappings_SFZTornado;
+        self->mappings = Tornado_Mappings();
         self->art_tile = TILE_MAP(1, 0, 0, 0, 0x500);
         self->render_flags |= SST_RENDER_LEVEL;
         self->priority = 4 * 0x80;

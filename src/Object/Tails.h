@@ -28,6 +28,7 @@ int32_t Tails_Hurt(Sst *self, Sst *src); // (hurts Tails as an object hurts Soni
 
 // Tails alone (the options screen): his code runs in the player's slot (Tails.c), and Sonic.c's entry points that objects call on the player pass to him
 bool Tails_IsPlayer(void);
+void Sonic_LoadPilotFrame(uint8_t frame); // (Sonic.c: his head for the Tornado's cockpit, when Tails is the player)
 int32_t Tails_HurtFrom(Sst *self, int16_t src_x, bool spikes);
 int32_t Tails_KillFrom(Sst *self, bool spikes);
 void Player_GameOver(Sst *self); // (Sonic.c: the fall out of the level's end: a life less, GAME OVER or the level again)
