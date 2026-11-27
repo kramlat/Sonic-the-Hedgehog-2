@@ -59,6 +59,21 @@ void VersusMatch_LevelStart(void) {
     vs_act_over = false;
 }
 
+// The zone menu again, with the zones played so far crossed out: the next zone (or the special stage) starts the same way the match's first did. When none is left the flow itself goes on to the global results
+static void NextZone(void) {
+    VersusMenu_PickZone(&flow);
+    if (VersusMenu_ChoseSpecialStage()) {
+        VsFlow_Choose(&flow, 3);
+        ss4_stage = 7;
+        ss4_versus = true;
+        gamemode = GameMode_Special;
+        return;
+    }
+    VsFlow_Choose(&flow, BoxOf(level_id));
+    flow.act = 0;
+    restart = 1;
+}
+
 static void ShowPage(VsPage page, const VsPlayerStats *p1, const VsPlayerStats *p2) {
     static const uint16_t no_special[3];
     if (versus_match_show_hook != NULL)
@@ -102,6 +117,10 @@ void VersusMatch_Poll(void) {
         StartSpecial();
         return;
     }
+    if (next.what == VSNEXT_ZONE_MENU) {
+        NextZone();
+        return;
+    }
     EndMatch();
 }
 
@@ -121,6 +140,10 @@ void VersusMatch_SpecialDone(const uint16_t ss1[3], const uint16_t ss2[3]) {
     }
     if (next.what == VSNEXT_SPECIAL) {
         StartSpecial();
+        return;
+    }
+    if (next.what == VSNEXT_ZONE_MENU) {
+        NextZone();
         return;
     }
     EndMatch();

@@ -346,15 +346,20 @@ static void DrawPage(int page, int current) {
             DrawBox(page * PER_PAGE + slot, slot, page * PER_PAGE + slot == current);
 }
 
-// Returns true when a zone (or the special stage) was chosen: `level_id` is set (the special stage is SPECIAL_STAGE in it), false when the player backed out (B)
-static bool ZoneMenu(void) {
-    for (int i = 0; i < BOX_COUNT; i++)
-        zone_played[i] = -1;
+// Returns true when a zone (or the special stage) was chosen: `level_id` is set (the special stage is SPECIAL_STAGE in it), false when the player backed out (B). From a match in progress (`played` is its flow)
+// the zones that have been played show the red X and cannot be picked, and B does not back out: the match goes on
+static bool ZoneMenu(const VsFlow *played) {
+    int current = 0;
+    for (int i = 0; i < BOX_COUNT; i++) {
+        zone_played[i] = (played != NULL && VsFlow_ZonePlayed(played, i)) ? 1 : -1;
+        if (zone_played[current] >= 0 && zone_played[i] < 0)
+            current = i; // (the first that is left)
+    }
 
     for (int y = 0; y < MAP_H; y++) // (the session screens' words go)
         for (int x = 0; x < MAP_W; x++)
             Plane_Put(&screen1p.plane_a, Cell(y, x), 0);
-    int current = 0, shown = -1;
+    int shown = -1;
     for (;;) {
         const int page = current / PER_PAGE;
         if (shown != current) {
@@ -372,7 +377,7 @@ static bool ZoneMenu(void) {
             next = page * PER_PAGE + (slot ^ 1);   // (Left and Right: the box beside)
         if (next < BOX_COUNT && next != current)
             current = next;
-        if (press & JPAD_B)
+        if ((press & JPAD_B) && played == NULL)
             return false;
         if (press & JPAD_START) {
             if (zone_played[current] >= 0) {
@@ -415,7 +420,7 @@ bool VersusMenu_Run(void) {
         if (choice == Session_Back)
             break;
         if (choice == Session_Local) {
-            if (ZoneMenu()) {
+            if (ZoneMenu(NULL)) {
                 result = true;
                 chose_local = true; // (the split screen: a session online has the one picture)
                 break;
@@ -448,7 +453,7 @@ bool VersusMenu_Run(void) {
         }
         if (wait == Wait_Done && choice == Session_Host) {
             // connected: the host picks the zone, the guest waits for it (the start message), then both load
-            if (ZoneMenu()) {
+            if (ZoneMenu(NULL)) {
                 const uint8_t data[2] = { (uint8_t)(level_id >> 8), (uint8_t)level_id };
                 NetPlay_StartMatch(net, data, sizeof(data));
                 wait = WaitFor(net, NETPLAY_RUNNING, 60, S2Menu_TwoPLoading, NULL);
@@ -479,6 +484,20 @@ bool VersusMenu_Run(void) {
     return result;
 }
 
+
+// Back to the zone menu in the middle of a match (after a zone's results, while some are left): the played zones have the red X, both players are on the screen, and Start takes the next one
+bool VersusMenu_PickZone(const VsFlow *f) {
+    chose_special_stage = false;
+    EnterScreens();
+    Sst_ResetAll(); // (the level's objects and sprites are gone, as the results pages have it)
+    BuildSprites(NULL);
+    PlayMusic(mus_Menu);
+    PaletteFadeIn();
+    const bool picked = ZoneMenu(f);
+    chose_special_stage = picked && level_id == SPECIAL_STAGE;
+    PaletteFadeOut();
+    return picked;
+}
 
 // ---- the results pages (Beta 4's Versus_Mode_Results: the five maps, the numbers and the words written into the map before it is shown) ----
 
