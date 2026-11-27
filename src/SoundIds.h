@@ -119,16 +119,15 @@ enum SoundID {
 	sfx_MechaSonicBuzz, // $EE
 	sfx_LargeLaser, // $EF
 	sfx_OilSlide, // $F0: the last of the final game's effects
-	// Sonic 1's versions, kept beside the final game's (the final's are at $B5, $C0, $C6 and $CE), and Sonic 1's block push:
+	// Sonic 1's versions, kept beside the final game's (the final's are at $B5, $C0, $C6 and $CE); Sonic 2 has no push sound:
 	sfx_RingS1, // $F1
 	sfx_CasinoBonusS1, // $F2
 	sfx_RingSpillS1, // $F3
 	sfx_RingLeftS1, // $F4
-	sfx_PushS1, // $F5
 	// Tails' flight, kept after all of them (Sonic 3 & Knuckles' sounds):
-	sfx_Grab, // $F6 (Tails grabs Sonic: $4A)
-	sfx_Flying, // $F7 (Tails flying: $BA)
-	sfx_FlyingTired, // $F8 (Tails flying, tired: $BB)
+	sfx_Grab, // $F5 (Tails grabs Sonic: $4A)
+	sfx_Flying, // $F6 (Tails flying: $BA)
+	sfx_FlyingTired, // $F7 (Tails flying, tired: $BB)
 
 	bgm_Fade = 0xF9,
 	sfx_Sega,
