@@ -29,16 +29,26 @@ static void ScrollBlock_EmeraldHillsLinesAreTheOriginals(void) {
                 hash = (hash ^ (uint8_t)((uint16_t)hscroll_buffer[l][k] >> 8)) * 0x100000001b3ull;
             }
     }
-    scrpos_x.f.u = 0x1BC0;
-    for (int f = 0; f < 40; f++) { // (the title's camera runs on by 8 up to $1C00)
-        Deform_TitleScreen();
-        for (int l = 0; l < SCREEN_HEIGHT; l++)
-            for (int k = 0; k < 2; k++) {
-                hash = (hash ^ (uint8_t)hscroll_buffer[l][k]) * 0x100000001b3ull;
-                hash = (hash ^ (uint8_t)((uint16_t)hscroll_buffer[l][k] >> 8)) * 0x100000001b3ull;
-            }
+    CHECK(hash == 0x579bc73e19477bb4ull); // (the title's lines are the final game's now: the next test)
+}
+
+// The title screen's lines (the final game's SwScrl_Title): the camera runs on by one a frame; 160 lines stand still, 32 go with a quarter of the camera (the background only: the foreground stands still),
+// 16 go with it and ripple by 0 to 3, and the last 16 stand still
+static void ScrollBlock_TheTitleLinesAreTheFinalGames(void) {
+    scrpos_x.f.u = -0x280;
+    Deform_TitleScreen(); // (the camera is -$27F: a quarter of its negation is 159)
+    const int top = SCREEN_TALLADD / 2;
+    for (int l = 0; l < SCREEN_HEIGHT; l++)
+        CHECK_EQ(hscroll_buffer[l][0], 0);
+    CHECK_EQ(hscroll_buffer[top + 159][1], 0);
+    CHECK_EQ(hscroll_buffer[top + 160][1], 0x27F >> 2);
+    CHECK_EQ(hscroll_buffer[top + 191][1], 0x27F >> 2);
+    for (int l = 192; l < 208; l++) {
+        const int d = hscroll_buffer[top + l][1] - (0x27F >> 2);
+        CHECK(d >= 0 && d <= 3);
     }
-    CHECK(hash == 0x356e9d00d3e1008bull);
+    CHECK_EQ(hscroll_buffer[top + 208][1], 0);
+    CHECK_EQ(hscroll_buffer[top + 223][1], 0);
 }
 
 // ---- the zones' backgrounds through the scrolling engine ----
@@ -141,4 +151,5 @@ static void ScrollZones_BackgroundsShowWhatTheOriginalsDid(void) {
 void RegisterScrollBlockTests(void) {
     RUN_TEST(ScrollZones_BackgroundsShowWhatTheOriginalsDid);
     RUN_TEST(ScrollBlock_EmeraldHillsLinesAreTheOriginals);
+    RUN_TEST(ScrollBlock_TheTitleLinesAreTheFinalGames);
 }

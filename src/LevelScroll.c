@@ -144,14 +144,29 @@ void Deform_EHZ(void) {
 	EHZ_Lines((int16_t)-scrpos_x.f.u, (int16_t)-scrpos_x.f.u);
 }
 
-// The title screen (Deform_TitleScreen): its camera runs on by 8 a frame up to $1C00, the foreground stands still, and the background has Emerald Hill's lines
+// The title screen (the final game's SwScrl_Title): the camera runs on by one a frame from -$280, and the picture's lines are 160 that stand still, 32 that go with a quarter of the camera, 16 that go with it and ripple, and
+// the last 16 that stand still. The lines are the picture's: the margins of a wider or taller screen stand still above and below it.
 void Deform_TitleScreen(void) {
+	static const int8_t ripple_data[66] = {
+		1, 2, 1, 3, 1, 2, 2, 1, 2, 3, 1, 2, 1, 2, 0, 0, 2, 0, 3, 2, 2, 3, 2, 2, 1, 3, 0, 0, 1, 0, 1, 3,
+		1, 2, 1, 3, 1, 2, 2, 1, 2, 3, 1, 2, 1, 2, 0, 0, 2, 0, 3, 2, 2, 3, 2, 2, 1, 3, 0, 0, 1, 0, 1, 3, 1, 2 };
+	static int16_t ripple;
 	vid_bg_scrpos_y_dup = bg_scrpos_y.f.u;
-	uint16_t x = (uint16_t)scrpos_x.f.u;
-	if (x < 0x1C00)
-		x += 8;
-	scrpos_x.f.u = (int16_t)x;
-	EHZ_Lines(0, (int16_t)-x);
+	scrpos_x.f.u++;
+	const int16_t d2 = (int16_t)(-scrpos_x.f.u) >> 2;
+	if ((frame_count & 7) == 0)
+		ripple--;
+	const int first = ripple & 0x1F;
+	for (int l = 0; l < SCREEN_HEIGHT; l++) {
+		const int line = l - SCREEN_TALLADD2; // (the line of the 224 of the machine's picture)
+		int16_t bg = 0;
+		if (line >= 160 && line < 192)
+			bg = d2;
+		else if (line >= 192 && line < 208)
+			bg = (int16_t)(d2 + ripple_data[first + (line - 192)]);
+		hscroll_buffer[l][0] = 0;
+		hscroll_buffer[l][1] = bg;
+	}
 }
 
 // Chemical Plant (Bg_Scroll_CPz): two backgrounds in one plane: the upper rows (down to the wavy line at row 18 of the 16-line rows) follow the background's X, an eighth of the way across, the rows below

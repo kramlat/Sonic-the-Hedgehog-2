@@ -322,23 +322,24 @@ static const uint16_t title_demos[] = {
 // Credits font
 #include "Resource/Art/CreditsFont.h"
 
-// Sonic 2's title (the Simon Wai prototype's, which is also Nick Arcade's): wings and background art, their maps, the palette
-#include "Resource/S2Title/Art.h"
-#include "Resource/S2Title/SonicTails.h"
-#include "Resource/S2Title/MapWings.h"
-#include "Resource/S2Title/MapBG.h"
-#include "Resource/S2Title/MapBG2.h"
-#include "Resource/S2Title/Palette.h"
+// Sonic 2's title (the final game's: tools/import_s2final_title.pl): the emblem, background and Sonic and Tails art, the menu's blocks and words, the font; the plane maps and the palette
+#include "Resource/Art/TitleFMain.h"
+#include "Resource/Art/TitleFSprites.h"
+#include "Resource/Art/TitleFMenu.h"
+#include "Resource/Art/TitleFPlayers.h"
+#include "Resource/Art/TitleFFont.h"
+#include "Resource/S2TitleF/MapBG.h"
+#include "Resource/S2TitleF/MapBack.h"
+#include "Resource/S2TitleF/MapLogo.h"
+#include "Resource/S2TitleF/PalTitle.h"
+#include "Object/TitleIntro.h"
 
 // Title
 #include "Resource/Art/TitleFG.h"
 #include "Resource/Art/TitleSonic.h"
-#include "Resource/Art/TitleMenu.h"
 #include "Object/TitleMenu.h"
 #include "GM_VersusMenu.h"
 #include "VersusMatch.h"
-void Obj_TitleCharacters(Sst *self); // (Object/TitleCharacters.c)
-#include "Resource/Art/TitleTM.h"
 #include "Resource/Tilemap/TitleFG.h"
 
 // Level stuff
@@ -420,13 +421,13 @@ static void CopyTilemapWrapped(const uint8_t *map, int col, int width, int heigh
     }
 }
 
-// The title's background on plane B, in two 32-cell parts side by side (the level select stands on it too)
+// The title's background on plane B, in two parts side by side: 40 cells and 24 (the level select stands on it too)
 static void DrawTitleBackground(void) {
     static uint8_t map[40 * 28 * 2];
-    EniDec(S2Title_MapBG, map, 0);
-    CopyTilemapWrapped(map, 0, 32, 28);
-    EniDec(S2Title_MapBG2, map, 0);
-    CopyTilemapWrapped(map, 32, 32, 28);
+    EniDec(S2TitleF_MapBG, map, 0x4000); // (palette line 3)
+    CopyTilemapWrapped(map, 0, 40, 28);
+    EniDec(S2TitleF_MapBack, map, 0x4000);
+    CopyTilemapWrapped(map, 40, 24, 28);
 }
 
 // Title gamemode
@@ -460,16 +461,17 @@ void GM_Title(void) {
     ExecuteObjects();
     BuildSprites(NULL);
 
-    // Load title art: the prototype's wings and background at tile 0. Sonic 1's Sonic and "press start" text stay for the objects below until Sonic 2's own
-    // (Sonic and Tails) come.
-    VDP_SeekVRAM(0x0000);
-    NemDec(S2Title_Art);
-    VDP_SeekVRAM(0x4000);
-    NemDec(S2Title_SonicTails);
-    VDP_SeekVRAM(0x5E00); // (tile $2F0: the menu, 1 PLAYER and 2 PLAYER VS)
-    NemDec(Art_TitleMenu);
-    VDP_SeekVRAM(0xA200);
-    NemDec(Art_TitleTM);
+    // Load the title's art (the final game's): the emblem and background at tile 0, Sonic and Tails and the stars at $150, the menu's blocks at $3F2 and its words at $402, the font at $680
+    VDP_SeekVRAM(ART_VRAM(0x000));
+    NemDec(Art_TitleFMain);
+    VDP_SeekVRAM(ART_VRAM(0x150));
+    NemDec(Art_TitleFSprites);
+    VDP_SeekVRAM(ART_VRAM(0x3F2));
+    NemDec(Art_TitleFMenu);
+    VDP_SeekVRAM(ART_VRAM(0x402));
+    NemDec(Art_TitleFPlayers);
+    VDP_SeekVRAM(ART_VRAM(0x680));
+    NemDec(Art_TitleFFont);
 
     // Reset game state
     last_lamp = 0;
@@ -478,41 +480,41 @@ void GM_Title(void) {
     level_id = LEVEL_ID(ZoneId_EHZ, 0);
     pcyc_time = 0;
 
-    // The title has a camera of its own (Deform_TitleScreen runs it on from 0). What ends it (below) counts from where Sonic 1's level start put the player.
-    scrpos_x.f.u = 0;
+    // The title has a camera of its own (Deform_TitleScreen runs it on from -$280)
+    scrpos_x.f.u = -0x280;
     bg_scrpos_y.v = 0;
-    player->x_pos.f.u = 0x50 + SCREEN_WIDEADD2;
+    TitleMenu_Reset();
 
     // Fade out
     PaletteFadeOut();
     ClearScreen();
 
-    // Plane A: the wings (and the emblem); plane B: the background, in two 32-cell parts side by side
+    // Plane A: the emblem and the copyright line; plane B: the background, in two parts side by side
     {
         static uint8_t map[40 * 28 * 2];
-        EniDec(S2Title_MapWings, map, 0);
+        EniDec(S2TitleF_MapLogo, map, 0xE000); // (palette line 4, in front of the sprites)
+        static const char copyright[] = "@ 1992 SEGA"; // (the font's tiles: digits from 0, '@' $B, letters from $E)
+        for (int i = 0; copyright[i] != 0; i++) {
+            const char c = copyright[i];
+            const unsigned tile = c == ' ' ? 0 : c == '@' ? 0x680 + 0xB : (c >= '0' && c <= '9') ? 0x680 + (c - '0') : 0x680 + 0xE + (c - 'A');
+            map[(26 * 40 + i) * 2] = (uint8_t)(tile >> 8);
+            map[(26 * 40 + i) * 2 + 1] = (uint8_t)tile;
+        }
         CopyTilemap(map, &screen1p.plane_a, PLANE_WIDEADD + PLANE_TALLADD, 40, 28);
     }
     DrawTitleBackground();
 
-    // The title's palette: the prototype's four lines
-    for (int i = 0; i < 4 * 16; i++)
-        dry_palette_dup[i / 16][i % 16] = LESWAP_16(((const uint16_t *)S2Title_Palette)[i]);
+    // The palette: only the line the title shows first is loaded (the others fade in with the intro)
+    memset(dry_palette_dup, 0, sizeof(dry_palette_dup));
+    for (int i = 0; i < 16; i++)
+        dry_palette_dup[1][i] = LESWAP_16(((const uint16_t *)S2TitleF_PalTitle)[i]);
 
-    // Run title screen for 376 frames
-    demo_length = 376;
+    // Run title screen for 640 frames (a little over ten seconds)
+    demo_length = 60 * 10 + 40;
 
-    // Load title objects
-    const dword_s title_x = player->x_pos, title_y = player->y_pos; // (what ends the title counts from where it was put above)
+    // Load title objects: the intro, which makes the rest (Sonic, Tails, the stars, the menu)
     Sst_ResetAll(); // (the level's Sonic and Tails must not stay on the title screen)
-    player->x_pos = title_x;
-    player->y_pos = title_y;
-    Sst_SpawnCode(Obj_TitleCharacters, 0, 0); // Sonic (frame 0) and Tails (frame 1): the prototypes' title characters
-    Sst *tails = Sst_SpawnCode(Obj_TitleCharacters, 0, 0);
-    if (tails != NULL)
-        tails->mapping_frame = 1;
-    Sst_SpawnCode(Obj_TitleMenu, 0, 0); // 1 PLAYER / 2 PLAYER VS (the pre-beta's object $0F)
-    // (Sonic 1's "PRESS START BUTTON" object, its trademark sign and its sprite mask are not loaded: Sonic 2 disables the PSB object.)
+    TitleIntro_Start();
 
     ExecuteObjects();
     BuildSprites(NULL);
@@ -521,8 +523,6 @@ void GM_Title(void) {
 
     // Fade in
     PaletteFadeIn();
-
-    PlayMusic(bgm_Title);
 
     // Level select cheat entry state (see TitleCheatStep/Tit_ChkLevSel).
     uint8_t cheat_progress = 0;
@@ -540,7 +540,7 @@ void GM_Title(void) {
 #endif
 
     // Loop
-    do {
+    for (;;) {
         // Render frame
         vbla_routine = 0x04;
         WaitForVBla();
@@ -549,21 +549,12 @@ void GM_Title(void) {
         if ((gamemode & 0x7F) != GameMode_Title)
             return;
 
-        // Run game and load PLCs
+        // Run the intro (and the menu it brings up) and load PLCs
         ExecuteObjects();
+        Deform_TitleScreen(); // (the title's own camera runs on by one a frame, the final game's SwScrl_Title)
         BuildSprites(NULL);
         RunPLC();
-
-        // Run palette cycle, and scroll the background (the title's own camera runs on by 8 a frame: Nick Arcade's Deform_TitleScreen)
         PCycle_Title();
-        Deform_TitleScreen();
-
-        // Move Sonic object (yep, this is how they scroll the camera)
-        //...and return to the Sega screen after a minute?
-        if ((player->x_pos.f.u += 2) >= 0x1C00) {
-            gamemode = GameMode_Sega;
-            return;
-        }
 
         // Check for level select cheat entry (Up, Down, Down, Down, Down, Up)
         if (TitleCheatStep(&cheat_progress, levsel_cheat_sequence, 6)) {
@@ -579,48 +570,8 @@ void GM_Title(void) {
         }
 #endif
 
-        // Check if the title's over
+        // The time is up: a demo
         if (!demo_length) {
-            // Run the title screen but with reduced code for 30 frames
-            demo_length = 30;
-
-            do {
-                // Render frame
-                vbla_routine = 0x04;
-                WaitForVBla();
-
-                // Run game and load PLCs
-                Deform_TitleScreen();
-                PCycle_Title();
-                RunPLC();
-
-                // Move Sonic object
-                if ((player->x_pos.f.u += 2) >= 0x1C00) {
-                    gamemode = GameMode_Sega;
-                    return;
-                }
-
-                // Check for level select cheat entry (Up, Down, Down, Down, Down, Up)
-                if (TitleCheatStep(&cheat_progress, levsel_cheat_sequence, 6)) {
-                    level_select_cheat = true;
-                    PlaySound(sfx_Ring);
-                }
-#ifdef NDEBUG
-                // Check for debug mode cheat entry (C, C, C, C, Up, Down, Down, Down, Down, Up)
-                if (TitleCheatStep(&debug_progress, debug_cheat_sequence, 10)) {
-                    debug_cheat = true;
-                    credits_cheat = true;
-                    PlaySound(sfx_Ring);
-                }
-#endif
-
-                // Check if start is pressed
-                if (jpad1_press1 & JPAD_START) {
-                    Tit_ChkLevSel(level_select_cheat);
-                    return;
-                }
-            } while (demo_length);
-
             // Load demo
             FadeOutMusic();
 
@@ -653,7 +604,15 @@ void GM_Title(void) {
             score_life = 5000;
             return;
         }
-    } while (!(jpad1_press1 & JPAD_START));
 
-    Tit_ChkLevSel(level_select_cheat);
+        // Start takes the menu's choice once the intro has run (before that, it skips the intro to its end: the objects take that press)
+        if ((jpad1_press1 & JPAD_START) && TitleIntro_Complete()) {
+            if (TitleMenu_Choice() == 2) { // OPTIONS: the options menu is not built yet; the choice can be made, and Start on it only blips
+                PlaySound((uint8_t)(sfx_Jump + 8));
+                continue;
+            }
+            Tit_ChkLevSel(level_select_cheat);
+            return;
+        }
+    }
 }
