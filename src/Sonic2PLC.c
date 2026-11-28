@@ -126,7 +126,9 @@ extern const uint8_t Art_SpecialStageBombs[]; // (SpecialStageObjects.c has the 
 #include "Resource/Art/Chopper.h"
 #include "Resource/Art/Crabmeat.h"
 #include "Resource/Art/ObjectHit.h"
+#include "Resource/Art/SuperSonicStars.h"
 #include "Object/ObjectHit.h"
+#include "Object/SuperSonicStars.h"
 #include "Resource/Art/GHZBall.h"
 #include "Resource/Art/GHZBridge.h"
 #include "Resource/Art/GHZLog.h"
@@ -377,9 +379,10 @@ static const PLCList PLC_Main2 = {
 // Pattern load cues - explosion
 // ---------------------------------------------------------------------------
 static const PLCList PLC_Explode = {
-    1,
+    2,
     (const PLC[]) {
         { Art_ObjectHit,     ART_VRAM(ArtTile_ObjectHit) },
+        { Art_SuperSonicStars, ART_VRAM(ArtTile_SuperSonicStars) }, // (the final'"'"'s PLCID_StdWtr: explosion, Super Sonic stars, bubbles; the bubbles are in the water zones'"'"' own lists)
     }
 };
 // ---------------------------------------------------------------------------

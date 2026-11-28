@@ -99,6 +99,7 @@ resources:
   - "Art/Shield"
   - "Art/Invincibility"
   - "Art/ObjectHit"
+  - "Art/SuperSonicStars"
   - "Mappings/HUD"
   - "Mappings/Points"
   - "Art/HUD"
