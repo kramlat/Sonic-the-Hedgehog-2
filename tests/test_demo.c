@@ -7,11 +7,14 @@
 
 // The prototype's Emerald Hill attract demo is a two player one: Tails plays pad 2 from a demo of his own (Demo_Tails_Ghz: $0046 frames of nothing, $1E of right, ...).
 
+extern uint8_t true_two_player; // (Game.h)
+
 static void StartDemo(void) {
     level_id = LEVEL_ID(ZoneId_EHZ, 0);
     gamemode = GameMode_Demo;
     demo = 1;
     two_player_mode = 1;
+    true_two_player = 1; // (the title sets both for this demo: its Tails is the recorded pad 2)
     cli_demo_override = NULL;
     btn_pushtime1 = 0;
     btn_pushtime2 = (uint8_t)(intro_demo_ptr[ZoneId_EHZ][1] - 1);
@@ -44,6 +47,7 @@ static void Demo_TailsPlaysPadTwoInTheEmeraldHillDemo(void) {
 static void Demo_PadTwoIsLeftAloneInOtherZonesAndInOnePlayerMode(void) {
     StartDemo();
     two_player_mode = 0;
+    true_two_player = 0;
     jpad2_hold = 0x55;
     MoveSonicInDemo();
     CHECK_EQ(jpad2_hold, 0x55);
