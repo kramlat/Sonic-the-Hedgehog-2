@@ -22,7 +22,7 @@
 
 #define MAP_W 40
 #define MAP_H 28
-#define NAME_FIELDS 14   // the cells of a zone's name that light up
+#define NAME_FIELDS 15   // the cells of a zone's name that light up
 #define ICON_ROW 22
 #define ICON_COL 27
 #define SOUND_COL 34
