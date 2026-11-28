@@ -15,6 +15,7 @@
 // HUD assets
 #include "VersusStats.h"
 #include "Resource/Art/HUDNum.h"
+#include "EnginePLC.h"
 #include "Resource/Art/LifeNum.h"
 
 // HUD art writing
@@ -112,11 +113,19 @@ void HUD_WriteHex(size_t offset, uint32_t value) {
 static bool second_synced; // (the second view's HUD art has the words copied: see HUD_UpdateSecond)
 extern uint16_t endact_total; // (Object/TitleCard.c)
 extern uint8_t two_player_mode; // (SplitScreen.c)
+extern uint8_t true_two_player; // (Game.h)
 extern bool hud_player_two;     // (Object/HUD.c)
 #define MILES_DIGITS_VRAM 0xFD20 // (the lives digits in Miles' name: the tiles after its icon, 0x7E4 + 5)
 
+// The infinity symbol (8x8 tiles, the lives digits' colours): in the cooperative game the lives counter of Tails reads TAILS x (infinity): written over its two digit slots, only there
+static const uint8_t Art_InfinityLife[2][32] = {
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x66, 0x00, 0x06, 0x60, 0x06, 0x60, 0x66, 0x00, 0x00, 0x66, 0x06, 0x60, 0x06, 0x60, 0x00, 0x66, 0x66, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00 },
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x66, 0x00, 0x06, 0x60, 0x06, 0x60, 0x66, 0x00, 0x00, 0x66, 0x06, 0x60, 0x06, 0x60, 0x00, 0x66, 0x66, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00 },
+};
+
 void HUD_Lives(void) {
     const bool miles_counter = two_player_mode || hud_player_two;
+    const bool coop = two_player_mode && !true_two_player; // (the cooperative game: Tails' lives are not counted)
     // (the second player's counter, with the name TAILS or MILES, is what the level's start loads: Options_LoadLifeCounter, the final's PLCs MilesLife2P and TailsLife2P; the digits are copied into its name here)
     size_t offset = 0xFBA0;
 
@@ -137,7 +146,10 @@ void HUD_Lives(void) {
             digit_write = true;
         for (int copy = 0; copy < (miles_counter ? 2 : 1); copy++) {
             const size_t at = copy == 0 ? offset : offset - 0xFBA0 + MILES_DIGITS_VRAM; // (the second copy: in Miles' name)
-            if (digit_write || decs == 0) {
+            if (copy == 1 && coop) {
+                VDP_SeekVRAM(at);
+                VDP_WriteVRAM(Art_InfinityLife[1 - decs], 32);
+            } else if (digit_write || decs == 0) {
                 const uint8_t* art = Art_LifeNum + ((size_t)digit << 5);
                 VDP_SeekVRAM(at);
                 VDP_WriteVRAM(art, 32);
@@ -173,7 +185,10 @@ static void HUD_WriteBonus(uint16_t value) {
     }
 }
 
+static bool lives_after_plc; // (the counter's art loads after the base is written and has blank digit tiles: the digits are written again when the queue is empty)
+
 void HUD_Base(void) {
+    lives_after_plc = true;
     second_synced = false; // (the second view's copy of the words is taken again)
     // Write lives and initial HUD cmd
     HUD_Lives();
@@ -206,6 +221,12 @@ static void HUD_BankNumber(size_t first_tile, uint32_t value, const uint32_t *de
     } while (decs-- > 0);
 }
 
+// The same symbol in the HUD's 8x16 digits: the second view's rings in the cooperative game (two digit slots, the first of the three left blank)
+static const uint8_t Art_InfinityRings[2][64] = {
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x66, 0x00, 0x06, 0x60, 0x06, 0x60, 0x66, 0x00, 0x00, 0x66, 0x06, 0x60, 0x06, 0x60, 0x00, 0x66, 0x66, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x66, 0x00, 0x06, 0x60, 0x06, 0x60, 0x66, 0x00, 0x00, 0x66, 0x06, 0x60, 0x06, 0x60, 0x00, 0x66, 0x66, 0x00, 0x00, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+};
+
 static void HUD_UpdateSecond(void) {
     if (hud_second_bank == NULL)
         return;
@@ -224,7 +245,17 @@ static void HUD_UpdateSecond(void) {
         second_score = s;
         HUD_BankNumber(ArtTile_HUDScore, s, &hud_dec[0], 5, true, false);
     }
-    if (r != second_rings) {
+    if (two_player_mode && !true_two_player) { // (the cooperative game: Tails' rings are not counted, the view shows infinity once)
+        if (second_rings != 0xFFFE) {
+            second_rings = 0xFFFE;
+            static const uint8_t blank[64];
+            tilebank_t *bank = (tilebank_t *)hud_second_bank;
+            TileBank_Write(bank, ArtTile_HUDRings, blank, 64);
+            TileBank_Write(bank, ArtTile_HUDRings + 2, Art_InfinityRings[0], 64);
+            TileBank_Write(bank, ArtTile_HUDRings + 4, Art_InfinityRings[1], 64);
+        }
+        r = 1; // (no red flash of a zero)
+    } else if (r != second_rings) {
         second_rings = r;
         HUD_BankNumber(ArtTile_HUDRings, r, &hud_dec[3], 2, true, true);
     }
@@ -316,6 +347,11 @@ void HUD_Update(void) {
         // Update sprite count
         HUD_WriteNumber2(0xDEC0, sprite_count, &hud_dec[4], 1);
      }
+
+    if (lives_after_plc && plc_buffer[0].art == NULL) {
+        lives_after_plc = false;
+        life_count = true;
+    }
 
     // Update lives
     if (life_count) {
