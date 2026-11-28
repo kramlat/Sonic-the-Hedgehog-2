@@ -266,6 +266,16 @@ static void NGHZObjects_TheWhispFollowsSonicWithinItsSpeedLimit(void) {
     CHECK(whisp->x_pos.f.u > 400);
 }
 
+void Obj_GrounderOpen(Sst *self);
+static void NGHZObjects_TheOpenGrounderHasNoWall(void) {
+    Reset();
+    Sst *grounder = Spawn(0x8E, 0, 500, 300);
+    player->x_pos.f.u = 700;
+    Obj_GrounderOpen(grounder);
+    CHECK_EQ(Count(0x8F, 0), 0); // (no bricks)
+    CHECK_EQ(grounder->routine, 6); // (it walks)
+}
+
 static void NGHZObjects_TheGrounderBreaksItsWallAndWalksToSonic(void) {
     Reset();
     Sst *grounder = Spawn(0x8D, 0, 500, 300);
@@ -746,6 +756,7 @@ void RegisterNGHZObjectTests(void) {
     RUN_TEST(NGHZObjects_TheHammerHurtsOnlyWhileItIsDown);
     RUN_TEST(NGHZObjects_TheWhispFollowsSonicWithinItsSpeedLimit);
     RUN_TEST(NGHZObjects_TheGrounderBreaksItsWallAndWalksToSonic);
+    RUN_TEST(NGHZObjects_TheOpenGrounderHasNoWall);
     RUN_TEST(NGHZObjects_TheChopChopSwimsAndSpitsBubblesAndDashesAtSonic);
     RUN_TEST(SSZObjects_TheCrocobotIsSetUpAndFallsUntilItMeetsTheFloor);
     RUN_TEST(SSZObjects_TheSwitchIsAButtonAndABaseFromTheLevelsTiles);

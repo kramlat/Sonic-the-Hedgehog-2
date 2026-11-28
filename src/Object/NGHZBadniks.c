@@ -236,7 +236,12 @@ static void Grounder_Bricks(Sst *self) {
     }
 }
 
-void Obj_Grounder(Sst *self) {
+// 8D hides in its wall of bricks and bursts out of it; 8E is already in place. They are the same routine told apart by the id (the loader keeps no id, so each has its own entry that says which)
+static void Grounder(Sst *self, bool in_wall);
+void Obj_Grounder(Sst *self) { Grounder(self, true); }
+void Obj_GrounderOpen(Sst *self) { Grounder(self, false); }
+
+static void Grounder(Sst *self, bool in_wall) {
     Own_Grounder *own = (Own_Grounder *)self->own.u8;
 
     switch (self->routine) {
@@ -256,7 +261,7 @@ void Obj_Grounder(Sst *self) {
                 self->y_vel = 0;
             }
         }
-        if (self->code == sst_object_codes[0x8D]) { // (hidden: its bricks first)
+        if (in_wall) { // (hidden: its bricks first)
             Grounder_Bricks(self);
         } else {
             self->routine = GrounderRoutine_Face;

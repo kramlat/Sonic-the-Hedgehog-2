@@ -95,6 +95,7 @@ void Obj_GrabberHead(Sst *self);
 void Obj_GrabberStrand(Sst *self);
 void Obj_GrabberUnused(Sst *self);
 void Obj_Grounder(Sst *self);
+void Obj_GrounderOpen(Sst *self);
 void Obj_GrounderRock(Sst *self);
 void Obj_GrounderWall(Sst *self);
 void Obj_HPZDecor(Sst *self);
@@ -309,7 +310,7 @@ const SstCode sst_object_codes[0x100] = {
 	[0xDC] = Obj_CNZRingPrize,
 	[0x82] = Obj_NGHZFallingPillar,
 	[0x8D] = Obj_Grounder,
-	[0x8E] = Obj_Grounder,
+	[0x8E] = Obj_GrounderOpen,
 	[0x8F] = Obj_GrounderWall,
 	[0x90] = Obj_GrounderRock,
 	[0x91] = Obj_ChopChop,
