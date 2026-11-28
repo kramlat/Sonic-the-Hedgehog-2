@@ -78,7 +78,7 @@ static const int16_t arrow_targets[4] = { 0x458, 0x478, 0x498, 0x4B8 };
 void NGHZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
-        if (Boss_TriggerX() < (0x2800 - SCREEN_WIDEADD2))
+        if (Boss_Behind((0x2800 - SCREEN_WIDEADD2)))
             break;
         limit_left2 = 0x2800 - SCREEN_WIDEADD2;
         limit_btm1 = 0x400 - SCREEN_TALLADD;
@@ -87,7 +87,7 @@ void NGHZBoss_Events(void) {
         AddPLC(PlcId_NGHZBoss);
         break;
     case 2:
-        if (Boss_TriggerX() < (0x2A40 - SCREEN_WIDEADD2))
+        if (Boss_Behind((0x2A40 - SCREEN_WIDEADD2)))
             break;
         limit_right1 = limit_right2 = 0x2A40 + SCREEN_WIDEADD2;
         limit_left2 = 0x2A40 - SCREEN_WIDEADD2;

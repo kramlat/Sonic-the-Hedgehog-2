@@ -16,8 +16,9 @@ void SplitScreen_LoadLevel(void);
 
 // Is the level a split screen now?
 bool SplitScreen_Active(void);
-// The camera x a boss's trigger looks at: the first view's, and in the cooperative game (the split screen with no versus) the one of the two that is behind, so the boss comes only when both views can trigger it
-int16_t Boss_TriggerX(void);
+// Whether a boss's trigger (the camera's x) has not been reached: by the first view, and in the cooperative game (the split screen with no versus) by either of the two, so the boss comes only when both views can trigger it.
+// If one view has been at the trigger for a minute and the other has not, the one behind is brought to the other (Tails flies in, or Sonic is put beside him)
+bool Boss_Behind(int x);
 bool SplitScreen_SideBySide(void); // the split screen is on and its views are next to each other (a wide picture): each is half as wide as the picture
 
 // How far from the view's left edge the first camera keeps Sonic (144 in the original's whole picture)

@@ -133,6 +133,20 @@ static int16_t sidekick_x_vel_copy, sidekick_y_vel_copy; // (Tails' speeds of th
 bool sonic_carried;                                       // Sonic's status_secondary.carry: he hangs from Tails
 
 bool Tails_IsFlying(void) { return tails_flying != 0; }
+void Tails_BringTogether(bool sonic_leads) {
+    Sst *tails = TAILS_OBJ;
+    if (sonic_leads) {
+        cpu_state = CPU_SPAWNING; // (out of sight, he flies in from above Sonic when the ground is under him: his own respawn)
+        tails->x_pos.f.u = player->x_pos.f.u;
+        tails->y_pos.f.u = (int16_t)(player->y_pos.f.u - 0xC0);
+    } else if (!tails_is_player) {
+        player->x_pos.f.u = tails->x_pos.f.u;
+        player->y_pos.f.u = tails->y_pos.f.u;
+        player->x_vel = player->y_vel = 0;
+        player->ground_vel = 0;
+    }
+}
+
 bool Tails_IsRespawning(void) { return cpu_state == CPU_FLYING; }
 
 // The last frame loaded of each of Tails' art windows

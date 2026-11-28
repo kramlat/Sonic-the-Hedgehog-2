@@ -63,14 +63,14 @@ void DHZBoss_Events(void) {
             limit_right1 = limit_right2 = 0x2100 + SCREEN_WIDEADD2;
             break;
         }
-        if (Boss_TriggerX() < (0x2080 - SCREEN_WIDEADD2))
+        if (Boss_Behind((0x2080 - SCREEN_WIDEADD2)))
             break;
         limit_left2 = scrpos_x.f.u;
         limit_btm1 = 0x5D0 - SCREEN_TALLADD;
         dle_routine += 2;
         break;
     case 2:
-        if (Boss_TriggerX() < (0x20F0 - SCREEN_WIDEADD2))
+        if (Boss_Behind((0x20F0 - SCREEN_WIDEADD2)))
             break;
         limit_right1 = limit_right2 = 0x20F0 + SCREEN_WIDEADD2;
         limit_left2 = 0x20F0 - SCREEN_WIDEADD2;

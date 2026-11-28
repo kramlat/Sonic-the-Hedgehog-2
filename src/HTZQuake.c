@@ -301,14 +301,14 @@ static void RunEvents(void) {
         }
         break;
     case 0xA: // the boss's arena (DynResize_HTz_Act_2 on): at $2C00 the left edge follows the camera and the lower limit is $480
-        if ((uint16_t)Boss_TriggerX() < 0x2C00)
+        if (Boss_Behind(0x2C00))
             break;
         limit_left2 = scrpos_x.f.u;
         limit_btm1 = 0x480 - SCREEN_TALLADD;
         dle_routine += 2;
         break;
     case 0xC: // at $2EDF the arena is shut ($2EE0 to $2F5E), the music fades, Boss_Flag 3 and the boss's list
-        if ((uint16_t)Boss_TriggerX() < 0x2EDF)
+        if (Boss_Behind(0x2EDF))
             break;
         limit_left2 = 0x2EE0 - SCREEN_WIDEADD2;
         limit_right1 = limit_right2 = 0x2F5E + SCREEN_WIDEADD2;

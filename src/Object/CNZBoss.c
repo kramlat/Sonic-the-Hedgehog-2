@@ -68,7 +68,7 @@ void CNZBoss_Reset(void) {
 void CNZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
-        if (Boss_TriggerX() < (0x27C0 - SCREEN_WIDEADD2))
+        if (Boss_Behind((0x27C0 - SCREEN_WIDEADD2)))
             break;
         limit_left2 = scrpos_x.f.u;
         limit_btm1 = 0x062E - SCREEN_TALLADD;
@@ -76,7 +76,7 @@ void CNZBoss_Events(void) {
         dle_routine += 2;
         break;
     case 2:
-        if (Boss_TriggerX() < (0x2890 - SCREEN_WIDEADD2))
+        if (Boss_Behind((0x2890 - SCREEN_WIDEADD2)))
             break;
         LevelLayout_SetChunk(LEVEL_LAYOUT_PLANE_FG, 0x50, 0x0C, 0xF9);
         limit_left2 = 0x2860 - SCREEN_WIDEADD2;
@@ -99,7 +99,7 @@ void CNZBoss_Events(void) {
         }
         break;
     case 6: // once the camera is past $2A00 its lower limit is let down to $5D0 and the left edge follows it, the right limit stays where it is (loc_D092)
-        if (Boss_TriggerX() >= (0x2A00 - SCREEN_WIDEADD2)) {
+        if (!Boss_Behind((0x2A00 - SCREEN_WIDEADD2))) {
             limit_btm1 = 0x5D0 - SCREEN_TALLADD;
             limit_left2 = scrpos_x.f.u;
             limit_right1 = limit_right2;

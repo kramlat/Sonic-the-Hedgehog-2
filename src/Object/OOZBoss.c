@@ -57,7 +57,7 @@ void OOZBoss_Reset(void) {
 void OOZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
-        if (Boss_TriggerX() < (0x2668 - SCREEN_WIDEADD2))
+        if (Boss_Behind((0x2668 - SCREEN_WIDEADD2)))
             break;
         limit_left2 = scrpos_x.f.u;
         for (int i = 0; i < SST_COUNT; i++) {
@@ -68,7 +68,7 @@ void OOZBoss_Events(void) {
         dle_routine += 2;
         break;
     case 2:
-        if (Boss_TriggerX() < (0x2880 - SCREEN_WIDEADD2))
+        if (Boss_Behind((0x2880 - SCREEN_WIDEADD2)))
             break;
         limit_left2 = 0x2880 - SCREEN_WIDEADD2;
         limit_right2 = 0x28C0 + SCREEN_WIDEADD2;

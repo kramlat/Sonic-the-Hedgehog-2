@@ -1045,14 +1045,14 @@ void CPZBoss_Events(void) {
     static uint8_t delay;
     switch (dle_routine) {
     case 0:
-        if (Boss_TriggerX() < 0x2680 - SCREEN_WIDEADD2)
+        if (Boss_Behind(0x2680 - SCREEN_WIDEADD2))
             break;
         limit_left2 = scrpos_x.f.u;
         limit_btm1 = 0x450 - SCREEN_TALLADD;
         dle_routine += 2;
         break;
     case 2:
-        if (Boss_TriggerX() < 0x2A20 - SCREEN_WIDEADD2)
+        if (Boss_Behind(0x2A20 - SCREEN_WIDEADD2))
             break;
         limit_left2 = 0x2A20 - SCREEN_WIDEADD2;
         limit_right1 = limit_right2 = 0x2A20 + SCREEN_WIDEADD2;

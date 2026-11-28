@@ -75,14 +75,14 @@ void MTZBoss_Reset(void) {
 void MTZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
-        if (Boss_TriggerX() < (0x2980 - SCREEN_WIDEADD2))
+        if (Boss_Behind((0x2980 - SCREEN_WIDEADD2)))
             break;
         limit_left2 = scrpos_x.f.u;
         limit_btm1 = 0x0400 - SCREEN_TALLADD;
         dle_routine += 2;
         break;
     case 2:
-        if (Boss_TriggerX() < (0x2A80 - SCREEN_WIDEADD2))
+        if (Boss_Behind((0x2A80 - SCREEN_WIDEADD2)))
             break;
         limit_left2 = 0x2AB0 - SCREEN_WIDEADD2;
         limit_right2 = 0x2AB0 + SCREEN_WIDEADD2;

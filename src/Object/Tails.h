@@ -15,6 +15,8 @@ extern uint8_t sonic_rec_hold[0x40], sonic_rec_press[0x40], sonic_rec_status[0x4
 // Tails' flight and carrying (the Sonic Retro guide's, Sonic 3 style): Sonic hangs from him (the secondary status's carry bit)
 extern bool sonic_carried;
 bool Tails_IsFlying(void);                    // his flight flag is set
+// The cooperative game's boss wait: the first view's player (Sonic) is at the boss and Tails is not (Tails flies in again), or the other way (Sonic is put where Tails is)
+void Tails_BringTogether(bool sonic_leads);
 bool Tails_IsRespawning(void);                // he is flying in to Sonic after being left behind
 void Tails_CallToCarry(void);                 // Sonic's jump and Up (the single player assist): the AI Tails is to fly and carry him
 void Sonic_CarryCollision(Sst *sonic);        // Sonic's collision while he is carried (Sonic.c)
