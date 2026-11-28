@@ -112,7 +112,7 @@ static void HTZQuake_TheBossArenaTakesOverPastTheQuakeInActTwo(void) {
     HTZQuake_Events();
     CHECK_EQ(htz_quake, 0);
     CHECK_EQ(dle_routine, 0xA);
-    Camera(0x2C00, 0x400); // (at $2C00 the left edge follows and the lower limit is $480)
+    Camera(0x2C50, 0x400); // (the final: at $2C50 the left edge follows and the lower limit is $480)
     HTZQuake_Events();
     CHECK_EQ(dle_routine, 0xC);
     CHECK_EQ(limit_btm1, 0x480 - SCREEN_TALLADD);

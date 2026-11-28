@@ -1053,9 +1053,9 @@ static void EHZBoss_TheEventsPutTheShipInTheArena(void) {
     dle_routine = 0;
     boss_status = 0;
     lock_screen = false;
-    scrpos_x.f.u = 0x2760;
+    scrpos_x.f.u = 0x2790;
     DynamicLevelEvents();
-    CHECK_EQ(dle_routine, 2); // ($2750 across: the camera cannot go back)
+    CHECK_EQ(dle_routine, 2); // ($2780 across: the camera cannot go back)
     scrpos_x.f.u = 0x2900;
     DynamicLevelEvents();
     CHECK(lock_screen);
