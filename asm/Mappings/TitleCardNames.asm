@@ -23,6 +23,8 @@
 		dc.w .f18-.int
 		dc.w .f19-.int
 		dc.w .f20-.int
+		dc.w .f21-.int
+		dc.w .f22-.int
 .f0:		dc.w 11		; EMERALD HILL
 		dc.w $0005, $8580, $82C0, $FFC0
 		dc.w $0009, $85DE, $82EF, $FFD0
@@ -182,24 +184,44 @@
 		dc.w $0005, $85EC, $82F6, $0050
 		dc.w $0005, $85F4, $82FA, $0060
 		dc.w $0005, $8580, $82C0, $0070
-.f15:		dc.w 4		; ZONE
+.f15:		dc.w 9		; ROCK WORLD
+		dc.w $0005, $85DE, $82EF, $FFE0
+		dc.w $0005, $8588, $82C4, $FFF0
+		dc.w $0005, $85E2, $82F1, $0000
+		dc.w $0005, $85E6, $82F3, $0010
+		dc.w $0009, $85EA, $82F5, $0030
+		dc.w $0005, $8588, $82C4, $0048
+		dc.w $0005, $85DE, $82EF, $0058
+		dc.w $0005, $85F0, $82F8, $0068
+		dc.w $0005, $85F4, $82FA, $0078
+.f16:		dc.w 9		; OCEAN WIND
+		dc.w $0005, $8588, $82C4, $FFE8
+		dc.w $0005, $85DE, $82EF, $FFF8
+		dc.w $0005, $8580, $82C0, $0008
+		dc.w $0005, $85E2, $82F1, $0018
+		dc.w $0005, $8584, $82C2, $0028
+		dc.w $0009, $85E6, $82F3, $0048
+		dc.w $0001, $85EC, $82F6, $0060
+		dc.w $0005, $8584, $82C2, $0068
+		dc.w $0005, $85EE, $82F7, $0078
+.f17:		dc.w 4		; ZONE
 		dc.w $0005, $858C, $82C6, $0001
 		dc.w $0005, $8588, $82C4, $0010
 		dc.w $0005, $8584, $82C2, $0020
 		dc.w $0005, $8580, $82C0, $0030
-.f16:		dc.w 1		; ACT 1
+.f18:		dc.w 1		; ACT 1
 		dc.w $0007, $A590, $A2C8, $0000
-.f17:		dc.w 1		; ACT 2
+.f19:		dc.w 1		; ACT 2
 		dc.w $000B, $A598, $A2CC, $0000
-.f18:		dc.w 1		; ACT 3
+.f20:		dc.w 1		; ACT 3
 		dc.w $000B, $A5A4, $A2D2, $0000
-.f19:		dc.w 5		; BANNER (SONIC THE HEDGEHOG)
+.f21:		dc.w 5		; BANNER (SONIC THE HEDGEHOG)
 		dc.w $000D, $85B0, $82D8, $FFB8
 		dc.w $000D, $85B8, $82DC, $FFD8
 		dc.w $000D, $85C0, $82E0, $FFF8
 		dc.w $000D, $85C8, $82E4, $0018
 		dc.w $0005, $85D0, $82E8, $0038
-.f20:		dc.w 7		; STRIPES (the zigzag edge)
+.f22:		dc.w 7		; STRIPES (the zigzag edge)
 		dc.w $9003, $85D4, $82EA, $0000
 		dc.w $B003, $85D4, $82EA, $0000
 		dc.w $D003, $85D4, $82EA, $0000

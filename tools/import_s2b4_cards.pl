@@ -86,7 +86,7 @@ while ($asm =~ /^(Load_\w+):\s*\n\s*dc\.w\s+([^\n]+)\n/mg) {
 my @names = (   # [ name, Beta 4's frame (or undef: authored), its loader ]
     [ 'EMERALD HILL',   0, 'Load_GHz' ], [ 'METROPOLIS', 4, 'Load_Mz' ], [ 'HILL TOP', 7, 'Load_HTz' ], [ 'OIL OCEAN', 10, 'Load_OOz' ], [ 'MYSTIC CAVE', 11, 'Load_DHz' ],
     [ 'CASINO NIGHT',  12, 'Load_CNz' ], [ 'CHEMICAL PLANT', 13, 'Load_CPz' ], [ 'AQUATIC RUIN', 15, 'Load_NGHz' ], [ 'SKY CHASE', 16, 'Load_SCz' ], [ 'WING FORTRESS', 6, 'Load_SFz' ],
-    [ 'DEATH EGG',     14, 'Load_DEz' ], [ 'WOOD', undef ], [ 'SAND SHOWER', undef ], [ 'CYBER CITY', undef ], [ 'HIDDEN PALACE', 8, 'Load_HPz' ],
+    [ 'DEATH EGG',     14, 'Load_DEz' ], [ 'WOOD', undef ], [ 'SAND SHOWER', undef ], [ 'CYBER CITY', undef ], [ 'HIDDEN PALACE', 8, 'Load_HPz' ], [ 'ROCK WORLD', undef ], [ 'OCEAN WIND', undef ],
 );
 my %alpha = map { $_ => $tc_const{$_} } keys %tc_const;
 my %fixed = (E => 0x580, N => 0x584, O => 0x588);
@@ -125,7 +125,7 @@ for my $n (@names) {
 push @tc_frames, [ 'ZONE', frame_of($tlabels->[17]) ], [ 'ACT 1', frame_of($tlabels->[18]) ], [ 'ACT 2', frame_of($tlabels->[19]) ], [ 'ACT 3', frame_of($tlabels->[20]) ],
                  [ 'BANNER (SONIC THE HEDGEHOG)', frame_of($tlabels->[21]) ], [ 'STRIPES (the zigzag edge)', frame_of($tlabels->[22]) ];
 open my $tm, '>', 'asm/Mappings/TitleCardNames.asm' or die;
-print $tm "; ---------------------------------------------------------------------------\n; The title cards of Sonic 2 Beta 4 (Sonic 2 mappings format), tools/import_s2b4_cards.pl: the names (in TitleCard.c's order), ZONE, ACT 1-3, the banner and the zigzag edge\n; (Wood, Sand Shower and Cyber City are written from Beta 4's alphabet: it has no names for them)\n; ---------------------------------------------------------------------------\n.int:";
+print $tm "; ---------------------------------------------------------------------------\n; The title cards of Sonic 2 Beta 4 (Sonic 2 mappings format), tools/import_s2b4_cards.pl: the names (in TitleCard.c's order), ZONE, ACT 1-3, the banner and the zigzag edge\n; (Wood, Sand Shower, Cyber City, Rock World and Ocean Wind are written from Beta 4's alphabet: it has no names for them)\n; ---------------------------------------------------------------------------\n.int:";
 print $tm "\t\tdc.w .f$_-.int\n" for 0 .. $#tc_frames;
 for my $i (0 .. $#tc_frames) {
     my ($c, $w) = @{ $tc_frames[$i] };
@@ -134,7 +134,7 @@ for my $i (0 .. $#tc_frames) {
 }
 close $tm;
 open my $td, '>', 'src/TitleCardData.c' or die;
-print $td "// The letters each title card name needs from the alphabet art (Art_TitleCardLetters), as pairs of first tile and tiles, in the order they are copied to tile \$5DE on, ended by \$FF:\n// Beta 4's Load_Title_Cards_Art. Written by tools/import_s2b4_cards.pl (the frames are those of asm/Mappings/TitleCardNames.asm).\n#include <stdint.h>\n\n#define TITLECARD_NAMES 15 // (the frames of the names)\n\n";
+print $td "// The letters each title card name needs from the alphabet art (Art_TitleCardLetters), as pairs of first tile and tiles, in the order they are copied to tile \$5DE on, ended by \$FF:\n// Beta 4's Load_Title_Cards_Art. Written by tools/import_s2b4_cards.pl (the frames are those of asm/Mappings/TitleCardNames.asm).\n#include <stdint.h>\n\n#define TITLECARD_NAMES 17 // (the frames of the names)\n\n";
 printf $td "const uint8_t titlecard_letters[TITLECARD_NAMES][20] = {\n";
 for my $i (0 .. $#names) {
     printf $td "    /* %2d %s */ { %s0xFF },\n", $i, $names[$i][0], join('', map { sprintf '0x%02X, ', $_ } @{ $tc_letters[$i] });

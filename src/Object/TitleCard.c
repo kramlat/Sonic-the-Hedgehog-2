@@ -310,7 +310,7 @@ void TitleCard_Leave(void) {
 // The title cards of the Sonic 2 pre-beta (September 14, 1992: its object $34, Obj_0x34_Title_Cards; art, mappings and letter tables from tools/import_s2prebeta_titlecards.pl). Three elements slide
 // in: the name of the zone (from the right), ZONE and the act number (from the left); they wait a second after the level has been loaded and slide away, the name's end loading the explosion's and the
 // animals' art. Its frames: the names (the pre-beta's own, and Wood's, Sand Shower's, Cyber City's and Hidden Palace's written from its alphabet: the user), ZONE, ACT 1 to 3
-enum { TC_FRAME_ZONE = 15, TC_FRAME_ACT1 = 16 };
+enum { TC_FRAME_ZONE = 17, TC_FRAME_ACT1 = 18 }; // (the names are frames 0 to 16: the last two are the empty slots' own, ready for when the zones are built)
 extern const uint8_t titlecard_letters[][20];
 #define TC_ART_FIXED 0x580   // the fixed part (E, N, O, ZONE, the numbers)
 #define TC_ART_LETTERS 0x5DE // where the letters a name needs are copied to
@@ -332,6 +332,8 @@ static uint8_t TitleCard_NameFrame(int zone) {
     case ZoneId_SSZ: return 12;
     case ZoneId_GCZ: return 13;
     case ZoneId_HPZ: return 14;
+    case ZoneId_Empty01: return 15; // Rock World (no zone yet)
+    case ZoneId_Empty05: return 16; // Ocean Wind (no zone yet)
     default: return 0;          // Green Hill (Emerald Hill's card says so too: the pre-beta has no other name for its first slot)
     }
 }
@@ -560,8 +562,8 @@ static const struct { int16_t x0, x1, y; uint8_t frame; uint8_t delay; bool wide
     { 0x0028, 0x0148, 0x00D0, 15, 0x1C, false },                    // ZONE
     { 0x0068, 0x0188, 0x00D0, 16, 0x1C, false },                    // the act number (frame: by the act)
     { 0, 0, 0, 0, 0, false },                                       // the curtain
-    { 0x02A8, 0x0168, 0x0120, 19, 8, true },                        // the banner (SONIC THE HEDGEHOG), on the yellow
-    { 0x0080, 0x00F0, 0x00F0, 20, 0x15, true },                     // the zigzag edge of the red
+    { 0x02A8, 0x0168, 0x0120, 21, 8, true },                        // the banner (SONIC THE HEDGEHOG), on the yellow
+    { 0x0080, 0x00F0, 0x00F0, 22, 0x15, true },                     // the zigzag edge of the red
 };
 
 // Title card object
