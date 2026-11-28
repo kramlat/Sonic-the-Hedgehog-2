@@ -25,6 +25,8 @@ uint8_t options_player = 0;
 uint8_t options_vs_items = 0;
 uint8_t versus_guest = 0;
 uint8_t options_miles_swap = 0; // (the Miles swap cheat: the lives counters, the end of act card and the like say MILES)
+uint8_t options_level_select_cheat = 0;
+uint8_t options_continues_cheat = 0;
 static int sound_test = 0; // ($00-$FF: the sound id itself, as the number shows it)
 
 
@@ -101,6 +103,33 @@ static void PlaySoundTest(void) {
         PlaySound((uint8_t)id);
 }
 
+// One step of a code: the number just played against the row (a wrong one starts over, or is the first of it)
+static bool CodeStep(uint8_t *progress, const uint8_t *code, int length, int id) {
+    if (id == code[*progress]) {
+        if (++*progress >= length) {
+            *progress = 0;
+            return true;
+        }
+    } else {
+        *progress = id == code[0] ? 1 : 0;
+    }
+    return false;
+}
+
+static void CheckCodes(int id) {
+    static const uint8_t level_select_code[4] = { 0x19, 0x65, 0x09, 0x17 };
+    static const uint8_t continues_code[4] = { 0x01, 0x01, 0x02, 0x04 };
+    static uint8_t level_select_progress, continues_progress;
+    if (CodeStep(&level_select_progress, level_select_code, 4, id)) {
+        options_level_select_cheat = 1;
+        PlaySound(sfx_Ring);
+    }
+    if (CodeStep(&continues_progress, continues_code, 4, id)) {
+        options_continues_cheat = 1;
+        PlaySound(sfx_Ring);
+    }
+}
+
 uint8_t Options_PlayerChoice(void) {
     if (versus_guest && true_two_player && !two_player_mode)
         return 2; // (the guest of an online game is player 2: Tails)
@@ -156,13 +185,18 @@ OptionsResult Options_Run(void) {
             options_vs_items = (uint8_t)v;
         else
             sound_test = v;
-        if (current == 2 && (press & (JPAD_B | JPAD_C)))
+        if (current == 2 && (press & (JPAD_B | JPAD_C))) {
             PlaySoundTest();
+            CheckCodes(sound_test);
+        }
         DrawAll(current);
         if (press & JPAD_START)
             break;
     }
+    const bool coop = current == 0 && (jpad1_hold1 & JPAD_A);
     PaletteFadeOut();
+    if (coop)
+        return Options_StartCoop;
     return current == 0 ? Options_Start1P : current == 1 ? Options_StartVersus : Options_Sega;
 }
 

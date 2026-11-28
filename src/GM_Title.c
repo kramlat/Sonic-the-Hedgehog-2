@@ -153,7 +153,7 @@ static void PlayLevel(bool new_game) {
         ss4_stage = 0; // (Beta 4's stage: PlayLevel clears Current_Special_Stage and the emeralds' flags)
         memset(ss4_emerald, 0, sizeof(ss4_emerald));
     }
-    continues = 0;
+    continues = options_continues_cheat ? 14 : 0; // (the sound test's other code)
     score_life = 5000;
    FadeOutMusic();
 }
@@ -169,7 +169,7 @@ static void Tit_ChkLevSel(bool level_select_cheat) {
     hud_player_two = false;
     versus_guest = 0; // (a game of this machine alone, unless the versus menus say it is the guest's)
     // The alpha asks for A and Start together and nothing else held (its pad byte is exactly $C0); the prototype only looks at A
-    if ((jpad1_hold1 & 0xFF) == (JPAD_A | JPAD_START)) {
+    if (options_level_select_cheat && (jpad1_hold1 & 0xFF) == (JPAD_A | JPAD_START)) { // (the sound test's code on the options screen turns it on)
         LevelSelect();
     } else {
         Tit_StartGame(TitleMenu_TwoPlayers()); // (the menu's choice: Up and Down turn it over, Start takes it)
@@ -460,6 +460,13 @@ void GM_Title(void) {
                 }
                 hud_player_two = false;
                 versus_guest = 0;
+                if (result == Options_StartCoop) { // (A held with Start on PLAYER SELECT: the split screen, Tails beside Sonic, and not the versus)
+                    two_player_mode = true;
+                    true_two_player = false;
+                    level_id = LEVEL_ID(ZoneId_EHZ, 0);
+                    PlayLevel(true);
+                    return;
+                }
                 Tit_StartGame(result == Options_StartVersus);
                 return;
             }
