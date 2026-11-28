@@ -560,7 +560,7 @@ static void Boss_Start(Sst *self, Own_NGHZBoss *own) {
     boss_move.y.f.u = 0x388;
     self->child_count = 3;
     self->collision_flags = 0x0F;
-    self->collision_property = 8;
+    self->collision_property = Boss_Hits(8);
     self->mapping_frame = 8; // (the main sprite)
     own->hammer_speed = (int16_t)0xFC80;
     hammer_down = 0;

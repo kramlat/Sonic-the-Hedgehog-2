@@ -956,7 +956,7 @@ static void Init_Run(Sst *self, Own_CPZBoss *own) {
     self->y_pos.f.u = 0x04B0;
     self->priority = 3 * 0x80;
     self->collision_flags = 0x0F;
-    self->collision_property = 8;
+    self->collision_property = Boss_Hits(8);
     self->routine += 2;
     own->x16 = (int32_t)((uint32_t)0x2B80 << 16);
     own->y16 = (int32_t)((uint32_t)0x04B0 << 16);

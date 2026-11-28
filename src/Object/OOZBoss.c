@@ -550,7 +550,7 @@ void Obj_OOZBoss(Sst *self) {
         self->child_count = 0;
         self->routine = Boss_Dive;
         self->collision_flags = 0x0F;
-        self->collision_property = 8;
+        self->collision_property = Boss_Hits(8);
         break;
 
     case Boss_Dive:

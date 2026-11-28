@@ -307,7 +307,7 @@ static void Boss_Run(Sst *self) {
         self->y_radius = 0x14;
         self->priority = 4 * 0x80;
         self->collision_flags = 0xF;
-        self->collision_property = 8;
+        self->collision_property = Boss_Hits(8);
         self->routine += 2;
         own->home_x = self->x_pos.f.u;
         own->home_y = self->y_pos.f.u;

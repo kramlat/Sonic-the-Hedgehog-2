@@ -419,7 +419,7 @@ void Obj_DHZBoss(Sst *self) {
         own->boss.anim_routine = Run_Down;
         self->child_count = 4;
         self->collision_flags = 0x0F;
-        self->collision_property = 8;
+        self->collision_property = Boss_Hits(8);
         boss_move.x.f.u = self->x_pos.f.u;
         boss_move.y.f.u = self->y_pos.f.u;
         boss_move.ysp = 0x00C0;

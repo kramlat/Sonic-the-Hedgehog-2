@@ -17,6 +17,11 @@
 BossMoveBuffer boss_move;
 uint8_t boss_anim[16];
 uint8_t boss_flag;
+extern uint8_t two_player_mode, true_two_player; // (SplitScreen.c, Game.h)
+
+uint8_t Boss_Hits(uint8_t base) {
+    return (uint8_t)(base + ((two_player_mode && !true_two_player) ? 4 : 0));
+}
 
 // Boss_Move
 void Boss_Move(void) {

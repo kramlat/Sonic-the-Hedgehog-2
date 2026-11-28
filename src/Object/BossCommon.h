@@ -28,6 +28,9 @@ extern BossMoveBuffer boss_move;
 extern uint8_t boss_anim[16];
 extern uint8_t boss_flag; // the alpha's Boss_Flag: which boss is there (3: Hill Top's)
 
+// How many hits a boss takes: the base ($8), and 4 more in the cooperative game (the split screen with no versus: two players), so it is not too easy. The Tornado zones' (Sky Chase, Wing Fortress) and the Death Egg's bosses keep their own counts
+uint8_t Boss_Hits(uint8_t base);
+
 void Boss_Move(void);
 void Boss_AnimateSprite(Sst *self, Own_AlphaBoss *boss, const uint8_t *table);
 void Boss_Hit(Sst *self, Own_AlphaBoss *boss);

@@ -494,7 +494,7 @@ static void Ship_Start(Sst *self) { // Offset_0x02D752
     self->width_pixels = 0x60;
     self->height_pixels = 0x20;
     self->collision_flags = 0x0F;
-    self->collision_property = 8;
+    self->collision_property = Boss_Hits(8);
     own->boss.count = 7;
     boss_move.x.f.u = self->x_pos.f.u;
     boss_move.y.f.u = self->y_pos.f.u;

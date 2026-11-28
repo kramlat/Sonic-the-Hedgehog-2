@@ -219,7 +219,7 @@ void Obj_HTZBoss(Sst *self) {
         own->boss_routine += 2;
         self->render_flags |= SST_RENDER_MULTI_DRAW;
         self->collision_flags = 0x0F;
-        self->collision_property = 8;
+        self->collision_property = Boss_Hits(8);
         boss_flag = 3;
         boss_move.ysp = (int16_t)0xFF20;
         boss_move.x.f.u = self->x_pos.f.u;
