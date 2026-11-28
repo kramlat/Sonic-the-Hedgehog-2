@@ -2,7 +2,7 @@
 // Beta 4's Load_Title_Cards_Art. Written by tools/import_s2b4_cards.pl (the frames are those of asm/Mappings/TitleCardNames.asm).
 #include <stdint.h>
 
-#define TITLECARD_NAMES 18 // (the frames of the names)
+#define TITLECARD_NAMES 23 // (the frames of the names)
 
 const uint8_t titlecard_letters[TITLECARD_NAMES][20] = {
     /*  0 EMERALD HILL */ { 0x2A, 0x06, 0x38, 0x04, 0x00, 0x04, 0x26, 0x04, 0x0C, 0x04, 0x18, 0x04, 0x1C, 0x02, 0xFF },
@@ -22,5 +22,10 @@ const uint8_t titlecard_letters[TITLECARD_NAMES][20] = {
     /* 14 HIDDEN PALACE */ { 0x18, 0x04, 0x1C, 0x02, 0x0C, 0x04, 0x30, 0x04, 0x00, 0x04, 0x26, 0x04, 0x08, 0x04, 0xFF },
     /* 15 ROCK WORLD */ { 0x38, 0x04, 0x08, 0x04, 0x22, 0x04, 0x4C, 0x06, 0x26, 0x04, 0x0C, 0x04, 0xFF },
     /* 16 OCEAN WIND */ { 0x08, 0x04, 0x00, 0x04, 0x4C, 0x06, 0x1C, 0x02, 0x0C, 0x04, 0xFF },
-    /* 17 ZONE ZONE */ { 0xFF }, // (not a real zone: the id one past the last slot, a side effect of counting; its name is the ZONE frame, which the fixed art holds)
+    /* 17 ZONE ZONE */ { 0xFF }, // (frames 17 to 22 are no names: the word ZONE, the act numbers, the banner and the edge; a zone id of $11 to $16 reaches them, the ROM does this too: the zone id is the mapping frame)
+    /* 18 ACT 1 */ { 0xFF },
+    /* 19 ACT 2 */ { 0xFF },
+    /* 20 ACT 3 */ { 0xFF },
+    /* 21 SONIC THE HEDGEHOG */ { 0xFF },
+    /* 22 EDGE */ { 0xFF },
 };

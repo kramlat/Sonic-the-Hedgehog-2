@@ -134,12 +134,15 @@ for my $i (0 .. $#tc_frames) {
 }
 close $tm;
 open my $td, '>', 'src/TitleCardData.c' or die;
-print $td "// The letters each title card name needs from the alphabet art (Art_TitleCardLetters), as pairs of first tile and tiles, in the order they are copied to tile \$5DE on, ended by \$FF:\n// Beta 4's Load_Title_Cards_Art. Written by tools/import_s2b4_cards.pl (the frames are those of asm/Mappings/TitleCardNames.asm).\n#include <stdint.h>\n\n#define TITLECARD_NAMES 18 // (the frames of the names)\n\n";
+print $td "// The letters each title card name needs from the alphabet art (Art_TitleCardLetters), as pairs of first tile and tiles, in the order they are copied to tile \$5DE on, ended by \$FF:\n// Beta 4's Load_Title_Cards_Art. Written by tools/import_s2b4_cards.pl (the frames are those of asm/Mappings/TitleCardNames.asm).\n#include <stdint.h>\n\n#define TITLECARD_NAMES 23 // (the frames of the names)\n\n";
 printf $td "const uint8_t titlecard_letters[TITLECARD_NAMES][20] = {\n";
 for my $i (0 .. $#names) {
     printf $td "    /* %2d %s */ { %s0xFF },\n", $i, $names[$i][0], join('', map { sprintf '0x%02X, ', $_ } @{ $tc_letters[$i] });
 }
-printf $td "    /* %2d ZONE ZONE */ { 0xFF }, // (not a real zone: the id one past the last slot, a side effect of counting; its name is the ZONE frame, which the fixed art holds)\n", scalar @names;
+for my $x ('ZONE ZONE', 'ACT 1', 'ACT 2', 'ACT 3', 'SONIC THE HEDGEHOG', 'EDGE') {
+    printf $td "    /* %2d %s */ { 0xFF }, // (frames after the names are no names: a zone id of \$11 to \$16 reaches them, the ROM does this too: the zone id is the mapping frame)\n", scalar @names, $x;
+    push @names, [$x];
+}
 print $td "};\n";
 close $td;
 for my $x (['artnem/TC_ZONE.nem', 'TitleCardZone'], ['artnem/TC_AY.nem', 'TitleCardLetters']) {

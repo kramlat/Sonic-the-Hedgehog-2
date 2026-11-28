@@ -315,28 +315,28 @@ extern const uint8_t titlecard_letters[][20];
 #define TC_ART_FIXED 0x580   // the fixed part (E, N, O, ZONE, the numbers)
 #define TC_ART_LETTERS 0x5DE // where the letters a name needs are copied to
 
-// The name's frame by zone slot (a zone that has no name of its own is Green Hill, as the pre-beta's placeholder slots are)
+// The name's frame by zone id: the ROM uses the zone id as the mapping frame (Obj34_ZoneName), so the table runs on past the names into the frames that follow them, and an id that is no zone shows what is there: $11
+// (Empty11, a real slot) says "ZONE" for its name, $12 to $14 are the three act numbers, $15 the banner and $16 the zigzag edge, drawn as the zone's name. A zone that has no name of its own is Green Hill (Emerald Hill's
+// card says so too: the pre-beta has no other name for its first slot)
+#define NAME_FRAMES 0x17
+static const uint8_t name_frame[NAME_FRAMES] = {
+    [ZoneId_EHZ] = 0, [ZoneId_Empty01] = 15, // (Rock World: no zone yet)
+    [ZoneId_WZ] = 11, [ZoneId_SSZ] = 12, [ZoneId_MTZ] = 1,
+    [ZoneId_Empty05] = 16, // (Ocean Wind: no zone yet)
+    [ZoneId_SFZ] = 9,  // Sky Fortress
+    [ZoneId_HTZ] = 2, [ZoneId_HPZ] = 14, [ZoneId_GCZ] = 13, [ZoneId_OOZ] = 3,
+    [ZoneId_MCZ] = 4,  // Dust Hill
+    [ZoneId_CNZ] = 5, [ZoneId_CPZ] = 6,
+    [ZoneId_DEZ] = 10, // Death Egg
+    [ZoneId_ARZ] = 7,  // Neo Green Hill
+    [ZoneId_SCZ] = 8,
+    [ZoneId_Empty11] = TC_FRAME_ZONE, // "ZONE ZONE"
+    TC_FRAME_ACT1, TC_FRAME_ACT1 + 1, TC_FRAME_ACT1 + 2, // ($12 to $14)
+    21, 22,                                              // ($15, $16)
+};
+
 static uint8_t TitleCard_NameFrame(int zone) {
-    switch (zone) {
-    case ZoneId_MTZ: return 1;
-    case ZoneId_HTZ: return 2;
-    case ZoneId_OOZ: return 3;
-    case ZoneId_MCZ: return 4;  // Dust Hill
-    case ZoneId_CNZ: return 5;
-    case ZoneId_CPZ: return 6;
-    case ZoneId_ARZ: return 7;  // Neo Green Hill
-    case ZoneId_SCZ: return 8;
-    case ZoneId_SFZ: return 9;  // Sky Fortress
-    case ZoneId_DEZ: return 10; // Death Egg
-    case ZoneId_WZ: return 11;
-    case ZoneId_SSZ: return 12;
-    case ZoneId_GCZ: return 13;
-    case ZoneId_HPZ: return 14;
-    case ZoneId_Empty01: return 15; // Rock World (no zone yet)
-    case ZoneId_Empty05: return 16; // Ocean Wind (no zone yet)
-    case ZoneId_Num: return TC_FRAME_ZONE; // not a real zone: the id one past the last slot (ZoneId_Num) is a side effect of counting, and its card calls itself "ZONE ZONE"
-    default: return 0;          // Green Hill (Emerald Hill's card says so too: the pre-beta has no other name for its first slot)
-    }
+    return (zone >= 0 && zone < NAME_FRAMES) ? name_frame[zone] : 0;
 }
 
 // The card's art goes into VRAM when the level's first pattern load cues have finished, not when the card is made: those lists (the water zones' bubbles at $5E8, Hidden Palace's bat at $5A8) have
