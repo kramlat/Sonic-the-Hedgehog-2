@@ -636,7 +636,7 @@ static void CNZObjects_TheSlotMachineSpinsAndStopsOnItsOwn(void) {
     }
     CHECK_EQ(SlotMachine_State(), 0x18); // (all three reels have stopped)
     CHECK(frames > 100 && frames < 3000);
-    CHECK_EQ(SlotMachine_Result(), 0x0150); // (three of the symbol 3 pay $150: the first row of the table)
+    CHECK_EQ(SlotMachine_Result(), 150); // (three of the symbol 3 pay 150 rings: the first row of the table)
 }
 
 static void CNZObjects_TheSlotStarterHoldsACharacterAndLetsHimGoDown(void) {
@@ -665,7 +665,15 @@ static void CNZObjects_TheSlotStarterHoldsACharacterAndLetsHimGoDown(void) {
     CHECK_EQ(player->y_vel, 0x400);
 }
 
-static void CNZObjects_ASlotStarterWithASubtypeHoldsUntilTheMachineIsDone(void) {
+// The prizes the starter sends are objects of their own: they run with the starter
+static void RunPrizes(void) {
+    for (size_t i = 0; i < SST_COUNT; i++)
+        if (sst[i].code == Obj_CNZRingPrize || sst[i].code == Obj_CNZBombPrize)
+            sst[i].code(&sst[i]);
+}
+
+// A starter with a subtype holds a character, starts the reels, and pays the result before it lets him go (the frame counter's low byte at the spin's start picks the row of the table that sets the stops)
+static void SlotStarterRun(uint16_t frame_at_start, int *out_frames) {
     Reset();
     level_id = LEVEL_ID(ZoneId_CNZ, 0);
     SlotMachine_Reset();
@@ -683,15 +691,35 @@ static void CNZObjects_ASlotStarterWithASubtypeHoldsUntilTheMachineIsDone(void) 
     }
     CHECK_EQ(OBJ_CONTROL(player), 0x81);
     CHECK_EQ(SlotMachine_State(), 0x08); // (the reels start)
-    frame_count = 0x0007;
-    for (int i = 0; i < 3000 && OBJ_CONTROL(player) == 0x81; i++) {
+    frame_count = frame_at_start;
+    int frames = 0;
+    for (; frames < 6000 && OBJ_CONTROL(player) == 0x81; frames++) {
         frame_count++;
         SlotMachine_Process();
         Obj_CNZSlotStarter(starter);
+        RunPrizes();
     }
-    CHECK_EQ(OBJ_CONTROL(player), 0); // (let go when the machine rests again: far later than the $78 frames)
+    *out_frames = frames;
+}
+
+static void CNZObjects_ASlotStarterWithASubtypeHoldsUntilTheMachineIsDoneAndPaysRings(void) {
+    int frames;
+    rings = 0;
+    SlotStarterRun(0x0007, &frames); // (three of the symbol 3: 150 rings)
+    CHECK_EQ(OBJ_CONTROL(player), 0); // (let go when the machine rests and the prizes have come)
     CHECK_EQ(SlotMachine_State(), 0x18);
     CHECK_EQ(player->y_vel, 0x400);
+    CHECK_EQ(rings, 150);
+    CHECK(frames > 300); // (a prize every other frame, far later than the $78 frames of the one that only pays points)
+}
+
+static void CNZObjects_ThreeBombsTakeTheRingsAway(void) {
+    int frames;
+    rings = 30;
+    SlotStarterRun(0x0080, &frames); // (the frame counter's row of three bombs: a hundred bomb prizes)
+    CHECK_EQ(SlotMachine_Result() & 0x8000, 0x8000); // (below zero)
+    CHECK_EQ(OBJ_CONTROL(player), 0);
+    CHECK_EQ(rings, 0); // (a ring each, to the last one)
 }
 
 static void SSZObjects_TheSwitchIsAButtonAndABaseFromTheLevelsTiles(void) {
@@ -733,7 +761,8 @@ void RegisterNGHZObjectTests(void) {
     RUN_TEST(CNZObjects_TheBlueBumperThrowsBySideAndMovesWithASubtype);
     RUN_TEST(CNZObjects_TheSlotMachineSpinsAndStopsOnItsOwn);
     RUN_TEST(CNZObjects_TheSlotStarterHoldsACharacterAndLetsHimGoDown);
-    RUN_TEST(CNZObjects_ASlotStarterWithASubtypeHoldsUntilTheMachineIsDone);
+    RUN_TEST(CNZObjects_ASlotStarterWithASubtypeHoldsUntilTheMachineIsDoneAndPaysRings);
+    RUN_TEST(CNZObjects_ThreeBombsTakeTheRingsAway);
     RUN_TEST(CNZObjects_TheFlipperThrowsWhoStandsOnItWhenAButtonIsPressed);
     RUN_TEST(CNZObjects_TheLargeTriangleBumpersThrowWhoTouchesThem);
     RUN_TEST(CNZObjects_TheBlueBumperIsTouchedByTheCharacters);

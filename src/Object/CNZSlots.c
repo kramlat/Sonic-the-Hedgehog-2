@@ -16,6 +16,8 @@
 #include "Object/CharControl.h"
 #include "Object/Sonic.h"
 #include "Object/Tails.h"
+#include "Object/Ring.h"
+#include "MathUtil.h"
 #include "Solid.h"
 #include "Sound.h"
 #include "VersusStats.h"
@@ -27,12 +29,17 @@
 #include "Resource/Animation/CNZSlotStarter.h"
 #include "Resource/Art/CNZSlotCheck.h"
 #include "Resource/Mappings/CNZSlotStarter.h"
+#include "Resource/Mappings/CNZBombPrize.h"
+extern const uint8_t Mappings_RingREV01[]; // (Ring.c's: the ring's eight frames)
 
 void Obj_EnemyPoints(Sst *self);
 
 #define ArtTile_CNZSlotStarter 0x388 // ($7100: the zone's list)
+#define ArtTile_CNZBombPrize 0x380   // (ArtNem_CNZBonusSpike: the slot machine's spike ball art, $7000)
 
 static uint8_t m[0x12];
+static bool slot_in_use;          // SlotMachineInUse: a starter that starts the machine has a character, until it has let him go
+static uint16_t bonus_countdown;  // Bonus_Countdown_3: the frames the bombs have been waiting, so that their sound is not made at every one
 
 static uint16_t W(int off) { return (uint16_t)((m[off] << 8) | m[off + 1]); }
 static void SetW(int off, uint16_t v) {
@@ -42,6 +49,8 @@ static void SetW(int off, uint16_t v) {
 
 void SlotMachine_Reset(void) {
     memset(m, 0, sizeof(m));
+    slot_in_use = false;
+    bonus_countdown = 0;
 }
 
 uint8_t SlotMachine_State(void) {
@@ -65,8 +74,8 @@ static const uint8_t reel_symbols[3][8] = {
 };
 // loc_27E1A: the stops a spin is set up for, by the frame counter: it counts down the thresholds; $0F, $FF is "any"
 static const uint8_t spin_choices[7][3] = { { 0x08, 0x03, 0x33 }, { 0x12, 0x00, 0x00 }, { 0x12, 0x01, 0x11 }, { 0x24, 0x02, 0x22 }, { 0x1E, 0x04, 0x44 }, { 0x1E, 0x05, 0x55 }, { 0xFF, 0x0F, 0xFF } };
-// Offset_0x026EDE: the reward for three of each symbol (BCD; $FFFF is the jackpot)
-static const uint16_t rewards[6] = { 0x0030, 0x0025, 0xFFFF, 0x0150, 0x0010, 0x0020 };
+// SlotRingRewards (the final game's: rings, plain numbers; the third symbol, the bomb, is -1, and what is below zero is bombs, not rings)
+static const int16_t rewards[6] = { 30, 25, -1, 150, 10, 20 };
 
 static uint8_t frame_lo(void) {
     return (uint8_t)frame_count;
@@ -122,30 +131,18 @@ static void Draw(void) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
-// The result (Offset_0x026D94 and what it calls): three of a kind pay by the symbol, a symbol 3 (the wild one) with two others pays on, and fives alone are counted
+// The result (SlotMachine_ChooseReward and what it calls): three of a kind pay by the symbol, a symbol 3 (the wild one) with two others pays on, and bars alone are counted
 // ---------------------------------------------------------------------------------------------------------------------------------------
-static uint16_t Bcd(uint16_t v) { // (three digits)
-    return (uint16_t)(((v / 100) << 8) | (((v / 10) % 10) << 4) | (v % 10));
+static uint16_t Reward(unsigned symbol) { // SlotMachine_GetReward
+    return (uint16_t)rewards[symbol < 6 ? symbol : 0];
 }
 
-static uint16_t Unbcd(uint16_t b) {
-    return (uint16_t)(((b >> 8) & 0xF) * 100 + ((b >> 4) & 0xF) * 10 + (b & 0xF));
+static uint16_t Times4(uint16_t d0) { // SlotMachine_QuadrupleUp
+    return (uint16_t)(d0 << 2);
 }
 
-static uint16_t Reward(unsigned symbol) { // Offset_0x026E80
-    return rewards[symbol];
-}
-
-static uint16_t Times4(uint16_t d0) { // Offset_0x026E8E
-    if ((int16_t)d0 < 0)
-        return (uint16_t)(d0 << 2);
-    return Bcd((uint16_t)(Unbcd(d0) * 4));
-}
-
-static uint16_t Times2(uint16_t d0) { // Offset_0x026EB2
-    if ((int16_t)d0 < 0)
-        return (uint16_t)(d0 + d0);
-    return Bcd((uint16_t)(Unbcd(d0) * 2));
+static uint16_t Times2(uint16_t d0) { // SlotMachine_DoubleUp
+    return (uint16_t)(d0 + d0);
 }
 
 static void Evaluate(void) {
@@ -396,15 +393,154 @@ void SlotMachine_Process(void) {
     }
 }
 
-// ---------------------------------------------------------------------------------------------------------------------------------------
-// Object D6: the starter
-// ---------------------------------------------------------------------------------------------------------------------------------------
 typedef struct {
     uint8_t subtype;
     uint8_t pad[7];
     uint16_t state[2]; // 0x30, 0x34: for Sonic and for Tails: 0 waiting, 2 held, 4 let go (the next word of each is its timer)
     uint16_t timer[2]; // 0x32, 0x36
+    uint16_t bombs;    // 0x2A: the bombs still to send (-1: not set yet)
+    uint16_t flying;   // 0x2C: the prizes that are on their way
+    uint16_t angle;    // 0x2E: where the next prize starts on the circle round the machine
 } Own_SlotStarter;
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// The prizes: the ring prize ($DC) and the bomb prize ($D3) of the final game. The starter sends them out on a circle round the machine, and each flies in to the machine a sixteenth of the way a frame; when its
+// delay is up it is paid (a ring is counted, with the ring's sparkle) or collected (a bomb takes a ring from the character and the spikes' sound)
+// ---------------------------------------------------------------------------------------------------------------------------------------
+typedef struct {
+    int32_t x, y;        // 0x30, 0x34: the position with the fractions (the high words are the place)
+    uint16_t *flying;    // 0x2A: the starter's count of the prizes that are on their way
+    Sst *chr;            // parent: the character the machine holds
+    int16_t machine_x, machine_y; // 0x38, 0x3A
+    int16_t delay;       // 0x3C: the frames before it is paid
+    uint8_t age;         // (the spin's own frame counter)
+} Own_Prize;
+
+// The place and the way in, as both prizes do it
+static void Prize_Fly(Sst *self, Own_Prize *own) {
+    const int32_t mx = (int32_t)((uint32_t)(uint16_t)own->machine_x << 16);
+    const int32_t my = (int32_t)((uint32_t)(uint16_t)own->machine_y << 16);
+    own->x -= (own->x - mx) >> 4;
+    self->x_pos.f.u = (int16_t)(own->x >> 16);
+    own->y -= (own->y - my) >> 4;
+    self->y_pos.f.u = (int16_t)(own->y >> 16);
+}
+
+// What the character has of rings: in the versus play the second player's are his own set (swapped in for the time)
+static void Prize_Rings(const Sst *chr, bool add) {
+    const bool second = vs_stats_active && chr == TAILS_OBJ;
+    if (second)
+        VsStats_Swap();
+    if (add) {
+        Ring_Collect();
+    } else if (rings != 0) {
+        rings--;
+        ring_count |= 1; // (the HUD's ring count is updated)
+    }
+    if (second)
+        VsStats_Swap();
+}
+
+void Obj_CNZRingPrize(Sst *self) { // ObjDC
+    Own_Prize *own = (Own_Prize *)self->own.u8;
+    switch (self->routine) {
+    case 0:
+        Prize_Fly(self, own);
+        self->mapping_frame = (uint8_t)((own->age++ >> 1) & 3); // (Ani_objDC: the four spinning frames, two frames each)
+        if (--own->delay != 0) {
+            Sst_Draw(self);
+            return;
+        }
+        (*own->flying)--;
+        Prize_Rings(own->chr, true); // (CollectRing)
+        self->routine = 2;
+        own->age = 0;
+        // Fallthrough
+    case 2: // Ani_Ring: the sparkle, six frames to each of its four, and it is gone
+        self->mapping_frame = (uint8_t)(4 + own->age / 6);
+        if (++own->age >= 24) {
+            Sst_Delete(self);
+            return;
+        }
+        Sst_Draw(self);
+        return;
+    }
+}
+
+void Obj_CNZBombPrize(Sst *self) { // ObjD3
+    Own_Prize *own = (Own_Prize *)self->own.u8;
+    Prize_Fly(self, own);
+    if (--own->delay != 0) {
+        Sst_Draw(self);
+        return;
+    }
+    (*own->flying)--;
+    if (bonus_countdown >= 5) { // (a sound at the most every fifth frame that a bomb arrives)
+        bonus_countdown = 0;
+        QueueSound2(sfx_HitSpikes);
+    }
+    Prize_Rings(own->chr, false);
+    Sst_Delete(self);
+}
+
+// A prize is sent out from the starter: where it starts is the circle round the machine at the starter's angle, which the next one's is a step on (SlotStarter's loc_2BC86 and loc_2BD4E)
+static bool Prize_Send(Sst *self, Own_SlotStarter *own, Sst *chr, bool bomb) {
+    Sst *prize = Sst_SpawnCode(bomb ? Obj_CNZBombPrize : Obj_CNZRingPrize, self->x_pos.f.u, self->y_pos.f.u);
+    if (prize == NULL)
+        return false;
+    Own_Prize *pr = (Own_Prize *)prize->own.u8;
+    prize->mappings = bomb ? Mappings_CNZBombPrize : Mappings_RingREV01;
+    prize->art_tile = bomb ? TILE_MAP(0, 0, 0, 0, ArtTile_CNZBombPrize) : TILE_MAP(0, 1, 0, 0, ArtTile_Ring);
+    prize->render_flags = SST_RENDER_LEVEL;
+    prize->priority = (bomb ? 4 : 3) * 0x80;
+    prize->width_pixels = bomb ? 0x10 : 8;
+    pr->delay = bomb ? 0x1E : 0x1A;
+    pr->machine_x = self->x_pos.f.u;
+    pr->machine_y = self->y_pos.f.u;
+    int16_t sin, cos;
+    CalcSine((uint8_t)own->angle, &sin, &cos);
+    own->angle = (uint16_t)(own->angle + (bomb ? 0x90 : 0x89));
+    pr->x = (int32_t)((uint32_t)(uint16_t)(self->x_pos.f.u + (cos >> 1)) << 16);
+    pr->y = (int32_t)((uint32_t)(uint16_t)(self->y_pos.f.u + (sin >> 1)) << 16);
+    prize->x_pos.f.u = (int16_t)(pr->x >> 16);
+    prize->y_pos.f.u = (int16_t)(pr->y >> 16);
+    pr->flying = &own->flying;
+    pr->chr = chr;
+    own->flying++;
+    return true;
+}
+
+// The prizes of the result, once the machine is at rest (loc_2BC86): ring prizes for a reward of rings, bomb prizes (a hundred) for a bomb's; one every other frame, sixteen on their way at the most. True when
+// everything has been paid and has arrived: the character is let go
+static bool SlotStarter_Prizes(Sst *self, Own_SlotStarter *own, Sst *chr) {
+    const int16_t reward = (int16_t)SlotMachine_Result();
+    if (reward < 0) {
+        if ((int16_t)own->bombs < 0)
+            own->bombs = 100;
+        if (own->bombs != 0) {
+            if (!(frame_count & 1) || own->flying >= 16 || !Prize_Send(self, own, chr, true)) {
+                bonus_countdown++;
+                return false;
+            }
+            own->bombs--;
+        }
+        if (own->flying == 0)
+            return true;
+        bonus_countdown++;
+        return false;
+    }
+    if (reward != 0) {
+        if (!(frame_count & 1) || own->flying >= 16 || !Prize_Send(self, own, chr, false))
+            return false;
+        SetW(4, (uint16_t)(reward - 1));
+    }
+    return own->flying == 0;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// Object D6: the starter
+// ---------------------------------------------------------------------------------------------------------------------------------------
+
 
 // A character is let go (loc_27824)
 static void SlotStarter_Release(Sst *self, Own_SlotStarter *own, Sst *chr, int who) {
@@ -415,13 +551,17 @@ static void SlotStarter_Release(Sst *self, Own_SlotStarter *own, Sst *chr, int w
     chr->status |= SST_PSTATUS_IN_AIR;
     chr->y_vel = 0x400;
     own->state[who] = 4;
-    own->timer[who] = 0x3C;
+    own->timer[who] = 0x1E; // (the final game's rest: Beta 4's was $3C)
 }
 
 static void SlotStarter_Character(Sst *self, Own_SlotStarter *own, Sst *chr, int who) {
     const int32_t side = Solid_Character(self, chr, who, 0x23, 0x10, 0x11, self->x_pos.f.u, NULL);
     switch (own->state[who]) {
     case 0:
+        if (OBJ_CONTROL(chr) != 0) // (a character the machine or another object holds)
+            return;
+        if (self->subtype != 0 && slot_in_use) // (one that starts the machine waits while another has it)
+            return;
         if (side != -1)
             return;
         chr->x_pos.f.u = self->x_pos.f.u;
@@ -437,14 +577,20 @@ static void SlotStarter_Character(Sst *self, Own_SlotStarter *own, Sst *chr, int
         self->anim = 1;
         own->state[who] = 2;
         own->timer[who] = 0x78;
-        if (self->subtype != 0) // (only a starter with a subtype starts the machine: the others only pay)
+        if (self->subtype != 0 && SlotMachine_State() == 0x18) { // (only a starter with a subtype starts the machine: the others only pay)
             SlotMachine_Start();
+            own->bombs = (uint16_t)-1;
+            own->flying = 0;
+            own->angle = 0;
+            slot_in_use = true;
+        }
         break;
 
     case 2:
-        if (self->subtype != 0) { // holds him until the machine is at rest again, a sound every sixteenth frame
+        if (self->subtype != 0) { // holds him until the machine is at rest again, a sound every sixteenth frame, and then until its prizes have been paid
             if (SlotMachine_State() == 0x18) {
-                SlotStarter_Release(self, own, chr, who);
+                if (SlotStarter_Prizes(self, own, chr))
+                    SlotStarter_Release(self, own, chr, who);
             } else if ((frame_count & 0xF) == 0) {
                 PlaySound(sfx_Basaran); // ($C0)
             }
@@ -464,8 +610,11 @@ static void SlotStarter_Character(Sst *self, Own_SlotStarter *own, Sst *chr, int
         break;
 
     default: // 4: a rest before it takes anyone again
-        if ((int16_t)--own->timer[who] < 0)
+        if ((int16_t)--own->timer[who] < 0) {
             own->state[who] = 0;
+            if (self->subtype != 0)
+                slot_in_use = false;
+        }
         break;
     }
 }

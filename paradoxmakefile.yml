@@ -998,6 +998,7 @@ mappings_SonicTheHedgehog2:
   - "Mappings/CNZPlungerDiagonal"
   - "Mappings/CNZBlueBumper"
   - "Mappings/CNZSlotStarter"
+  - "Mappings/CNZBombPrize"
   - "Mappings/NGHZRisingPillar"
   - "Mappings/NGHZFallingPillar"
   - "Mappings/SFZConveyorWheels"
