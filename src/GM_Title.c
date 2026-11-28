@@ -301,6 +301,7 @@ void GM_Title(void) {
     // (Sonic 1 shows its "SONIC TEAM PRESENTS" screen here, with the hidden Japanese credits. Sonic 2 skips it; "MILES TAILS PROWER IN" is to take its place later.)
     memset(dry_palette_dup, 0, sizeof(dry_palette_dup));
     PalLoad1(PalId_Sonic);
+    Sst_ResetAll(); // (the objects of the level or demo that has just ended, Tails' too, must not run or be drawn on the card: only the title's own are made below)
     ExecuteObjects();
     BuildSprites(NULL);
 
