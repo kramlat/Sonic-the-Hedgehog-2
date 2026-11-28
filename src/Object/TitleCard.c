@@ -14,6 +14,7 @@ extern uint8_t true_two_player; // (Game.h: the versus play)
 
 #include "Resource/Mappings/TitleCard.h"
 #include "Resource/Mappings/TitleCardNames.h"
+#include "TitleCardData.h"
 #include "Resource/Art/TitleCardZone.h"
 #include "Resource/Art/TitleCardLetters.h"
 #include "Nemesis.h"
@@ -310,16 +311,15 @@ void TitleCard_Leave(void) {
 // The title cards of the Sonic 2 pre-beta (September 14, 1992: its object $34, Obj_0x34_Title_Cards; art, mappings and letter tables from tools/import_s2prebeta_titlecards.pl). Three elements slide
 // in: the name of the zone (from the right), ZONE and the act number (from the left); they wait a second after the level has been loaded and slide away, the name's end loading the explosion's and the
 // animals' art. Its frames: the names (the pre-beta's own, and Wood's, Sand Shower's, Cyber City's and Hidden Palace's written from its alphabet: the user), ZONE, ACT 1 to 3
-enum { TC_FRAME_ZONE = 17, TC_FRAME_ACT1 = 18 }; // (the names are frames 0 to 16: the last two are the empty slots' own, ready for when the zones are built)
+// (the frame numbers are TitleCardData.h's, generated from the importer's list of names)
 extern const uint8_t titlecard_letters[][20];
 #define TC_ART_FIXED 0x580   // the fixed part (E, N, O, ZONE, the numbers)
 #define TC_ART_LETTERS 0x5DE // where the letters a name needs are copied to
 
-// The name's frame by zone id: the ROM uses the zone id as the mapping frame (Obj34_ZoneName), so the table runs on past the names into the frames that follow them, and an id that is no zone shows what is there: $11
-// (Empty11, a real slot) says "ZONE" for its name, $12 to $14 are the three act numbers, $15 the banner and $16 the zigzag edge, drawn as the zone's name. A zone that has no name of its own is Green Hill (Emerald Hill's
-// card says so too: the pre-beta has no other name for its first slot)
-#define NAME_FRAMES 0x17
-static const uint8_t name_frame[NAME_FRAMES] = {
+// The name's frame by zone id: the ROM uses the zone id as the mapping frame (Obj34_ZoneName), so past the names the ids run on into the frames that follow them, and an id that is no zone shows what is there:
+// the first id after the names says "ZONE" (the ROM's "ZONE ZONE"), then come the three act numbers, the banner and the zigzag edge, drawn as the zone's name. A zone that has no name of its own is Green Hill
+// (Emerald Hill's card says so too: the pre-beta has no other name for its first slot). The frames move when a name is added to the importer's list: only this table of the names' own needs the new zone's entry
+static const uint8_t name_frame[TC_NAMES] = {
     [ZoneId_EHZ] = 0, [ZoneId_Empty01] = 15, // (Rock World: no zone yet)
     [ZoneId_WZ] = 11, [ZoneId_SSZ] = 12, [ZoneId_MTZ] = 1,
     [ZoneId_Empty05] = 16, // (Ocean Wind: no zone yet)
@@ -330,13 +330,12 @@ static const uint8_t name_frame[NAME_FRAMES] = {
     [ZoneId_DEZ] = 10, // Death Egg
     [ZoneId_ARZ] = 7,  // Neo Green Hill
     [ZoneId_SCZ] = 8,
-    [ZoneId_Empty11] = TC_FRAME_ZONE, // "ZONE ZONE"
-    TC_FRAME_ACT1, TC_FRAME_ACT1 + 1, TC_FRAME_ACT1 + 2, // ($12 to $14)
-    21, 22,                                              // ($15, $16)
 };
 
 static uint8_t TitleCard_NameFrame(int zone) {
-    return (zone >= 0 && zone < NAME_FRAMES) ? name_frame[zone] : 0;
+    if (zone >= 0 && zone < TC_NAMES)
+        return name_frame[zone];
+    return (zone >= TC_NAMES && zone <= TC_FRAME_EDGE) ? (uint8_t)zone : 0; // (the ROM's: the id is the frame)
 }
 
 // The card's art goes into VRAM when the level's first pattern load cues have finished, not when the card is made: those lists (the water zones' bubbles at $5E8, Hidden Palace's bat at $5A8) have
@@ -560,11 +559,11 @@ static const uint16_t tc_line1[16] = { 0x0C20, 0x0000, 0x0E62, 0x0A86, 0x0E86, 0
 // The elements' timings (Beta 4's table at loc_10C94): where each starts and stops, and how many frames it waits before it moves
 static const struct { int16_t x0, x1, y; uint8_t frame; uint8_t delay; bool wide_aligned; } tc_element[TCE_COUNT] = {
     { 0x0240, 0x0120, 0x00B8, 0, 0x1B, false },                     // the name (frame: by the zone)
-    { 0x0028, 0x0148, 0x00D0, 15, 0x1C, false },                    // ZONE
-    { 0x0068, 0x0188, 0x00D0, 16, 0x1C, false },                    // the act number (frame: by the act)
+    { 0x0028, 0x0148, 0x00D0, TC_FRAME_ZONE, 0x1C, false },                    // ZONE
+    { 0x0068, 0x0188, 0x00D0, TC_FRAME_ACT1, 0x1C, false },                    // the act number (frame: by the act)
     { 0, 0, 0, 0, 0, false },                                       // the curtain
-    { 0x02A8, 0x0168, 0x0120, 21, 8, true },                        // the banner (SONIC THE HEDGEHOG), on the yellow
-    { 0x0080, 0x00F0, 0x00F0, 22, 0x15, true },                     // the zigzag edge of the red
+    { 0x02A8, 0x0168, 0x0120, TC_FRAME_BANNER, 8, true },                        // the banner (SONIC THE HEDGEHOG), on the yellow
+    { 0x0080, 0x00F0, 0x00F0, TC_FRAME_EDGE, 0x15, true },                     // the zigzag edge of the red
 };
 
 // Title card object
