@@ -22,8 +22,9 @@ static void HTZBackground_StepFollowsTheCamera(void) {
 static void HTZBackground_FirstStepShowsTheFirstSixChunks(void) {
     int chunks[6];
     HTZBackground_StepChunks(0, chunks);
+    static const int first[6] = { 0x80, 0x180, 0x280, 0x580, 0x600, 0x700 }; // (the final's Dynamic_HTZ.offsets)
     for (int k = 0; k < 6; k++)
-        CHECK_EQ(chunks[k], k);
+        CHECK_EQ(chunks[k], first[k]);
 }
 
 static void HTZBackground_StripRowsAreTheirPicturesWhenNothingScrolls(void) {

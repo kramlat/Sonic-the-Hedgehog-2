@@ -300,8 +300,8 @@ static void RunEvents(void) {
             dle_routine -= 2;
         }
         break;
-    case 0xA: // the boss's arena (DynResize_HTz_Act_2 on): at $2C00 the left edge follows the camera and the lower limit is $480
-        if (Boss_Behind(0x2C00))
+    case 0xA: // the boss's arena (the final's LevEvents_HTZ2_Routine6; Beta 4's was $2C00): at $2C50 the left edge follows the camera and the lower limit is $480
+        if (Boss_Behind(0x2C50))
             break;
         limit_left2 = scrpos_x.f.u;
         limit_btm1 = 0x480 - SCREEN_TALLADD;
@@ -331,6 +331,12 @@ static void RunEvents(void) {
         if (boss_status) {
             limit_left2 = scrpos_x.f.u;
             limit_right1 = limit_right2;
+            if (scrpos_x.f.u >= 0x30E0) { // (the final's Routine9: past $30E0 the camera's top and bottom limits come up 2 a frame, to $428 and $430)
+                if (limit_top2 >= 0x428 - SCREEN_TALLADD)
+                    limit_top2 -= 2;
+                if (limit_btm1 >= 0x430 - SCREEN_TALLADD)
+                    limit_btm1 -= 2;
+            }
         }
         break;
     }

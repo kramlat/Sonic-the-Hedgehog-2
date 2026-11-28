@@ -474,8 +474,8 @@ void DynamicLevelEvents(void) {
         if (LEVEL_ACT(level_id) != 1)
             break; // (act 1 has none, and act 3 is a copy of it)
         switch (dle_routine) { // (Beta 4's DynResize_GHz, act 2)
-        case 0: // the camera's coming to $2750: it cannot go back, and the lower limit is $390
-            if (Boss_Behind((0x2750 - SCREEN_WIDEADD2)))
+        case 0: // the camera's coming to $2780 (the final's; Beta 4's was $2750): it cannot go back, and the lower limit is $390
+            if (Boss_Behind((0x2780 - SCREEN_WIDEADD2)))
                 break;
             limit_left2 = scrpos_x.f.u;
             limit_btm1 = 0x390 - SCREEN_TALLADD;

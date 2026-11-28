@@ -13,42 +13,38 @@
 #include <string.h>
 
 #include "Backend/VDP.h"
-#include "Nemesis.h"
+#include "Kosinski.h"
 #include "TileBank.h"
 
-#include "Resource/Art/HTZBackground.h"
 #include "Resource/S2Art/HTZBgStrips.h"
 
 int16_t htz_layerdef[2][0x12]; // (a set for each view of a split screen) TempArray_LayerDef: the 16 layers' scroll (words 0-15) and the drift of the mountains (word $11, the byte offset $22)
 
-// loc_22D94: where in RAM the prototype puts each of the 48 chunks of the background's art (4 tiles each), by its place in the art; loc_224C4's words (the sets of chunks to show) name them by those places
-static const uint16_t chunk_places[48] = {
-    0x0080, 0x0280, 0x0380, 0x0580, 0x0600, 0x0880, 0x0980, 0x0A80, 0x0B80, 0x0C80, 0x0E80, 0x0F00,
-    0x1080, 0x1180, 0x1200, 0x1280, 0x1300, 0x1380, 0x1400, 0x1480, 0x1500, 0x1600, 0x1900, 0x1D00,
-    0x1D80, 0x1E00, 0x2280, 0x2400, 0x2580, 0x2600, 0x2680, 0x2780, 0x2B00, 0x3280, 0x3600, 0x3680,
-    0x3C80, 0x3D00, 0x3F00, 0x3F80, 0x4080, 0x4480, 0x4580, 0x4880, 0x4900, 0x4B80, 0x4C80, 0x4D80,
-};
-
-// loc_224C4: the six chunks for each camera step, as windows of six words into this list
+// Dynamic_HTZ's .offsets (the final's): the byte offsets into the level's own art (Hill Top's tileset: the primary art, then its supplement from tile $1FC) of the six 4-tile chunks of each step; the steps' words
+// are windows of six into this list (the final reads them from the art in RAM, the prototype had separate art for them)
 static const uint16_t chunk_sets[96] = {
-    0x0080, 0x0280, 0x0380, 0x0580, 0x0600, 0x0880, 0x0080, 0x0280, 0x0380, 0x0580, 0x0600, 0x0880,
-    0x0980, 0x0A80, 0x0B80, 0x0C80, 0x0E80, 0x0F00, 0x0980, 0x0A80, 0x0B80, 0x0C80, 0x0E80, 0x0F00,
-    0x1080, 0x1180, 0x1200, 0x1280, 0x1300, 0x1380, 0x1080, 0x1180, 0x1200, 0x1280, 0x1300, 0x1380,
-    0x1400, 0x1480, 0x1500, 0x1600, 0x1900, 0x1D00, 0x1400, 0x1480, 0x1500, 0x1600, 0x1900, 0x1D00,
-    0x1D80, 0x1E00, 0x2280, 0x2400, 0x2580, 0x2600, 0x1D80, 0x1E00, 0x2280, 0x2400, 0x2580, 0x2600,
-    0x2680, 0x2780, 0x2B00, 0x3280, 0x3600, 0x3680, 0x2680, 0x2780, 0x2B00, 0x3280, 0x3600, 0x3680,
-    0x3C80, 0x3D00, 0x3F00, 0x3F80, 0x4080, 0x4480, 0x3C80, 0x3D00, 0x3F00, 0x3F80, 0x4080, 0x4480,
-    0x4580, 0x4880, 0x4900, 0x4B80, 0x4C80, 0x4D80, 0x4580, 0x4880, 0x4900, 0x4B80, 0x4C80, 0x4D80,
+    0x0080, 0x0180, 0x0280, 0x0580, 0x0600, 0x0700, 0x0080, 0x0180, 0x0280, 0x0580, 0x0600, 0x0700,
+    0x0980, 0x0A80, 0x0B80, 0x0C80, 0x0D00, 0x0D80, 0x0980, 0x0A80, 0x0B80, 0x0C80, 0x0D00, 0x0D80,
+    0x0E80, 0x1180, 0x1200, 0x1280, 0x1300, 0x1380, 0x0E80, 0x1180, 0x1200, 0x1280, 0x1300, 0x1380,
+    0x1400, 0x1480, 0x1500, 0x1580, 0x1600, 0x1900, 0x1400, 0x1480, 0x1500, 0x1580, 0x1600, 0x1900,
+    0x1D00, 0x1D80, 0x1E00, 0x1F80, 0x2400, 0x2580, 0x1D00, 0x1D80, 0x1E00, 0x1F80, 0x2400, 0x2580,
+    0x2600, 0x2680, 0x2780, 0x2B00, 0x2F00, 0x3280, 0x2600, 0x2680, 0x2780, 0x2B00, 0x2F00, 0x3280,
+    0x3600, 0x3680, 0x3780, 0x3C80, 0x3D00, 0x3F00, 0x3600, 0x3680, 0x3780, 0x3C80, 0x3D00, 0x3F00,
+    0x3F80, 0x4080, 0x4480, 0x4580, 0x4880, 0x4900, 0x3F80, 0x4080, 0x4480, 0x4580, 0x4880, 0x4900,
 };
 
-static uint8_t chunk_art[48 * 0x80]; // the art, decompressed (the prototype's $FFFFB800 buffer, spread to the places above)
-static bool chunk_art_loaded;
+#define LEVEL_ART_MAIN 0x3F80 // ArtTile_ArtKos_NumTiles_HTZ_Main ($1FC tiles): where the supplement goes over Emerald Hill's art
+static uint8_t level_art[LEVEL_ART_MAIN + 0x3040]; // the level's art in RAM (the final's Chunk_Table): $1FC tiles of the primary and the supplement's $183
+static bool level_art_loaded;
 static uint8_t last_step[2];         // the camera step the chunks were last chosen for (the byte after the first animation counter)
+
+extern const uint8_t S2Art_EHZPrimary[];
+extern const uint8_t S2Art_HTZSecondary[];
 
 void HTZBackground_Reset(void) {
     memset(htz_layerdef, 0, sizeof(htz_layerdef));
     last_step[0] = last_step[1] = 0xFF; // (no step: the first frame puts the chunks in. The prototype starts with step 0 and so shows what the title left at $A200 -- its TM -- until the camera's step changes)
-    chunk_art_loaded = false;
+    level_art_loaded = false;
 }
 
 // For the tests: the step the chunks were last chosen for (0xFF: none yet)
@@ -56,21 +52,14 @@ int HTZBackground_LastStep(void) {
     return last_step[0];
 }
 
-// loc_22D62: the background's art, decompressed once for the level
-static void LoadChunkArt(void) {
-    if (chunk_art_loaded)
+// The level's art, decompressed once (the final's LoadZoneTiles: the primary, then the supplement over it from tile $1FC)
+static void LoadLevelArt(void) {
+    if (level_art_loaded)
         return;
-    memset(chunk_art, 0, sizeof(chunk_art));
-    NemDecToRAM(Art_HTZBackground, chunk_art);
-    chunk_art_loaded = true;
-}
-
-// Which of the 48 chunks the prototype's offset `place` names
-static int ChunkOf(uint16_t place) {
-    for (int i = 0; i < 48; i++)
-        if (chunk_places[i] == place)
-            return i;
-    return 0;
+    memset(level_art, 0, sizeof(level_art));
+    KosDec(S2Art_EHZPrimary, level_art);
+    KosDec(S2Art_HTZSecondary, level_art + LEVEL_ART_MAIN);
+    level_art_loaded = true;
 }
 
 // The camera step (0-$2F) that decides which chunks show: the camera's x in sixteenths, less its eighth the other way, less $10, modulo $30 (loc_2244E)
@@ -81,11 +70,11 @@ int HTZBackground_Step(int16_t camera_x) {
     return d0 % 0x30;
 }
 
-// The six chunks of a step: the window of six words that its low three bits and the next three give (the prototype's byte offset (step & 7) * 24 + ((step >> 3) & 7) * 2)
+// The six chunks of a step, as byte offsets into the level's art: the window of six words that its low three bits and the next three give (the byte offset (step & 7) * 24 + ((step >> 3) & 7) * 2)
 void HTZBackground_StepChunks(int step, int chunks[6]) {
     const int start = (step & 7) * 12 + ((step >> 3) & 7);
     for (int k = 0; k < 6; k++)
-        chunks[k] = ChunkOf(chunk_sets[start + k]);
+        chunks[k] = chunk_sets[start + k];
 }
 
 // loc_22584: the strip of tiles made from the picture of the mountains: 16 rows of 4 pixel lines of 8 pixels, row i shifted by layer i's scroll (and the camera's eighth) to the pixel (the picture has a second
@@ -130,7 +119,7 @@ static void AnimateView(int view, int16_t camera_x) {
         int chunks[6];
         HTZBackground_StepChunks(step, chunks);
         for (int k = 0; k < 6; k++)
-            PutTiles(view, (size_t)k * 0x80, chunk_art + chunks[k] * 0x80, 0x80);
+            PutTiles(view, (size_t)k * 0x80, level_art + chunks[k], 0x80);
     }
     uint8_t strips[0x100];
     HTZBackground_BuildStrips(camera_x, htz_layerdef[view], strips);
@@ -140,7 +129,7 @@ static void AnimateView(int view, int16_t camera_x) {
 // The animated art routine's own part (loc_2244E, before the flowers). The prototype makes the mountains for one camera only (its two player scroll has no mountains); a split screen here gives each view
 // its own set.
 void HTZBackground_Animate(void) {
-    LoadChunkArt();
+    LoadLevelArt();
     AnimateView(0, (int16_t)scrpos_x.f.u);
     if (camera_split && p2_bank != NULL)
         AnimateView(1, (int16_t)scrpos_x_p2.f.u);
