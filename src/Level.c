@@ -662,14 +662,15 @@ bool Level_HasWater(void) {
     return LEVEL_ZONE(level_id) == ZoneId_HPZ || LEVEL_ZONE(level_id) == ZoneId_ARZ || (LEVEL_ZONE(level_id) == ZoneId_CPZ && LEVEL_ACT(level_id) == 1); // (Chemical Plant's second act: the first has none; Neo Green Hill's both do)
 }
 
-// WaterHeight: the first act's is $600 (the lower the number the higher the water; Tails' pad moves it)
+// WaterHeight, the final game's full table (useFullWaterTables: a pair of acts for every zone slot, so any slot may have water; the lower the number the higher the water; Tails' pad moves it)
 int16_t Level_WaterStartHeight(void) {
-    if (LEVEL_ZONE(level_id) == ZoneId_CPZ)
-        return 0x710; // (the prototype's WaterHeight: Chemical Plant's second act)
-    if (LEVEL_ZONE(level_id) == ZoneId_ARZ)
-        return LEVEL_ACT(level_id) == 0 ? 0x410 : 0x510; // (Neo Green Hill's)
-    static const int16_t WaterHeight[4] = { 0x600, 0x328, 0x900, 0x228 };
-    return WaterHeight[LEVEL_ACT(level_id)];
+    const unsigned zone = LEVEL_ZONE(level_id);
+    const unsigned act = LEVEL_ACT(level_id) & 1;
+    if (zone == ZoneId_CPZ)
+        return act ? 0x710 : 0x600; // (the prototype's: Chemical Plant's second act)
+    if (zone == ZoneId_ARZ)
+        return act ? 0x510 : 0x410; // (Neo Green Hill's)
+    return 0x600; // (every other slot of the table)
 }
 
 void Level_LoadWaterPalettes(bool sonic) {
