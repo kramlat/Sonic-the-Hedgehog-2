@@ -333,6 +333,8 @@ static void PCycle_OOZ(void) {
 // Dust Hill (PalCycle_DHz): every 2 ticks colour 12 of line 2
 static void PCycle_MCZ(void) {
     static uint16_t frame;
+    if (boss_flag)
+        return; // (the final's PalCycle_MCZ: the lantern stops while a boss is on, the boss's palette is in line 2)
     if (--pcyc_time >= 0)
         return;
     pcyc_time = 1;
