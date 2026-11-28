@@ -266,8 +266,63 @@ static void Deform_Plain(int x_shift, int y_shift) {
 
 // Wood (Bg_Scroll_Wz) and Metropolis (Bg_Scroll_Mz): an eighth of the way across, a quarter down
 static void Deform_WZ(void) { Deform_Plain(5, 6); }
-// Oil Ocean (Bg_Scroll_OOz)
-static void Deform_OOZ(void) { Deform_Plain(5, 5); }
+// Oil Ocean (the final's SwScrl_OOZ): the background moves an eighth of the camera's way (X and Y), and its lines are written from the bottom of the 224 up: the factory (as many lines as the background's height says), three
+// layers of clouds, a layer of 7 lines, the sun's heat haze (33 lines, the ripple table read from where the frame counter's eighth says, written over the background's scroll with the foreground's kept), five more layers of
+// clouds and 72 lines of empty sky; the lines under the 224 (a taller screen) are the factory's
+static const int8_t OOZ_RippleData[66] = {
+	1, 2, 1, 3, 1, 2, 2, 1, 2, 3, 1, 2, 1, 2, 0, 0, 2, 0, 3, 2, 2, 3, 2, 2, 1, 3, 0, 0, 1, 0, 1, 3,
+	1, 2, 1, 3, 1, 2, 2, 1, 2, 3, 1, 2, 1, 2, 0, 0, 2, 0, 3, 2, 2, 3, 2, 2, 1, 3, 0, 0, 1, 0, 1, 3,
+	1, 2
+};
+static int ooz_line; // the line the next one is written to (counting down; the original stops when it is below the first)
+static void OOZ_Lines(int count, int16_t foreground, int16_t background) {
+	for (; count > 0 && ooz_line >= 0; count--, ooz_line--) {
+		hscroll_buffer[ooz_line][0] = foreground;
+		hscroll_buffer[ooz_line][1] = background;
+	}
+}
+static void Deform_OOZ(void) {
+	bg_scrpos_x.v += (int32_t)scrshift_x << 5;
+	bg_scrpos_y.v += (int32_t)scrshift_y << 5;
+	vid_bg_scrpos_y_dup = bg_scrpos_y.f.u;
+
+	static uint16_t sun_phase; // TempArray_LayerDef
+	if (((uint8_t)frame_count & 7) == 0)
+		sun_phase--;
+
+	const int16_t fg = (int16_t)-scrpos_x.f.u;
+	const int16_t d7 = (int16_t)-bg_scrpos_x.f.u;
+	for (int i = 224; i < SCREEN_HEIGHT; i++) {
+		hscroll_buffer[i][0] = fg;
+		hscroll_buffer[i][1] = d7;
+	}
+	ooz_line = 223;
+
+	// the factory: BG height less 80 (not under 0), less 176 (a wrap, or 0 from 176 on), plus 223, and a line more
+	uint16_t t = bg_scrpos_y.f.u;
+	t = t >= 80 ? (uint16_t)(t - 80) : 0;
+	uint16_t d1 = t >= 176 ? 0 : (uint16_t)(t - 176);
+	d1 = (uint16_t)(d1 + 223);
+	OOZ_Lines(d1 + 1, fg, d7);
+
+	const int16_t medium = (int16_t)(d7 >> 3), slow = (int16_t)(d7 >> 4), fast = (int16_t)(d7 >> 2);
+	OOZ_Lines(8, fg, medium);
+	OOZ_Lines(8, fg, slow);
+	OOZ_Lines(8, fg, fast);
+	OOZ_Lines(7, fg, slow);
+
+	const int8_t *ripple = OOZ_RippleData + (sun_phase & 0x1F);
+	for (int i = 0; i < 33; i++)
+		OOZ_Lines(1, fg, ripple[i]);
+
+	OOZ_Lines(8, fg, medium);
+	OOZ_Lines(8, fg, slow);
+	OOZ_Lines(8, fg, fast);
+	OOZ_Lines(8, fg, slow);
+	OOZ_Lines(8, fg, medium);
+	OOZ_Lines(72, fg, d7);
+	OOZ_Lines(ooz_line + 1, fg, d7); // (the original leaves what was there; this never happens for a factory of a line or more)
+}
 // Casino Night (the pre-beta's Bg_Scroll_CNz): the background is the plane as it is (its X is 0) and a sixty-fourth of the camera's height down; its lines make ten bands of the 384: eight of 16 lines
 // at seven speeds that go from the camera's X to 22/64 of it (the first seven bands, one step of 7/64 of it each) and then 1/16 and 1/16, a band of 16 lines with the wave (Bg_Scroll_Data, read from
 // where the frame counter's eighth says) over the ninth speed, and 240 lines at an eighth
