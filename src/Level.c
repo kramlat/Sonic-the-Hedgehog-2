@@ -475,14 +475,14 @@ void DynamicLevelEvents(void) {
             break; // (act 1 has none, and act 3 is a copy of it)
         switch (dle_routine) { // (Beta 4's DynResize_GHz, act 2)
         case 0: // the camera's coming to $2750: it cannot go back, and the lower limit is $390
-            if ((uint16_t)scrpos_x.f.u < (0x2750 - SCREEN_WIDEADD2))
+            if ((uint16_t)Boss_TriggerX() < (0x2750 - SCREEN_WIDEADD2))
                 break;
             limit_left2 = scrpos_x.f.u;
             limit_btm1 = 0x390 - SCREEN_TALLADD;
             dle_routine += 2;
             break;
         case 2: // at $28F0 the arena's walls ($28F0 and $2940), the boss's art, the music goes
-            if ((uint16_t)scrpos_x.f.u < (0x28F0 - SCREEN_WIDEADD2))
+            if ((uint16_t)Boss_TriggerX() < (0x28F0 - SCREEN_WIDEADD2))
                 break;
             limit_left2 = 0x28F0 - SCREEN_WIDEADD2;
             limit_right2 = 0x2940 + SCREEN_WIDEADD2;

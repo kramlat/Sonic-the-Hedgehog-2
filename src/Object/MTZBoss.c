@@ -2,6 +2,7 @@
 // animation of its parts, each a pair of nibbles in a small buffer; its hits are counted by its own code, not Boss_Hit (the flash is $40 frames). The ship is a multi-sprite object: the main sprite is the hull, and
 // its children are Robotnik and the boost. Object 54 comes in three kinds by its routine: 2 is the ship, 4 a shot and 6 a part that follows the ship; object 53 in five: 0 makes the seven balls, 2 is a ball in orbit,
 // 4 one that has been let go and falls, 6 the small Robotnik that walks out of it and 8 its end.
+#include "SplitScreen.h"
 #include "Object/MTZBoss.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
@@ -74,14 +75,14 @@ void MTZBoss_Reset(void) {
 void MTZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
-        if (scrpos_x.f.u < (0x2980 - SCREEN_WIDEADD2))
+        if (Boss_TriggerX() < (0x2980 - SCREEN_WIDEADD2))
             break;
         limit_left2 = scrpos_x.f.u;
         limit_btm1 = 0x0400 - SCREEN_TALLADD;
         dle_routine += 2;
         break;
     case 2:
-        if (scrpos_x.f.u < (0x2A80 - SCREEN_WIDEADD2))
+        if (Boss_TriggerX() < (0x2A80 - SCREEN_WIDEADD2))
             break;
         limit_left2 = 0x2AB0 - SCREEN_WIDEADD2;
         limit_right2 = 0x2AB0 + SCREEN_WIDEADD2;

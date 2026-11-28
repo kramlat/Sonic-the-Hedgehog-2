@@ -1,6 +1,7 @@
 // Neo Green Hill's boss for Sonic 2, as the pre-beta has it (object 89, Obj_0x89_NGHz_Boss): see NGHZBoss.h. It uses the boss helpers of BossCommon (the ship's place and speed in a buffer, the animation buffer of its
 // three parts). The object comes in three kinds by its routine: 0 waits for the characters to come into the arena and then becomes the ship (2), which makes two launchers (4, one for each wall); a launcher makes
 // the marker of an arrow (4 with the second routine 8) and the pillar that follows it (second routine 6).
+#include "SplitScreen.h"
 #include "Object/NGHZBoss.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
@@ -77,7 +78,7 @@ static const int16_t arrow_targets[4] = { 0x458, 0x478, 0x498, 0x4B8 };
 void NGHZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
-        if (scrpos_x.f.u < (0x2800 - SCREEN_WIDEADD2))
+        if (Boss_TriggerX() < (0x2800 - SCREEN_WIDEADD2))
             break;
         limit_left2 = 0x2800 - SCREEN_WIDEADD2;
         limit_btm1 = 0x400 - SCREEN_TALLADD;
@@ -86,7 +87,7 @@ void NGHZBoss_Events(void) {
         AddPLC(PlcId_NGHZBoss);
         break;
     case 2:
-        if (scrpos_x.f.u < (0x2A40 - SCREEN_WIDEADD2))
+        if (Boss_TriggerX() < (0x2A40 - SCREEN_WIDEADD2))
             break;
         limit_right1 = limit_right2 = 0x2A40 + SCREEN_WIDEADD2;
         limit_left2 = 0x2A40 - SCREEN_WIDEADD2;

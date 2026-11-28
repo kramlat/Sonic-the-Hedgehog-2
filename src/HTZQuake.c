@@ -1,6 +1,7 @@
 // Hill Top's earthquake for Sonic 2: the prototype's events (DynResize_HTz, loc_7AE4: act 1's three states and act 2's five), the shaking branch of its background scroll (Bg_Scroll_HTz's loc_6236) and
 // object 30 (Obj_0x30, the solid pieces of the ground that moves). The events move the background by a diff of their own while the camera is in a quake's stretch of the level (Screen_Shaking_Flag_HTZ),
 // and every now and then they move the ground up or down by a quarter pixel a frame, between two limits, with the screen shaking (Screen_Shaking_Flag) while it does.
+#include "SplitScreen.h"
 #include "SstLoad.h"
 #include "VersusStats.h"
 #include "ObjectSst.h"
@@ -300,14 +301,14 @@ static void RunEvents(void) {
         }
         break;
     case 0xA: // the boss's arena (DynResize_HTz_Act_2 on): at $2C00 the left edge follows the camera and the lower limit is $480
-        if (camx < 0x2C00)
+        if ((uint16_t)Boss_TriggerX() < 0x2C00)
             break;
         limit_left2 = scrpos_x.f.u;
         limit_btm1 = 0x480 - SCREEN_TALLADD;
         dle_routine += 2;
         break;
     case 0xC: // at $2EDF the arena is shut ($2EE0 to $2F5E), the music fades, Boss_Flag 3 and the boss's list
-        if (camx < 0x2EDF)
+        if ((uint16_t)Boss_TriggerX() < 0x2EDF)
             break;
         limit_left2 = 0x2EE0 - SCREEN_WIDEADD2;
         limit_right1 = limit_right2 = 0x2F5E + SCREEN_WIDEADD2;

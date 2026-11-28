@@ -1,5 +1,6 @@
 // Casino Night's boss for Sonic 2, as Beta 4 has it (object 51, Obj_0x51_CNz_Boss; the pre-beta's was a different fight): see CNZBoss.h. Like Dust Hill's it uses the shared boss helpers (BossCommon): the ship's place and speed in a buffer, and the
 // animation of its parts, each a pair of nibbles in a small buffer. Its parts are the object's child sprites: the right catcher, the ship, Robotnik and the left catcher (its own sprite is the flame under the ship).
+#include "SplitScreen.h"
 #include "Object/CNZBoss.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
@@ -67,7 +68,7 @@ void CNZBoss_Reset(void) {
 void CNZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
-        if (scrpos_x.f.u < (0x27C0 - SCREEN_WIDEADD2))
+        if (Boss_TriggerX() < (0x27C0 - SCREEN_WIDEADD2))
             break;
         limit_left2 = scrpos_x.f.u;
         limit_btm1 = 0x062E - SCREEN_TALLADD;
@@ -75,7 +76,7 @@ void CNZBoss_Events(void) {
         dle_routine += 2;
         break;
     case 2:
-        if (scrpos_x.f.u < (0x2890 - SCREEN_WIDEADD2))
+        if (Boss_TriggerX() < (0x2890 - SCREEN_WIDEADD2))
             break;
         LevelLayout_SetChunk(LEVEL_LAYOUT_PLANE_FG, 0x50, 0x0C, 0xF9);
         limit_left2 = 0x2860 - SCREEN_WIDEADD2;
@@ -98,7 +99,7 @@ void CNZBoss_Events(void) {
         }
         break;
     case 6: // once the camera is past $2A00 its lower limit is let down to $5D0 and the left edge follows it, the right limit stays where it is (loc_D092)
-        if (scrpos_x.f.u >= (0x2A00 - SCREEN_WIDEADD2)) {
+        if (Boss_TriggerX() >= (0x2A00 - SCREEN_WIDEADD2)) {
             limit_btm1 = 0x5D0 - SCREEN_TALLADD;
             limit_left2 = scrpos_x.f.u;
             limit_right1 = limit_right2;

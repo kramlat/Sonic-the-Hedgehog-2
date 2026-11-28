@@ -1,6 +1,7 @@
 // Oil Ocean's boss for Sonic 2, as the pre-beta has it (object 55, Obj_0x55): see OOZBoss.h. It uses the shared boss helpers (BossCommon): the ship's place and speed in a buffer, and the animation of its parts, each a pair
 // of nibbles in a small buffer. Its parts are the object's child sprites: the ship (one child) while it dives, and the eight links of its tail (the main sprite is Robotnik himself). The object comes in four kinds
 // by its routine: 2 dives out of the oil and bobs (the only one that can be hurt), 4 hovers and spits balls, 6 swings round the arena, and 8 is a ball of oil, which lights a flame (the same routine, by its second one).
+#include "SplitScreen.h"
 #include "Object/OOZBoss.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
@@ -56,7 +57,7 @@ void OOZBoss_Reset(void) {
 void OOZBoss_Events(void) {
     switch (dle_routine) {
     case 0:
-        if (scrpos_x.f.u < (0x2668 - SCREEN_WIDEADD2))
+        if (Boss_TriggerX() < (0x2668 - SCREEN_WIDEADD2))
             break;
         limit_left2 = scrpos_x.f.u;
         for (int i = 0; i < SST_COUNT; i++) {
@@ -67,7 +68,7 @@ void OOZBoss_Events(void) {
         dle_routine += 2;
         break;
     case 2:
-        if (scrpos_x.f.u < (0x2880 - SCREEN_WIDEADD2))
+        if (Boss_TriggerX() < (0x2880 - SCREEN_WIDEADD2))
             break;
         limit_left2 = 0x2880 - SCREEN_WIDEADD2;
         limit_right2 = 0x28C0 + SCREEN_WIDEADD2;

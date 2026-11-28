@@ -41,6 +41,12 @@ static int16_t view_width; // how wide each view is
 static int16_t follow_x;   // where its camera keeps the player from the view's left edge
 static uint16_t left_limit_p2; // the second camera's left limit: the level's, until something locks it
 
+int16_t Boss_TriggerX(void) {
+    if (camera_split && !true_two_player && scrpos_x_p2.f.u < scrpos_x.f.u)
+        return scrpos_x_p2.f.u;
+    return scrpos_x.f.u;
+}
+
 bool SplitScreen_Active(void) {
     return camera_split;
 }

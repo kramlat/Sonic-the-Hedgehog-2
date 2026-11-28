@@ -1,5 +1,6 @@
 // Dust Hill's boss for Sonic 2, as the pre-beta has it (object 57, Obj_0x57_DHz_Boss): see DHZBoss.h. It uses the same boss helpers as the other bosses (BossCommon): the ship's place and speed in a buffer, and the
 // animation of its parts, each a pair of nibbles in a small buffer. Its parts (the front drill, the ship's body, Robotnik, the back drill) are the object's child sprites.
+#include "SplitScreen.h"
 #include "Object/DHZBoss.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
@@ -62,14 +63,14 @@ void DHZBoss_Events(void) {
             limit_right1 = limit_right2 = 0x2100 + SCREEN_WIDEADD2;
             break;
         }
-        if (scrpos_x.f.u < (0x2080 - SCREEN_WIDEADD2))
+        if (Boss_TriggerX() < (0x2080 - SCREEN_WIDEADD2))
             break;
         limit_left2 = scrpos_x.f.u;
         limit_btm1 = 0x5D0 - SCREEN_TALLADD;
         dle_routine += 2;
         break;
     case 2:
-        if (scrpos_x.f.u < (0x20F0 - SCREEN_WIDEADD2))
+        if (Boss_TriggerX() < (0x20F0 - SCREEN_WIDEADD2))
             break;
         limit_right1 = limit_right2 = 0x20F0 + SCREEN_WIDEADD2;
         limit_left2 = 0x20F0 - SCREEN_WIDEADD2;

@@ -7,6 +7,7 @@
 //   $12 Eggman                                       $14 a piece of the wreck, which falls
 //   $16 the ship's flame                             $18 the light on the ship
 // The ship is the first of them, and moves by two 16.16 numbers (the place it bobs about), and the others keep to it.
+#include "SplitScreen.h"
 #include "Object/CPZBoss.h"
 #include "SstLoad.h"
 #include "ObjectSst.h"
@@ -1044,14 +1045,14 @@ void CPZBoss_Events(void) {
     static uint8_t delay;
     switch (dle_routine) {
     case 0:
-        if (scrpos_x.f.u < 0x2680 - SCREEN_WIDEADD2)
+        if (Boss_TriggerX() < 0x2680 - SCREEN_WIDEADD2)
             break;
         limit_left2 = scrpos_x.f.u;
         limit_btm1 = 0x450 - SCREEN_TALLADD;
         dle_routine += 2;
         break;
     case 2:
-        if (scrpos_x.f.u < 0x2A20 - SCREEN_WIDEADD2)
+        if (Boss_TriggerX() < 0x2A20 - SCREEN_WIDEADD2)
             break;
         limit_left2 = 0x2A20 - SCREEN_WIDEADD2;
         limit_right1 = limit_right2 = 0x2A20 + SCREEN_WIDEADD2;
