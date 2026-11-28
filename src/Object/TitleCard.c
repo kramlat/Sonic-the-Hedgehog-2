@@ -334,6 +334,7 @@ static uint8_t TitleCard_NameFrame(int zone) {
     case ZoneId_HPZ: return 14;
     case ZoneId_Empty01: return 15; // Rock World (no zone yet)
     case ZoneId_Empty05: return 16; // Ocean Wind (no zone yet)
+    case ZoneId_Num: return TC_FRAME_ZONE; // not a real zone: the id one past the last slot (ZoneId_Num) is a side effect of counting, and its card calls itself "ZONE ZONE"
     default: return 0;          // Green Hill (Emerald Hill's card says so too: the pre-beta has no other name for its first slot)
     }
 }
