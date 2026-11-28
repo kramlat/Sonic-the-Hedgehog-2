@@ -662,15 +662,31 @@ bool Level_HasWater(void) {
     return LEVEL_ZONE(level_id) == ZoneId_HPZ || LEVEL_ZONE(level_id) == ZoneId_ARZ || (LEVEL_ZONE(level_id) == ZoneId_CPZ && LEVEL_ACT(level_id) == 1); // (Chemical Plant's second act: the first has none; Neo Green Hill's both do)
 }
 
-// WaterHeight, the final game's full table (useFullWaterTables: a pair of acts for every zone slot, so any slot may have water; the lower the number the higher the water; Tails' pad moves it)
+// WaterHeight: the final game's full table (useFullWaterTables), a pair of acts (even, odd) for every zone slot, so any slot may have water; the lower the number the higher the water; Tails' pad moves it
+static const int16_t water_height[ZoneId_Num][2] = {
+    [ZoneId_EHZ]     = { 0x600, 0x600 },
+    [ZoneId_Empty01] = { 0x600, 0x600 },
+    [ZoneId_WZ]      = { 0x600, 0x600 },
+    [ZoneId_SSZ]     = { 0x600, 0x600 },
+    [ZoneId_MTZ]     = { 0x600, 0x600 },
+    [ZoneId_Empty05] = { 0x600, 0x600 },
+    [ZoneId_SFZ]     = { 0x600, 0x600 },
+    [ZoneId_HTZ]     = { 0x600, 0x600 },
+    [ZoneId_HPZ]     = { 0x600, 0x600 },
+    [ZoneId_GCZ]     = { 0x600, 0x600 },
+    [ZoneId_OOZ]     = { 0x600, 0x600 },
+    [ZoneId_MCZ]     = { 0x600, 0x600 },
+    [ZoneId_CNZ]     = { 0x600, 0x600 },
+    [ZoneId_CPZ]     = { 0x600, 0x710 }, // (the second act: Chemical Plant's water)
+    [ZoneId_DEZ]     = { 0x600, 0x600 },
+    [ZoneId_ARZ]     = { 0x410, 0x510 }, // (Neo Green Hill's)
+    [ZoneId_SCZ]     = { 0x600, 0x600 },
+    [ZoneId_Empty11] = { 0x600, 0x600 },
+};
+
 int16_t Level_WaterStartHeight(void) {
     const unsigned zone = LEVEL_ZONE(level_id);
-    const unsigned act = LEVEL_ACT(level_id) & 1;
-    if (zone == ZoneId_CPZ)
-        return act ? 0x710 : 0x600; // (the prototype's: Chemical Plant's second act)
-    if (zone == ZoneId_ARZ)
-        return act ? 0x510 : 0x410; // (Neo Green Hill's)
-    return 0x600; // (every other slot of the table)
+    return water_height[zone < ZoneId_Num ? zone : 0][LEVEL_ACT(level_id) & 1];
 }
 
 void Level_LoadWaterPalettes(bool sonic) {
