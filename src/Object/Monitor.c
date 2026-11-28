@@ -17,6 +17,7 @@ void Obj_ObjectHit(Sst *self);
 #include "Object/ShieldInvincibility.h"
 #include "Object/InvincibilityStars.h"
 #include "Object/Tails.h"
+#include "Solid.h"
 #include "Level.h"
 #include "LevelCollision.h"
 #include "LevelScroll.h"
@@ -61,6 +62,18 @@ static int32_t Mon_SolidSides(Sst *self, uint16_t x_rad, uint16_t y_rad, int16_t
     return 1;
 }
 
+// The monitor as a solid for Tails (the computer's, or the second player's in the split screen): unbreakable for him in the one player game, where only Sonic breaks monitors. Where he breaks them (the cooperative
+// game and the versus play) it is the same as Sonic's: a monitor he rolls into is not in his way, the touch breaks it
+static void Mon_TailsSolid(Sst *self) {
+    Sst *chr = TAILS_OBJ;
+    if (Tails_IsPlayer() || chr->code == NULL)
+        return;
+    const bool breaks = true_two_player || Tails_CoopGame();
+    if (breaks && !(self->status & 0x10) && chr->y_vel >= 0 && (chr->anim == SonAnimId_Roll || chr->anim == 9))
+        return;
+    Solid_Character(self, chr, SolidChar_Tails, 0x1A, 0xF, 0x10, self->x_pos.f.u, NULL);
+}
+
 // Monitor object
 void Obj_Monitor(Sst *self) {
     switch (self->routine) {
@@ -95,6 +108,7 @@ void Obj_Monitor(Sst *self) {
             self->anim = 9; // (the versus play: every monitor shows the teleport icon and gives a random item)
         // Fallthrough
     case 2: // Solid
+        Mon_TailsSolid(self);
         switch (self->routine_secondary) {
         case 0: // Solid
         {
@@ -187,6 +201,12 @@ void Obj_Monitor(Sst *self) {
             player->status |= SST_PSTATUS_IN_AIR;
         }
         self->routine_secondary = 0;
+        if ((self->status & 0x10) && TAILS_OBJ->code != NULL) { // (and Tails the same)
+            self->status &= (uint8_t)~0x10;
+            TAILS_OBJ->status &= (uint8_t)~SST_PSTATUS_OBJECT_STAND;
+            TAILS_OBJ->status |= SST_PSTATUS_IN_AIR;
+        }
+        self->status &= (uint8_t)~0x40;
 
         // Create item object
         Sst *item = Sst_Allocate();
@@ -261,7 +281,11 @@ void Obj_MonitorItem(Sst *self) {
             bool second = vs_stats_active && self->status_tertiary == 1;
             if (vs_stats_active && (self->anim == 1 || self->anim == 2))
                 second = self->anim == 2; // (versus: the Sonic life is the first player's and the Miles life the second's, whoever broke the monitor)
-            Sst *breaker = second ? TAILS_OBJ : player; // (Beta 4: the shield, shoes and stars are on his own object)
+            // The cooperative game: Tails takes a shield, speed shoes and invincibility when he breaks the monitor, and everything else is Sonic's (his rings, his life), but Tails' own monitor, which does nothing,
+            // and Eggman's, which hurts the one who broke it
+            const bool coop_tails = !vs_stats_active && Tails_CoopGame() && self->status_tertiary == 1;
+            const bool own_item = coop_tails && (self->anim == 5 || self->anim == 6 || self->anim == 7);
+            Sst *breaker = (second || own_item) ? TAILS_OBJ : player; // (Beta 4: the shield, shoes and stars are on his own object)
             Scratch_Sonic* scratch = (Scratch_Sonic *)breaker->own.u8;
             if (second)
                 VsStats_Swap();
@@ -269,8 +293,9 @@ void Obj_MonitorItem(Sst *self) {
 
             switch (self->anim) {
             case 1: // Sonic
-            case 2: // Tails (the same extra life)
-                ExtraLife();
+            case 2: // Tails (the same extra life; in the cooperative game, where Tails' lives are not counted, nothing)
+                if (!Tails_CoopGame())
+                    ExtraLife();
                 break;
             case 4: // Rings
                 // Give 10 rings
@@ -289,9 +314,12 @@ void Obj_MonitorItem(Sst *self) {
                 }
                 break;
             case 5: // Shoes
-                shoes = true;
+                if (own_item)
+                    Tails_CoopGive(VS_SHOES);
+                else
+                    shoes = true;
                 scratch->shoes_time = 1200;
-                if (second) {
+                if (second || own_item) {
                     Tails_ShoesSpeed();
                 } else {
                     sonspeed_max = 0xC00;
@@ -301,12 +329,18 @@ void Obj_MonitorItem(Sst *self) {
                 SpeedUpMusic();
                 break;
             case 6: // Shield
-                shield = true;
+                if (own_item)
+                    Tails_CoopGive(VS_SHIELD);
+                else
+                    shield = true;
                 ShieldInvincibility_MakeFor(0, breaker);
                 PlaySound(sfx_Shield);
                 break;
             case 7: // Invincibility
-                invincibility = true;
+                if (own_item)
+                    Tails_CoopGive(VS_INVINCIBLE);
+                else
+                    invincibility = true;
                 scratch->invincibility_time = 1200;
                 ShieldInvincibility_MakeFor(1, breaker);
                 if (!lock_screen) {
@@ -314,7 +348,10 @@ void Obj_MonitorItem(Sst *self) {
                 }
                 break;
             case 3: // Eggman: hurts whoever broke it (a monitor with a face on it, as Sonic 1's and the final game's)
-                HurtSonicFrom(player, self->x_pos.f.u, false);
+                if (second || coop_tails)
+                    Tails_HurtFrom(TAILS_OBJ, self->x_pos.f.u, false);
+                else
+                    HurtSonicFrom(player, self->x_pos.f.u, false);
                 break;
             case 8: // The random monitor ("?"): the two players change places
                 if (true_two_player)

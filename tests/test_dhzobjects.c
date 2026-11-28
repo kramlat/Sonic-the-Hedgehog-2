@@ -1745,7 +1745,68 @@ static void Monitors_LetGoOfWhoStandsOnThemWhenTheyBreak(void) {
     CHECK_EQ(mon->status & 0x18, 0);
 }
 
+extern uint8_t two_player_mode, true_two_player;
+bool Tails_CoopHas(int what);
+#include "VersusStats.h"
+
+static void RunItems(void) {
+    for (int f = 0; f < 80; f++)
+        for (int i = 0x20; i < 0x80; i++)
+            if (sst[i].code == Obj_MonitorItem)
+                Obj_MonitorItem(&sst[i]);
+}
+
+static void Monitors_AreSolidForTailsInTheOnePlayerGame(void) {
+    Reset(ZoneId_EHZ);
+    two_player_mode = 0;
+    true_two_player = 0;
+    Sst *mon = Spawn(0x26, 4, 400, 400);
+    Obj_Monitor(mon);
+    TAILS_OBJ->code = SstTestFiller;
+    TAILS_OBJ->routine = 2;
+    TAILS_OBJ->y_radius = 15;
+    TAILS_OBJ->x_pos.f.u = 400;
+    TAILS_OBJ->y_pos.f.u = 400 - 15 - 15 + 4;
+    TAILS_OBJ->y_vel = 0x200;
+    TAILS_OBJ->anim = SonAnimId_Roll; // (rolling: it still does not break)
+    TAILS_OBJ->status |= SST_PSTATUS_IN_AIR;
+    Obj_Monitor(mon);
+    CHECK(mon->status & 0x10); // (he stands on it)
+    CHECK_EQ(mon->routine, 2);
+    TAILS_OBJ->code = sst_object_codes[0];
+}
+
+static void Monitors_GiveTailsHisOwnShieldInTheCooperativeGame(void) {
+    Reset(ZoneId_EHZ);
+    two_player_mode = 1;
+    true_two_player = 0;
+    vs_stats_active = false;
+    shield = 0;
+    rings = 0;
+    Sst *mon = Spawn(0x26, 6, 400, 400); // (the shield)
+    Obj_Monitor(mon);
+    TAILS_OBJ->code = SstTestFiller;
+    mon->status_tertiary = 1;
+    mon->routine = 4;
+    Obj_Monitor(mon);
+    RunItems();
+    CHECK(Tails_CoopHas(VS_SHIELD));
+    CHECK_EQ(shield, 0); // (Sonic has none)
+
+    Sst *rmon = Spawn(0x26, 4, 500, 400); // (rings: Sonic's)
+    Obj_Monitor(rmon);
+    rmon->status_tertiary = 1;
+    rmon->routine = 4;
+    Obj_Monitor(rmon);
+    RunItems();
+    CHECK_EQ(rings, 10);
+    TAILS_OBJ->code = sst_object_codes[0];
+    two_player_mode = 0;
+}
+
 void RegisterDHZObjectTests(void) {
+    RUN_TEST(Monitors_AreSolidForTailsInTheOnePlayerGame);
+    RUN_TEST(Monitors_GiveTailsHisOwnShieldInTheCooperativeGame);
     RUN_TEST(DHZ_TheCradleSwingsOutOnOneSideOnlyAndTheMiddleHangsStill);
     RUN_TEST(DHZ_TheCollapsingPlatformBreaksIntoSixPiecesOnceStoodOn);
     RUN_TEST(DHZ_TheCollapsingPlatformOfOilOceanIsWiderAndHasSevenPieces);

@@ -98,6 +98,8 @@ void VsStats_SecondHud(uint32_t *score_out, uint16_t *rings_out, uint8_t *min, u
 }
 
 bool VsStats_Has(const Sst *chr, int what) {
+    if (!vs_stats_active && chr == TAILS_OBJ && Tails_CoopGame())
+        return Tails_CoopHas(what); // (the cooperative game: his own)
     const bool in_game = !vs_stats_active || (chr == TAILS_OBJ) == second_in; // (whose set is in the game's variables)
     const Set *set = in_game ? NULL : &other;
     switch (what) {

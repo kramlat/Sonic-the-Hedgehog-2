@@ -56,6 +56,8 @@ static uint8_t *p_cam_y_delay = &tails_cam_y_delay_own;
 static int16_t *p_look_shift = &tails_look_shift_own;
 static int16_t *p_speed_max = &tails_speed_max_own, *p_speed_acc = &tails_speed_acc_own, *p_speed_dec = &tails_speed_dec_own;
 static bool tails_is_player;
+static uint8_t coop_tails[3]; // the cooperative game's Tails' own shield, invincibility, shoes (see Obj_Tails)
+static bool coop_in;          // that set is in the game's variables
 #define cam_x_delay (*p_cam_x_delay)
 #define cam_y_delay (*p_cam_y_delay)
 #define look_shift  (*p_look_shift)
@@ -1402,7 +1404,7 @@ static signed int React_Monitor(Sst *self, Sst *hit) {
             if (!hit->routine_secondary)
                 hit->routine_secondary += 4;
         }
-    } else if ((true_two_player || tails_is_player) && self->anim == SonAnimId_Roll && hit->routine == 2) { // (Beta 4: Tails does not break a monitor by landing on it unless a second human has him (the true 2 player mode: the versus play): only Sonic does, loc_3B5AA)
+    } else if ((true_two_player || tails_is_player || coop_in) && self->anim == SonAnimId_Roll && hit->routine == 2) { // (Beta 4: Tails does not break a monitor by landing on it unless a second human has him (the true 2 player mode: the versus play): only Sonic does, loc_3B5AA)
         // Break monitor (once: a monitor that is breaking already is not broken again by the other character)
         self->y_vel = -self->y_vel;
         hit->routine += 2;
@@ -1578,6 +1580,8 @@ static signed int HurtTails(Sst *self, int16_t src_x, bool spikes)
             }
         }
         shield = 0;
+    } else if (coop_in) {
+        shield = 0; // (his own shield, in the cooperative game: gone, and he is thrown as before)
     }
 
     // Set Sonic state
@@ -2332,8 +2336,34 @@ void Obj_TailsTails(Sst *self) {
 
 // Tails (object 02): in the versus play he runs with his own counters in the game's variables (VersusStats.h)
 static void Obj_Tails_Run(Sst *self);
+// The cooperative game (the split screen with no versus): Tails has his own shield, speed shoes and invincibility. They are swapped into the game's variables while his code runs (as the versus play swaps whole
+// sets), so everything in this file that reads them is his, and Sonic's are kept for his own
+bool Tails_CoopGame(void) { return two_player_mode && !true_two_player && !tails_is_player; }
+static void CoopSwap(void) {
+    uint8_t now[3] = { shield, invincibility, shoes };
+    shield = coop_tails[0];
+    invincibility = coop_tails[1];
+    shoes = coop_tails[2];
+    memcpy(coop_tails, now, sizeof(now));
+    coop_in = !coop_in;
+}
+bool Tails_CoopHas(int what) { // (the shield object and the stars ask: his set is where it is, in the variables or kept)
+    if (coop_in)
+        return what == VS_SHIELD ? shield : what == VS_INVINCIBLE ? invincibility : shoes;
+    return coop_tails[what == VS_SHIELD ? 0 : what == VS_INVINCIBLE ? 1 : 2];
+}
+void Tails_CoopGive(int what) { // (his monitor: a shield, the shoes or invincibility, put in his set; the timers are on his object)
+    coop_tails[what == VS_SHIELD ? 0 : what == VS_INVINCIBLE ? 1 : 2] = 1;
+}
+
 void Obj_Tails(Sst *self) {
     if (!vs_stats_active) {
+        if (two_player_mode && !true_two_player && self != player) {
+            CoopSwap();
+            Obj_Tails_Run(self);
+            CoopSwap();
+            return;
+        }
         Obj_Tails_Run(self);
         return;
     }
